@@ -19,6 +19,8 @@ void pvui::TransactionInsertionWidget::reset()
 	numberOfSharesEditor->setText("");
 	commissionEditor->setText("");
 	totalAmountEditor->setText("");
+
+	dateEditor->setFocus();
 }
 
 pvui::AccountPageWidget::AccountPageWidget(QWidget* parent) : PageWidget(parent),
@@ -161,6 +163,8 @@ void pvui::TransactionInsertionWidget::submit() {
 			pv::Decimal(commissionEditor->text().toStdString()),
 			pv::Decimal(totalAmountEditor->text().toStdString())
 		);
+
+		reset();
 	}
 }
 
