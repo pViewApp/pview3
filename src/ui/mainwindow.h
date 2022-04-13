@@ -17,7 +17,7 @@
 #include "accountpage.h"
 #include "datafilemanager.h"
 #include "datafile.h"
-#include "accountdialog.h"
+#include "securitypage.h"
 
 namespace pvui {
 	class NavigationDelegate : public QItemDelegate
@@ -50,7 +50,10 @@ namespace pvui {
 		QStackedLayout* contentLayout;
 		AccountPageWidget* accountPage;
 		DataFileManager dataFileManager;
+		SecurityPageWidget* securityPage = new SecurityPageWidget(dataFileManager);
 		QStandardItem* m_navigationAccountItem;
+
+		QStandardItem* securitiesNavigationItem = new QStandardItem(tr("Securities"));
 		std::unordered_map<QStandardItem*, pv::Account*> accountNavigationItems;
 
 		void setupDataFile();

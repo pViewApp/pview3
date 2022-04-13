@@ -1,14 +1,15 @@
 #pragma once
 #ifndef UI_DATAFILEMANAGER_H
 #define UI_DATAFILE_MANAGER_H
-
+#include <QObject>
 #include "datafile.h"
 
 namespace pvui {
 	using pv::DataFile;
 	using pv::Signal;
 
-	class DataFileManager {
+	class DataFileManager : public QObject {
+		Q_OBJECT
 	private:
 		DataFile m_dataFile;
 	public:

@@ -73,6 +73,7 @@ void pvui::MainWindow::setupNavigation()
 {
 
 	contentLayout->addWidget(accountPage);
+	contentLayout->addWidget(securityPage);
 	contentLayout->addWidget(noPageOpen);
 	contentLayout->setCurrentWidget(noPageOpen);
 
@@ -89,14 +90,13 @@ void pvui::MainWindow::setupNavigation()
 
 	QStandardItem* reports = new QStandardItem("Reports");
 	reports->setEditable(false);
-	QStandardItem* securities = new QStandardItem("Securities");
-	securities->setEditable(false);
+	securitiesNavigationItem->setEditable(false);
 
 	navigationModel->setHorizontalHeaderLabels({ "Navigation" });
 
 	navigationModel->appendRow(m_navigationAccountItem);
 	navigationModel->appendRow(reports);
-	navigationModel->appendRow(securities);
+	navigationModel->appendRow(securitiesNavigationItem);
 
 	QObject::connect(selectionModel, &QItemSelectionModel::selectionChanged, this, &MainWindow::pageChanged);
 }
@@ -142,4 +142,8 @@ void pvui::MainWindow::pageChanged(const QItemSelection& selection)
 		accountPage->setAccount(accountNavigationItems.at(selectedItem));
 		contentLayout->setCurrentWidget(accountPage);
 	}
+	else if (selectedItem == securitiesNavigationItem) {
+		contentLayout->setCurrentWidget(securityPage);
+	}
+		
 }
