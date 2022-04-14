@@ -35,25 +35,25 @@ namespace pv {
 		std::string assetClass_;
 		std::string sector_;
 	public:
-		inline static Security* const NONE = nullptr;
+		static constexpr Security* const NONE = nullptr;
 
 		Security(std::string symbol, std::string name, std::string assetClass, std::string sector);
 
 		Security(Security&&) = default;
 
-		inline std::string symbol() {
+		inline std::string symbol() const noexcept {
 			return symbol_;
 		}
 
-		inline std::string name() {
+		inline std::string name() const noexcept {
 			return name_;
 		}
 
-		inline std::string assetClass() {
+		inline std::string assetClass() const noexcept {
 			return assetClass_;
 		}
 
-		inline std::string sector() {
+		inline std::string sector() const noexcept {
 			return sector_;
 		}
 	};

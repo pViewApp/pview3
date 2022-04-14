@@ -6,47 +6,52 @@
 #include <QHBoxLayout>
 #include <QValidator>
 #include <QRegularExpression>
+#include <QShowEvent>
+#include <QSortFilterProxyModel>
 #include "datafilemanager.h"
 #include "page.h"
 
 namespace pvui {
 	namespace {
-		constexpr int maximumSymbolLength = 10;
-		inline static QRegularExpression const invalidSymbolRegularExpression = QRegularExpression("[^A-Z0-9.]");
 	}
 
 	class SecuritySymbolValidator : public QValidator {
 		Q_OBJECT
 	public:
-		QValidator::State validate(QString& input, int& pos) const override {
-			return input.contains(invalidSymbolRegularExpression) ? QValidator::State::Invalid : QValidator::State::Acceptable;
-		}
-
-		inline void fixup(QString& input) const override {
-			input = input.trimmed().toUpper();
-			input.truncate(maximumSymbolLength);
-		}
-
+		QValidator::State validate(QString& input, int& pos) const override;
 	};
+
 	class SecurityInsertionWidget : public QWidget {
 		Q_OBJECT
 	private:
-		QLineEdit* symbolEditor;
-		QLineEdit* nameEditor;
-		QComboBox* assetClassEditor;
-		QComboBox* sectorEditor;
-		QHBoxLayout* layout;
+		QLineEdit* symbolEditor = new QLineEdit;
+		QLineEdit* nameEditor = new QLineEdit;
+		QComboBox* assetClassEditor = new QComboBox;
+		QComboBox* sectorEditor = new QComboBox;
+		QHBoxLayout* layout = new QHBoxLayout(this);
+		pvui::DataFileManager& dataFileManager;
+		void reset();
+	protected:
+		inline void showEvent(QShowEvent* showEvent) override {
+			if (!showEvent->spontaneous()) {
+				symbolEditor->setFocus();
+			}
+		}
 	public:
-		SecurityInsertionWidget(QWidget* parent = nullptr);
+		SecurityInsertionWidget(pvui::DataFileManager& manager, QWidget* parent = nullptr);
+	public slots:
+		void submit();
 	};
+
 	class SecurityPageWidget : public PageWidget {
 		Q_OBJECT
 	private:
 		QTableView* table = new QTableView;
-		SecurityInsertionWidget* insertionWidget = new SecurityInsertionWidget;
-		const pvui::DataFileManager& dataFileManager_;
+		QSortFilterProxyModel* tableModel = new QSortFilterProxyModel;
+		pvui::DataFileManager& dataFileManager_;
+		SecurityInsertionWidget* insertionWidget = new SecurityInsertionWidget(dataFileManager_);
 	public:
-		SecurityPageWidget(const pvui::DataFileManager& dataFileManager, QWidget* parent = nullptr);
+		SecurityPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent = nullptr);
 	};
 }
 

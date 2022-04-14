@@ -1,13 +1,17 @@
-#include <date/date.h>
-#include <fmt/format.h>
 #include <algorithm>
+#include <string>
 #include <QTreeView>
 #include <QDate>
 #include <QHeaderView>
 #include <QLineEdit>
-#include "util.h"
+#include <date/date.h>
+#include <fmt/format.h>
 #include "accountpage.h"
 #include "actions.h"
+#include "securitypage.h"
+
+const std::string defaultSecurityAssetClass = "Equities";
+const std::string defaultSecuritySector = "Other";
 
 void pvui::TransactionInsertionWidget::reset()
 {
@@ -90,6 +94,8 @@ QVariant pvui::TransactionItemModel::data(const QModelIndex& index, int role) co
 		return QDate(static_cast<int>(ymd.year()), static_cast<unsigned int>(ymd.month()), static_cast<unsigned int>(ymd.day()));
 	case 1:
 		return QString::fromStdString(transaction.action().name());
+	case 2:
+		return transaction.security() == pv::Security::NONE ? "" : QString::fromStdString(transaction.security()->symbol());
 	case 3:
 		return QString::fromStdString(transaction.numberOfShares().str());
 	case 4:
@@ -139,6 +145,20 @@ pvui::TransactionInsertionWidget::TransactionInsertionWidget(pv::Account* accoun
 	layout->addWidget(commissionEditor, 1);
 	layout->addWidget(totalAmountEditor, 1);
 
+	static const QSizePolicy sizePolicy = { QSizePolicy::Ignored, QSizePolicy::Preferred };
+
+	dateEditor->setSizePolicy(sizePolicy);
+	actionEditor->setSizePolicy(sizePolicy);
+	securityEditor->setSizePolicy(sizePolicy);
+	numberOfSharesEditor->setSizePolicy(sizePolicy);
+	sharePriceEditor->setSizePolicy(sizePolicy);
+	commissionEditor->setSizePolicy(sizePolicy);
+	totalAmountEditor->setSizePolicy(sizePolicy);
+
+	pvui::SecuritySymbolValidator* securityValidator = new SecuritySymbolValidator;
+	securityEditor->setValidator(securityValidator);
+	securityValidator->setParent(securityEditor);
+
 	QObject::connect(actionEditor->lineEdit(), &QLineEdit::returnPressed, this, &TransactionInsertionWidget::submit);
 	QObject::connect(securityEditor->lineEdit(), &QLineEdit::returnPressed, this, &TransactionInsertionWidget::submit);
 	QObject::connect(numberOfSharesEditor, &QLineEdit::returnPressed, this, &TransactionInsertionWidget::submit);
@@ -149,15 +169,64 @@ pvui::TransactionInsertionWidget::TransactionInsertionWidget(pv::Account* accoun
 	setAccount(account);
 }
 
+void pvui::TransactionInsertionWidget::setupSecurityList() {
+	if (dataFileSecurityConnection.has_value()) {
+		dataFileSecurityConnection->disconnect();
+	}
+
+	if (account_ == nullptr) {
+		dataFileSecurityConnection = std::nullopt;
+		securityEditor->clear();
+		return;
+	}
+
+	dataFileSecurityConnection = account_->dataFile().securityAdded().connect([&](pv::Security* security) {
+		QString text = securityEditor->currentText();
+		securityEditor->addItem(QString::fromStdString(security->symbol()));
+		securityEditor->model()->sort(0);
+		securityEditor->setCurrentText(text);
+	});
+
+	securityEditor->clear();
+
+	for (auto* security : account_->dataFile().securities()) {
+		securityEditor->addItem(QString::fromStdString(security->symbol()));
+	}
+
+	securityEditor->model()->sort(0);
+	
+}
+
 void pvui::TransactionInsertionWidget::submit() {
 	using namespace date;
+
+	std::string securitySymbol = securityEditor->currentText().trimmed().toStdString();
+
+	pv::Security* security;
+	
+	if (securitySymbol.empty()) {
+		security = pv::Security::NONE;
+	}
+	else {
+		security = account_->dataFile().securityForSymbol(securitySymbol);
+
+		if (security == nullptr) {
+			security = account_->dataFile().addSecurity(
+				securitySymbol,
+				securitySymbol,
+				defaultSecurityAssetClass,
+				defaultSecuritySector
+			);
+		}
+	}
+	
 	if (account_ != nullptr) {
 		auto date = dateEditor->date();
 
 		account_->addTransaction(
 			local_days(year_month_day(year(date.year()), month(date.month()), day(date.daysInMonth()))),
 			*pv::actionFromName(actionEditor->itemText(actionEditor->currentIndex()).toStdString()),
-			pv::Security::NONE,
+			security,
 			pv::Decimal(numberOfSharesEditor->text().toStdString()),
 			pv::Decimal(sharePriceEditor->text().toStdString()),
 			pv::Decimal(commissionEditor->text().toStdString()),
@@ -169,9 +238,11 @@ void pvui::TransactionInsertionWidget::submit() {
 }
 
 void pvui::TransactionInsertionWidget::setAccount(pv::Account* account) {
+	if (account_ == account) return;
 	account_ = account;
 	bool enabled = account_ != nullptr;
 
+	setupSecurityList();
 	reset();
 
 	dateEditor->setEnabled(enabled);

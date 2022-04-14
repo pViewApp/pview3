@@ -20,12 +20,12 @@ add_executable(pview
 	ui/navigation.h
 	ui/page.cpp
 	ui/page.h
-	ui/accountdialog.h
-	ui/util.h
-	ui/util.cpp
+	
+	
+	
 	actions.h
 	actions.cpp
-)
+ "ui/securitymodel.h" "ui/securitymodel.cpp" "ui/securitypage.h" "ui/securitypage.cpp")
 
 target_include_directories(pview PRIVATE ${Boost_INCLUDE_DIRS})
 target_include_directories(pview PRIVATE ${QWT_INCLUDE_DIR})

@@ -1,23 +1,16 @@
+#include <QHeaderView>
 #include "securitypage.h"
 #include "securitymodel.h"
 
-pvui::SecurityInsertionWidget::SecurityInsertionWidget(QWidget* parent) : QWidget(parent),
-	layout(new QHBoxLayout(this)),
-	symbolEditor(new QLineEdit),
-	nameEditor(new QLineEdit),
-	assetClassEditor(new QComboBox),
-	sectorEditor(new QComboBox)
-{
-	layout->addWidget(symbolEditor);
-	layout->addWidget(nameEditor);
-	layout->addWidget(assetClassEditor);
-	layout->addWidget(sectorEditor);
+constexpr int maximumSymbolLength = 10;
+static const QRegularExpression invalidSymbolRegularExpression = QRegularExpression("[^A-Z0-9.]");
 
-	// Make sure all editors are the same size
-	layout->setStretch(0, 1);
-	layout->setStretch(1, 1);
-	layout->setStretch(2, 1);
-	layout->setStretch(3, 1);
+pvui::SecurityInsertionWidget::SecurityInsertionWidget(pvui::DataFileManager& dataFileManager, QWidget * parent) : QWidget(parent), dataFileManager(dataFileManager)
+{
+	layout->addWidget(symbolEditor, 1);
+	layout->addWidget(nameEditor, 1);
+	layout->addWidget(assetClassEditor, 1);
+	layout->addWidget(sectorEditor, 1);
 
 	assetClassEditor->setEditable(true);
 	sectorEditor->setEditable(true);
@@ -26,6 +19,13 @@ pvui::SecurityInsertionWidget::SecurityInsertionWidget(QWidget* parent) : QWidge
 	nameEditor->setPlaceholderText("Name");
 	assetClassEditor->lineEdit()->setPlaceholderText("Asset Class");
 	sectorEditor->lineEdit()->setPlaceholderText("Sector");
+
+	static const QSizePolicy sizePolicy = { QSizePolicy::Ignored, QSizePolicy::Preferred };
+
+	symbolEditor->setSizePolicy(sizePolicy);
+	nameEditor->setSizePolicy(sizePolicy);
+	assetClassEditor->setSizePolicy(sizePolicy);
+	sectorEditor->setSizePolicy(sizePolicy);
 
 	static QStringList assetClasses = {
 		tr("Equities"),
@@ -51,15 +51,29 @@ pvui::SecurityInsertionWidget::SecurityInsertionWidget(QWidget* parent) : QWidge
 	assetClassEditor->addItems(assetClasses);
 	sectorEditor->addItems(sectors);
 
-	assetClassEditor->setCurrentIndex(-1);
-	sectorEditor->setCurrentIndex(-1);
-
 	auto* validator = new SecuritySymbolValidator;
 	symbolEditor->setValidator(validator);
 	validator->setParent(symbolEditor); // Prevent memory leak
+
+	QObject::connect(symbolEditor, &QLineEdit::returnPressed, this, &SecurityInsertionWidget::submit);
+	QObject::connect(nameEditor, &QLineEdit::returnPressed, this, &SecurityInsertionWidget::submit);
+	QObject::connect(assetClassEditor->lineEdit(), &QLineEdit::returnPressed, this, &SecurityInsertionWidget::submit);
+	QObject::connect(sectorEditor->lineEdit(), &QLineEdit::returnPressed, this, &SecurityInsertionWidget::submit);
+
+	reset();
 }
 
-pvui::SecurityPageWidget::SecurityPageWidget(const pvui::DataFileManager& dataFileManager, QWidget* parent) : PageWidget(parent), dataFileManager_(dataFileManager)
+void pvui::SecurityInsertionWidget::reset()
+{
+	symbolEditor->setText("");
+	nameEditor->setText("");
+	assetClassEditor->setCurrentIndex(-1);
+	sectorEditor->setCurrentIndex(-1);
+
+	symbolEditor->setFocus();
+}
+
+pvui::SecurityPageWidget::SecurityPageWidget( pvui::DataFileManager& dataFileManager, QWidget* parent) : PageWidget(parent), dataFileManager_(dataFileManager)
 {
 	setTitle(tr("Securities"));
 
@@ -70,6 +84,43 @@ pvui::SecurityPageWidget::SecurityPageWidget(const pvui::DataFileManager& dataFi
 	setContent(mainLayout);
 
 	QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this, [&](pv::DataFile& dataFile) {
-		table->setModel(new models::SecurityModel(dataFile));
+		tableModel->setSourceModel(new models::SecurityModel(dataFile));
 	});
+	tableModel->setSourceModel(new models::SecurityModel(dataFileManager_.dataFile()));
+	tableModel->sort(0, Qt::AscendingOrder);
+
+	table->setSortingEnabled(true);
+	table->setModel(tableModel);
+	table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+	table->verticalHeader()->hide();
+	table->setSelectionBehavior(QTableView::SelectionBehavior::SelectRows);
+}
+
+void pvui::SecurityInsertionWidget::submit()
+{
+	QString symbol = symbolEditor->text();
+	QString name = nameEditor->text().trimmed();
+	QString assetClass = assetClassEditor->lineEdit()->text().trimmed();
+	QString sector = sectorEditor->lineEdit()->text().trimmed();
+
+	if (symbol.isEmpty() || name.isEmpty() || assetClass.isEmpty() || sector.isEmpty()) {
+		return;
+	}
+
+	
+	dataFileManager.dataFile().addSecurity(
+		symbol.toStdString(),
+		name.toStdString(),
+		assetClass.toStdString(),
+		sector.toStdString()
+	);
+
+	reset();
+}
+
+QValidator::State pvui::SecuritySymbolValidator::validate(QString& input, int& pos) const
+{
+	input = input.trimmed().toUpper();
+	if (input.length() > maximumSymbolLength) return QValidator::State::Invalid;
+	return input.contains(invalidSymbolRegularExpression) ? QValidator::State::Invalid : QValidator::State::Acceptable;
 }

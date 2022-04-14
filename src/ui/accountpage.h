@@ -1,12 +1,15 @@
 #ifndef UI_ACCOUNTPAGE_H
 #define UI_ACCOUNTPAGE_H
 
+#include <optional>
+#include <boost/signals2.hpp>
 #include <QWidget>
 #include <QVariant>
 #include <QTableView>
 #include <QDate>
 #include <QDateEdit>
 #include <QComboBox>
+#include <QShowEvent>
 #include <QSortFilterProxyModel>
 
 #include "page.h"
@@ -63,7 +66,7 @@ namespace pvui {
 
 		QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 	signals:
-		void beforeTransactionAdded(const QModelIndex& index, int start, int end);
+		void beforeTransactionAdded(const QModelIndex& index, int first, int last);
 		void afterTransactionAdded();
 	};
 
@@ -79,9 +82,19 @@ namespace pvui {
 		QLineEdit* commissionEditor;
 		QLineEdit* totalAmountEditor;
 		QHBoxLayout* layout;
+
+		std::optional<boost::signals2::connection> dataFileSecurityConnection = std::nullopt; // Connection to the current DataFile's securityAdded() signal
 		void reset();
+	protected:
+		inline void showEvent(QShowEvent* showEvent) override {
+			if (!showEvent->spontaneous()) {
+				dateEditor->setFocus();
+			}
+		}
 	public:
 		TransactionInsertionWidget(pv::Account* account = nullptr, QWidget* parent = nullptr);
+	protected slots:
+		void setupSecurityList();
 	public slots:
 		void submit();
 		void setAccount(pv::Account* account);
@@ -90,7 +103,7 @@ namespace pvui {
 	class AccountPageWidget : public PageWidget {
 		Q_OBJECT
 	private:
-		pv::Account* account_;
+		pv::Account* account_ = nullptr;
 		QTableView* table;
 		TransactionInsertionWidget* insertWidget;
 		QSortFilterProxyModel* model;
