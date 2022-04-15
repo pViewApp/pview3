@@ -1,5 +1,5 @@
-#ifndef UI_PAGE_H
-#define UI_PAGE_H
+#ifndef PVUI_PAGE_H
+#define PVUI_PAGE_H
 
 #include <variant>
 #include <QObject>
@@ -53,4 +53,4 @@ namespace pvui {
 	};
 }
 
-#endif // UI_PAGE_H
+#endif // PVUI_PAGE_H

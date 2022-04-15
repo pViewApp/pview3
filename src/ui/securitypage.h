@@ -1,5 +1,6 @@
-#ifndef PVUI_SECURITYPAGE_H
-#define PVUI_SECURITYPAGE_H
+#ifndef PVUI_SECURITY_PAGE_H
+#define PVUI_SECURITY_PAGE_H
+
 #include <QTableView>
 #include <QLineEdit>
 #include <QComboBox>
@@ -8,8 +9,8 @@
 #include <QRegularExpression>
 #include <QShowEvent>
 #include <QSortFilterProxyModel>
-#include "datafilemanager.h"
-#include "page.h"
+#include "DataFileManager.h"
+#include "Page.h"
 
 namespace pvui {
 	namespace {
@@ -55,4 +56,4 @@ namespace pvui {
 	};
 }
 
-#endif // PVUI_SECURITYPAGE_H
+#endif // PVUI_SECURITY_PAGE_H

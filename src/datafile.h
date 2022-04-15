@@ -1,5 +1,5 @@
-#ifndef PV_DATAFILE_H
-#define PV_DATAFILE_H
+#ifndef PV_DATA_FILE_H
+#define PV_DATA_FILE_H
 
 #include <string>
 #include <vector>
@@ -147,9 +147,9 @@ namespace pv {
 		std::vector<Transaction*> validTransactions;
 		std::map<unsigned int, Transaction> transactions_;
 
-		mutable Signal<void()> signal_beforeTransactionAdded;
-		mutable Signal<void(const Transaction*)> signal_transactionAdded;
-		mutable Signal<void(const std::string&, const std::string&)> signal_nameChanged;
+		mutable boost::signals2::signal<void()> signal_beforeTransactionAdded;
+		mutable boost::signals2::signal<void(const Transaction*)> signal_transactionAdded;
+		mutable boost::signals2::signal<void(const std::string&, const std::string&)> signal_nameChanged;
 	public:
 		inline Account(DataFile& dataFile, unsigned int id, std::string name): id_(id), name_(name), dataFile_(dataFile) {
 
@@ -179,15 +179,15 @@ namespace pv {
 			return validTransactions;
 		}
 
-		inline Signal<void()>& beforeTransactionAdded() const noexcept {
+		inline boost::signals2::signal<void()>& beforeTransactionAdded() const noexcept {
 			return signal_beforeTransactionAdded;
 		}
 		
-		inline Signal<void(const Transaction*)>& transactionAdded() const noexcept {
+		inline boost::signals2::signal<void(const Transaction*)>& transactionAdded() const noexcept {
 			return signal_transactionAdded;
 		}
 
-		inline Signal<void(const std::string&, const std::string&)>& nameChanged() const noexcept {
+		inline boost::signals2::signal<void(const std::string&, const std::string&)>& nameChanged() const noexcept {
 			return signal_nameChanged;
 		}
 
@@ -211,9 +211,9 @@ namespace pv {
 		std::vector<Account*> validAccounts;
 		std::vector <Security*> validSecurities_;
 
-		mutable Signal<void(Account*)> signal_accountAdded;
-		mutable Signal<void(Security*)> signal_securityAdded;
-		mutable Signal<void()> signal_beforeSecurityAdded;
+		mutable boost::signals2::signal<void(Account*)> signal_accountAdded;
+		mutable boost::signals2::signal<void(Security*)> signal_securityAdded;
+		mutable boost::signals2::signal<void()> signal_beforeSecurityAdded;
 	public:
 		DataFile() = default;
 
@@ -225,15 +225,15 @@ namespace pv {
 			return validSecurities_;
 		}
 
-		inline Signal<void(Account*)>& accountAdded() const noexcept {
+		inline boost::signals2::signal<void(Account*)>& accountAdded() const noexcept {
 			return signal_accountAdded;
 		}
 
-		inline Signal<void(Security*)>& securityAdded() {
+		inline boost::signals2::signal<void(Security*)>& securityAdded() {
 			return signal_securityAdded;
 		}
 
-		inline Signal<void()>& beforeSecurityAdded() {
+		inline boost::signals2::signal<void()>& beforeSecurityAdded() {
 			return signal_beforeSecurityAdded;
 		}
 
@@ -250,4 +250,4 @@ namespace pv {
 	};
 }
 
-#endif // PV_DATAFILE_H
+#endif // PV_DATA_FILE_H

@@ -1,8 +1,8 @@
-#ifndef PVUI_SECURITYMODEL_H
-#define PVUI_SECURITYMODEL_H
+#ifndef PVUI_SECURITY_MODEL_H
+#define PVUI_SECURITY_MODEL_H
 
 #include <QAbstractItemModel>
-#include "datafile.h"
+#include "Datafile.h"
 
 namespace pvui::models {
 	class SecurityModel : public QAbstractItemModel {
@@ -37,4 +37,5 @@ namespace pvui::models {
 		void afterSecurityAdded();
 	};
 }
-#endif // PVUI_SECURITYMODEL_H
+
+#endif // PVUI_SECURITY_MODEL_H

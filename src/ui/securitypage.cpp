@@ -1,6 +1,6 @@
 #include <QHeaderView>
-#include "securitypage.h"
-#include "securitymodel.h"
+#include "SecurityPage.h"
+#include "SecurityModel.h"
 
 constexpr int maximumSymbolLength = 10;
 static const QRegularExpression invalidSymbolRegularExpression = QRegularExpression("[^A-Z0-9.]");

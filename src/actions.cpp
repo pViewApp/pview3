@@ -1,7 +1,7 @@
 #include <utility>
 #include <string>
-#include "datafile.h"
-#include "actions.h"
+#include "Actions.h"
+#include "DataFile.h"
 
 const pv::Action* pv::actionFromName(std::string name) {
 	using pv::ACTIONS;

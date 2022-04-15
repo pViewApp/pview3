@@ -1,18 +1,16 @@
 #include <functional>
-
 #include <QApplication>
 #include <QInputDialog>
-#include <QMessageBox>
-#include <QString>
+#include <QLabel>
 #include <QLayout>
 #include <QMenuBar>
-#include <QLabel>
+#include <QMessageBox>
+#include <QString>
+#include "MainWindow.h"
+#include "DataFileManager.h"
 
-#include "mainwindow.h"
-#include "datafile.h"
-
-#define WINDOW_HEIGHT 600
-#define WINDOW_WIDTH 800
+constexpr int windowWidth = 800;
+constexpr int windowHeight = 600;
 
 pvui::MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent),
 	navigationWidget(new QTreeView),
@@ -37,7 +35,7 @@ pvui::MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent),
 	content->setLayout(new QStackedLayout);
 
 	setCentralWidget(centralWidget);
-	resize(WINDOW_WIDTH, WINDOW_HEIGHT);
+	resize(windowWidth, windowHeight);
 	setWindowTitle(
 		QApplication::translate("windowTitle", "pView")
 	);

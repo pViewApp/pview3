@@ -1,30 +1,27 @@
-#pragma once
-#ifndef UI_DATAFILEMANAGER_H
-#define UI_DATAFILE_MANAGER_H
+#ifndef UI_DATA_FILE_MANAGER_H
+#define UI_DATA_FILE_MANAGER_H
+
 #include <QObject>
-#include "datafile.h"
+#include "DataFile.h"
 
 namespace pvui {
-	using pv::DataFile;
-	using pv::Signal;
-
 	class DataFileManager : public QObject {
 		Q_OBJECT
 	private:
-		DataFile m_dataFile;
+		pv::DataFile m_dataFile;
 	public:
 		inline DataFileManager() = default;
 
-		inline DataFile& dataFile() noexcept {
+		inline pv::DataFile& dataFile() noexcept {
 			return m_dataFile;
 		}
 
-		inline const DataFile& constDataFile() const noexcept {
+		inline const pv::DataFile& constDataFile() const noexcept {
 			return m_dataFile;
 		}
 	signals:
-		void dataFileChanged(DataFile& newDataFile);
+		void dataFileChanged(pv::DataFile& newDataFile);
 	};
 }
 
-#endif // UI_DATAFILE_MANAGER_H
+#endif // UI_DATA_FILE_MANAGER_H

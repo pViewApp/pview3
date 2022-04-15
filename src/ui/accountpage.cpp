@@ -6,9 +6,9 @@
 #include <QLineEdit>
 #include <date/date.h>
 #include <fmt/format.h>
-#include "accountpage.h"
-#include "actions.h"
-#include "securitypage.h"
+#include "AccountPage.h"
+#include "Actions.h"
+#include "SecurityPage.h"
 
 const std::string defaultSecurityAssetClass = "Equities";
 const std::string defaultSecuritySector = "Other";
@@ -48,65 +48,6 @@ pvui::AccountPageWidget::AccountPageWidget(QWidget* parent) : PageWidget(parent)
 	table->setSelectionBehavior(QTableView::SelectRows);
 
 	table->setModel(model);
-}
-
-pvui::TransactionItemModel::TransactionItemModel(const pv::Account* account, QObject* parent) : QAbstractItemModel(parent),
-	account_(account)
-{
-	// Listen for before transaction added
-
-	QObject::connect(this, &TransactionItemModel::beforeTransactionAdded, this, &TransactionItemModel::beginInsertRows);
-
-	auto beforeTransactionAddedSlot = [&]() {
-		const auto index = QModelIndex();
-		emit this->beforeTransactionAdded(index, rowCount(), rowCount());
-	};
-
-	auto beforeTransactionAddedConnection = account_->beforeTransactionAdded().connect(beforeTransactionAddedSlot);
-
-	QObject::connect(this, &QObject::destroyed, this, [&]() {
-		beforeTransactionAddedConnection.disconnect();
-	});
-
-	// Listen for after transaction added
-
-	QObject::connect(this, &TransactionItemModel::afterTransactionAdded, this, &TransactionItemModel::endInsertRows);
-
-	auto afterTransactionAddedSlot = [&](const pv::Transaction*) {
-		emit this->afterTransactionAdded();
-	};
-
-	auto afterTransactionAddedConnection = account_->transactionAdded().connect(afterTransactionAddedSlot);
-
-	QObject::connect(this, &QObject::destroyed, this, [&]() {
-		afterTransactionAddedConnection.disconnect();
-	});
-}
-
-QVariant pvui::TransactionItemModel::data(const QModelIndex& index, int role) const
-{
-	if (role != Qt::DisplayRole || !index.isValid() || index.row() > rowCount() - 1) return QVariant();
-
-	pv::Transaction& transaction = *static_cast<pv::Transaction*>(index.internalPointer());
-	switch (index.column()) {
-	case 0:
-		date::year_month_day ymd{ transaction.date() };
-		return QDate(static_cast<int>(ymd.year()), static_cast<unsigned int>(ymd.month()), static_cast<unsigned int>(ymd.day()));
-	case 1:
-		return QString::fromStdString(transaction.action().name());
-	case 2:
-		return transaction.security() == pv::Security::NONE ? "" : QString::fromStdString(transaction.security()->symbol());
-	case 3:
-		return QString::fromStdString(transaction.numberOfShares().str());
-	case 4:
-		return QString::fromStdString(transaction.sharePrice().str());
-	case 5:
-		return QString::fromStdString(transaction.commission().str());
-	case 6:
-		return QString::fromStdString(transaction.totalAmount().str());
-	default:
-		return QVariant();
-	}
 }
 
 pvui::TransactionInsertionWidget::TransactionInsertionWidget(pv::Account* account, QWidget* parent) : QWidget(parent),

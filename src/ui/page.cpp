@@ -1,6 +1,5 @@
-#include "page.h"
-
 #include <QStackedLayout>
+#include "Page.h"
 
 pvui::PageWidget::PageWidget(QWidget* parent) : QWidget(parent),
 	contentBox(new QGroupBox()),

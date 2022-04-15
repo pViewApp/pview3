@@ -6,26 +6,25 @@ find_package(Qwt REQUIRED)
 find_package(date CONFIG REQUIRED)
 
 add_executable(pview
-	datafile.cpp
-	datafile.h
-	main.cpp
-	types.h
+	"Actions.h"
+	"Actions.cpp"
+	"DataFile.cpp"
+	"DataFile.h"
+	"Main.cpp"
+	"Types.h"
 	
-	ui/accountpage.cpp
-	ui/accountpage.h
-	ui/datafilemanager.h
-	ui/mainwindow.cpp
-	ui/mainwindow.h
-	
-	ui/navigation.h
-	ui/page.cpp
-	ui/page.h
-	
-	
-	
-	actions.h
-	actions.cpp
- "ui/securitymodel.h" "ui/securitymodel.cpp" "ui/securitypage.h" "ui/securitypage.cpp")
+	"ui/AccountPage.cpp"
+	"ui/AccountPage.h"
+	"ui/DataFileManager.h"
+	"ui/MainWindow.cpp"
+	"ui/MainWindow.h"
+	"ui/SecurityModel.h"
+	"ui/SecurityModel.cpp"
+	"ui/SecurityPage.h"
+	"ui/SecurityPage.cpp"
+	"ui/Page.cpp"
+	"ui/Page.h"
+ "ui/TransactionModel.h" "ui/TransactionModel.cpp")
 
 target_include_directories(pview PRIVATE ${Boost_INCLUDE_DIRS})
 target_include_directories(pview PRIVATE ${QWT_INCLUDE_DIR})

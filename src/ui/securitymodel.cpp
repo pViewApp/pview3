@@ -1,4 +1,4 @@
-#include "securitymodel.h"
+#include "SecurityModel.h"
 
 pvui::models::SecurityModel::SecurityModel(pv::DataFile& dataFile) : dataFile_(dataFile)
 {
