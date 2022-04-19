@@ -1,59 +1,41 @@
 #ifndef PVUI_SECURITY_PAGE_H
 #define PVUI_SECURITY_PAGE_H
 
-#include <QTableView>
-#include <QLineEdit>
+#include "DataFileManager.h"
+#include "Page.h"
+#include "SecurityInsertionWidget.h"
 #include <QComboBox>
 #include <QHBoxLayout>
-#include <QValidator>
+#include <QLineEdit>
 #include <QRegularExpression>
 #include <QShowEvent>
 #include <QSortFilterProxyModel>
-#include "DataFileManager.h"
-#include "Page.h"
+#include <QTableView>
+#include <QToolBar>
+#include <QValidator>
 
 namespace pvui {
-	namespace {
-	}
 
-	class SecuritySymbolValidator : public QValidator {
-		Q_OBJECT
-	public:
-		QValidator::State validate(QString& input, int& pos) const override;
-	};
+class SecurityPageWidget : public PageWidget {
+  Q_OBJECT
+private:
+  pvui::DataFileManager &dataFileManager_;
 
-	class SecurityInsertionWidget : public QWidget {
-		Q_OBJECT
-	private:
-		QLineEdit* symbolEditor = new QLineEdit;
-		QLineEdit* nameEditor = new QLineEdit;
-		QComboBox* assetClassEditor = new QComboBox;
-		QComboBox* sectorEditor = new QComboBox;
-		QHBoxLayout* layout = new QHBoxLayout(this);
-		pvui::DataFileManager& dataFileManager;
-		void reset();
-	protected:
-		inline void showEvent(QShowEvent* showEvent) override {
-			if (!showEvent->spontaneous()) {
-				symbolEditor->setFocus();
-			}
-		}
-	public:
-		SecurityInsertionWidget(pvui::DataFileManager& manager, QWidget* parent = nullptr);
-	public slots:
-		void submit();
-	};
+  QToolBar *toolBar = new QToolBar;
+  QTableView *table = new QTableView;
+  controls::SecurityInsertionWidget *insertionWidget =
+      new controls::SecurityInsertionWidget(dataFileManager_);
 
-	class SecurityPageWidget : public PageWidget {
-		Q_OBJECT
-	private:
-		QTableView* table = new QTableView;
-		QSortFilterProxyModel* tableModel = new QSortFilterProxyModel;
-		pvui::DataFileManager& dataFileManager_;
-		SecurityInsertionWidget* insertionWidget = new SecurityInsertionWidget(dataFileManager_);
-	public:
-		SecurityPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent = nullptr);
-	};
-}
+  QAction *securityInfoAction = new QAction(tr("Edit Security Prices..."));
+
+  QSortFilterProxyModel *tableModel = new QSortFilterProxyModel;
+
+  void setupToolbar();
+
+public:
+  SecurityPageWidget(pvui::DataFileManager &dataFileManager,
+                     QWidget *parent = nullptr);
+};
+} // namespace pvui
 
 #endif // PVUI_SECURITY_PAGE_H

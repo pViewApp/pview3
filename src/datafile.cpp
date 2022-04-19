@@ -1,49 +1,68 @@
 #include "DataFile.h"
+#include <optional>
 
-pv::Transaction* pv::Account::addTransaction(pv::Date date, const pv::Action& action, const pv::Security* security, pv::Decimal numberOfShares, pv::Decimal sharePrice, pv::Decimal commission, pv::Decimal totalAmount) {
-	pv::TransactionBase base(date, security, numberOfShares, sharePrice, commission, totalAmount);
-	action.processTransaction(base);
+pv::TransactionPtr
+pv::Account::addTransaction(pv::Date date, const pv::Action &action,
+                            const pv::SecurityPtr security,
+                            pv::Decimal numberOfShares, pv::Decimal sharePrice,
+                            pv::Decimal commission, pv::Decimal totalAmount) {
+  pv::TransactionBase base(date, security, numberOfShares, sharePrice,
+                           commission, totalAmount);
+  action.processTransaction(base);
 
-	signal_beforeTransactionAdded();
+  signal_beforeTransactionAdded();
 
-	unsigned int id = nextTransactionId.fetch_add(1);
-	transactions_.try_emplace(id, *this, id, action, base);
+  unsigned int id = nextTransactionId.fetch_add(1);
+  pv::TransactionPtr transaction =
+      std::make_shared<pv::Transaction>(*this, id, action, base);
 
-	auto* transaction = transactionForId(id);
+  transactions_.push_back(transaction);
 
-	validTransactions.push_back(transaction);
+  signal_transactionAdded(transaction);
 
-	signal_transactionAdded(transaction);
-
-	return transaction;
+  return transaction;
 }
 
-pv::Account* pv::DataFile::addAccount(std::string name)  {
-	unsigned int id = nextAccountId.fetch_add(1);
-	accounts_.try_emplace(id, *this, id, name);
-	auto* account = accountForId(id);
-	validAccounts.push_back(account);
+pv::AccountPtr pv::DataFile::addAccount(std::string name) {
+  unsigned int id = nextAccountId.fetch_add(1);
 
-	signal_accountAdded(account);
+  pv::AccountPtr account = std::make_shared<Account>(*this, id, name);
+  accounts_.push_back(account);
 
-	return account;
+  signal_accountAdded(account);
+
+  return account;
 }
 
-pv::Security* pv::DataFile::addSecurity(std::string symbol, std::string name, std::string assetClass, std::string sector)
-{
-	signal_beforeSecurityAdded();
+pv::SecurityPtr pv::DataFile::addSecurity(std::string symbol, std::string name,
+                                          std::string assetClass,
+                                          std::string sector) {
+  signal_beforeSecurityAdded();
 
-	securities_.try_emplace(symbol, symbol, name, assetClass, sector);
-	auto* security = &securities_.at(symbol);
-	validSecurities_.push_back(security);
+  pv::SecurityPtr security =
+      std::make_shared<pv::Security>(*this, symbol, name, assetClass, sector);
+  securities_.push_back(security);
 
-	signal_securityAdded(security);
+  signal_securityAdded(security);
 
-	return security;
+  return security;
 }
 
-pv::Security::Security(std::string symbol, std::string name, std::string assetClass, std::string sector) : symbol_(symbol),
-	name_(name),
-	assetClass_(assetClass),
-	sector_(sector)
-{}
+pv::Security::Security(pv::DataFile &dataFile, std::string symbol,
+                       std::string name, std::string assetClass,
+                       std::string sector)
+    : dataFile_(dataFile), symbol_(symbol), name_(name),
+      assetClass_(assetClass), sector_(sector) {}
+
+void pv::Security::setPrice(pv::Date date, pv::Decimal price) {
+  signal_beforePriceChanged(date);
+
+  auto oldPriceIter = prices_.find(date);
+  std::optional<pv::Decimal> oldPrice =
+      oldPriceIter == prices_.cend() ? std::optional<pv::Decimal>(std::nullopt)
+                                     : std::optional(oldPriceIter->second);
+
+  prices_.insert_or_assign(date, price);
+
+  signal_priceChanged(date, oldPrice, price);
+}

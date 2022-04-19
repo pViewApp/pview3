@@ -1,56 +1,55 @@
 #ifndef PVUI_PAGE_H
 #define PVUI_PAGE_H
 
-#include <variant>
-#include <QObject>
 #include <QGroupBox>
+#include <QObject>
 #include <QVBoxLayout>
+#include <variant>
 
 namespace pvui {
-	class PageWidget : public QWidget {
-		Q_OBJECT
-	private:
-		QString title_;
-		QGroupBox* contentBox;
-		QVBoxLayout* contentBoxLayout;
-		QLayoutItem* content_;
-	public:
-		PageWidget(QWidget* parent = nullptr);
+class PageWidget : public QWidget {
+  Q_OBJECT
+private:
+  QString title_;
+  QGroupBox *contentBox;
+  QVBoxLayout *contentBoxLayout;
+  QLayoutItem *content_;
 
-		inline QString title() {
-			return title_;
-		}
+public:
+  PageWidget(QWidget *parent = nullptr);
 
-	protected slots:
-		inline void setTitle(QString newTitle) {
-			title_ = newTitle;
-			emit titleChanged(newTitle);
-		}
-		
-		inline void setContent(QLayoutItem* content) {
-			if (content_ != nullptr) {
-				contentBoxLayout->removeItem(content_);
-			}
+  inline QString title() { return title_; }
 
-			content_ = content;
-			contentBoxLayout->addItem(content_);
-		}
+protected slots:
+  inline void setTitle(QString newTitle) {
+    title_ = newTitle;
+    emit titleChanged(newTitle);
+  }
 
-		inline void setContent(QLayout* content) {
-			if (content_ != nullptr) {
-				contentBoxLayout->removeItem(content_);
-			}
+  inline void setContent(QLayoutItem *content) {
+    if (content_ != nullptr) {
+      contentBoxLayout->removeItem(content_);
+    }
 
-			content_ = content;
-			contentBoxLayout->addLayout(content);
-		}
+    content_ = content;
+    contentBoxLayout->addItem(content_);
+  }
 
-		inline void setContent(QWidget* content) {
-			setContent(new QWidgetItem(content));
-		}
-	signals:
-		void titleChanged(const QString& newTitle);
-	};
-}
+  inline void setContent(QLayout *content) {
+    if (content_ != nullptr) {
+      contentBoxLayout->removeItem(content_);
+    }
+
+    content_ = content;
+    contentBoxLayout->addLayout(content);
+  }
+
+  inline void setContent(QWidget *content) {
+    setContent(new QWidgetItem(content));
+  }
+signals:
+  void titleChanged(const QString &newTitle);
+};
+} // namespace pvui
 
 #endif // PVUI_PAGE_H

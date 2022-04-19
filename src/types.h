@@ -1,12 +1,17 @@
-#ifndef TYPES_H
-#define TYPES_H
+#ifndef PV_TYPES_H
+#define PV_TYPES_H
 
-#include <date/date.h>
 #include <boost/multiprecision/cpp_dec_float.hpp>
+#include <date/date.h>
 
 namespace pv {
-	using Date = date::local_days;
-	using Decimal = boost::multiprecision::cpp_dec_float_50;
-}
+using Date = date::local_days;
+using YearMonthDay = date::year_month_day;
+using Year = date::year;
+using Month = date::month;
+using Day = date::day;
 
-#endif // TYPES_H
+using Decimal = boost::multiprecision::cpp_dec_float_50;
+} // namespace pv
+
+#endif // PV_TYPES_H

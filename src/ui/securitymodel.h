@@ -1,41 +1,56 @@
-#ifndef PVUI_SECURITY_MODEL_H
-#define PVUI_SECURITY_MODEL_H
+#ifndef PVUI_MODELS_SECURITY_MODEL_H
+#define PVUI_MODELS_SECURITY_MODEL_H
 
+#include "DataFile.h"
 #include <QAbstractItemModel>
-#include "Datafile.h"
+#include <boost/signals2.hpp>
 
 namespace pvui::models {
-	class SecurityModel : public QAbstractItemModel {
-		Q_OBJECT
-	private:
-		pv::DataFile& dataFile_;
-	public:
-		 SecurityModel(pv::DataFile& dataFile);
+class SecurityModel : public QAbstractItemModel {
+  Q_OBJECT
+private:
+  pv::DataFile &dataFile_;
+  boost::signals2::scoped_connection beforeSecurityAddedConnection;
+  boost::signals2::scoped_connection afterSecurityAddedConnection;
 
-		inline int rowCount(const QModelIndex& parent = QModelIndex()) const override {
-			if (parent.isValid()) return 0;
-			return static_cast<int>(dataFile_.securities().size());
-		}
+public:
+  SecurityModel(pv::DataFile &dataFile);
 
-		inline QModelIndex parent(const QModelIndex& index = QModelIndex()) const override {
-			return QModelIndex();
-		}
+  inline int
+  rowCount(const QModelIndex &parent = QModelIndex()) const override {
+    if (parent.isValid())
+      return 0;
+    return static_cast<int>(dataFile_.securities().size());
+  }
 
-		inline int columnCount(const QModelIndex& index = QModelIndex()) const override {
-			return 4; // Symbol, name, asset class, sector
-		}
+  inline QModelIndex
+  parent(const QModelIndex &index = QModelIndex()) const override {
+    return QModelIndex();
+  }
 
-		inline QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override {
-			return createIndex(row, column, row > dataFile_.securities().size() - 1 ? nullptr : dataFile_.securities().at(row));
-		}
+  inline int
+  columnCount(const QModelIndex &index = QModelIndex()) const override {
+    return 4; // Symbol, name, asset class, sector
+  }
 
-		QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+  inline QModelIndex
+  index(int row, int column,
+        const QModelIndex &parent = QModelIndex()) const override {
+    return createIndex(row, column,
+                       row > dataFile_.securities().size() - 1
+                           ? nullptr
+                           : dataFile_.securities().at(row).get());
+  }
 
-		QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
-	signals:
-		void beforeSecurityAdded(const QModelIndex& index, int first, int last);
-		void afterSecurityAdded();
-	};
-}
+  QVariant data(const QModelIndex &index,
+                int role = Qt::DisplayRole) const override;
 
-#endif // PVUI_SECURITY_MODEL_H
+  QVariant headerData(int section, Qt::Orientation orientation,
+                      int role = Qt::DisplayRole) const override;
+signals:
+  void beforeSecurityAdded(const QModelIndex &index, int first, int last);
+  void afterSecurityAdded();
+};
+} // namespace pvui::models
+
+#endif // PVUI_MODELS_SECURITY_MODEL_H

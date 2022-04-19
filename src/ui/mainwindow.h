@@ -1,53 +1,54 @@
-#ifndef UI_MAINWINDOW_H
-#define UI_MAINWINDOW_H
+#ifndef PVUI_MAINWINDOW_H
+#define PVUI_MAINWINDOW_H
 
-#include <unordered_map>
+#include <QEvent>
+#include <QItemDelegate>
 #include <QLabel>
 #include <QMainWindow>
-#include <QWidget>
 #include <QSplitter>
-#include <QTreeView>
-#include <QStandardItemModel>
-#include <QItemDelegate>
-#include <QEvent>
 #include <QStackedLayout>
+#include <QStandardItemModel>
+#include <QTreeView>
+#include <QWidget>
+#include <unordered_map>
 
 #include "AccountPage.h"
-#include "DataFileManager.h"
 #include "DataFile.h"
+#include "DataFileManager.h"
 #include "SecurityPage.h"
 
 namespace pvui {
-	class MainWindow : public QMainWindow
-	{
-		Q_OBJECT
-	private:
-		QTreeView* navigationWidget;
-		QStandardItemModel* navigationModel;
-		QWidget* content;
-		QLabel* noPageOpen;
-		QStackedLayout* contentLayout;
-		AccountPageWidget* accountPage;
-		DataFileManager dataFileManager;
-		SecurityPageWidget* securityPage = new SecurityPageWidget(dataFileManager);
-		QStandardItem* m_navigationAccountItem;
+class MainWindow : public QMainWindow {
+  Q_OBJECT
+private:
+  QTreeView *navigationWidget;
+  QStandardItemModel *navigationModel;
+  QWidget *content;
+  QLabel *noPageOpen;
+  QStackedLayout *contentLayout;
+  AccountPageWidget *accountPage;
+  DataFileManager dataFileManager;
+  SecurityPageWidget *securityPage = new SecurityPageWidget(dataFileManager);
+  QStandardItem *m_navigationAccountItem;
 
-		QStandardItem* securitiesNavigationItem = new QStandardItem(tr("Securities"));
-		std::unordered_map<QStandardItem*, pv::Account*> accountNavigationItems;
+  QStandardItem *securitiesNavigationItem = new QStandardItem(tr("Securities"));
+  std::unordered_map<QStandardItem *, pv::AccountPtr> accountNavigationItems;
 
-		void setupDataFile();
-	public:
-		MainWindow(QWidget* parent = nullptr);
+  void setupDataFile();
 
-		void setupMenuBar();
-		void setupNavigation();
-	protected:
-		inline pv::DataFile& dataFile() noexcept {
-			return dataFileManager.dataFile();
-		}
-	protected slots:
-		void pageChanged(const QItemSelection& selection);
-		void addAccount();
-	};
-}
-#endif // UI_MAINWINDOW_H
+public:
+  MainWindow(QWidget *parent = nullptr);
+
+  void setupMenuBar();
+  void setupNavigation();
+
+protected:
+  inline pv::DataFile &dataFile() noexcept {
+    return dataFileManager.dataFile();
+  }
+protected slots:
+  void pageChanged(const QItemSelection &selection);
+  void addAccount();
+};
+} // namespace pvui
+#endif // PVUI_MAINWINDOW_H

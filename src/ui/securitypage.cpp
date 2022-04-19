@@ -1,126 +1,61 @@
-#include <QHeaderView>
 #include "SecurityPage.h"
 #include "SecurityModel.h"
+#include "SecurityPriceDialog.h"
+#include "SecurityUtils.h"
+#include <QHeaderView>
 
-constexpr int maximumSymbolLength = 10;
-static const QRegularExpression invalidSymbolRegularExpression = QRegularExpression("[^A-Z0-9.]");
+void pvui::SecurityPageWidget::setupToolbar() {
+  toolBar->addAction(securityInfoAction);
+  securityInfoAction->setEnabled(false);
 
-pvui::SecurityInsertionWidget::SecurityInsertionWidget(pvui::DataFileManager& dataFileManager, QWidget * parent) : QWidget(parent), dataFileManager(dataFileManager)
-{
-	layout->addWidget(symbolEditor, 1);
-	layout->addWidget(nameEditor, 1);
-	layout->addWidget(assetClassEditor, 1);
-	layout->addWidget(sectorEditor, 1);
+  QObject::connect(securityInfoAction, &QAction::triggered, this, [&]() {
+    QItemSelectionRange range = table->selectionModel()->selection().first();
+    if (range.isEmpty())
+      return;
 
-	assetClassEditor->setEditable(true);
-	sectorEditor->setEditable(true);
-
-	symbolEditor->setPlaceholderText("Symbol");
-	nameEditor->setPlaceholderText("Name");
-	assetClassEditor->lineEdit()->setPlaceholderText("Asset Class");
-	sectorEditor->lineEdit()->setPlaceholderText("Sector");
-
-	static const QSizePolicy sizePolicy = { QSizePolicy::Ignored, QSizePolicy::Preferred };
-
-	symbolEditor->setSizePolicy(sizePolicy);
-	nameEditor->setSizePolicy(sizePolicy);
-	assetClassEditor->setSizePolicy(sizePolicy);
-	sectorEditor->setSizePolicy(sizePolicy);
-
-	static QStringList assetClasses = {
-		tr("Equities"),
-		tr("Fixed Income"),
-		tr("Cash Equivalents"),
-	};
-
-	static QStringList sectors = {
-		tr("Technology"),
-		tr("Health Care"),
-		tr("Financials"),
-		tr("Real Estate"),
-		tr("Energy"),
-		tr("Materials"),
-		tr("Consumer Discretionary"),
-		tr("Industrials"),
-		tr("Utilities"),
-		tr("Consumer Staples"),
-		tr("Telecommunication"),
-		tr("Other"),
-	};
-
-	assetClassEditor->addItems(assetClasses);
-	sectorEditor->addItems(sectors);
-
-	auto* validator = new SecuritySymbolValidator;
-	symbolEditor->setValidator(validator);
-	validator->setParent(symbolEditor); // Prevent memory leak
-
-	QObject::connect(symbolEditor, &QLineEdit::returnPressed, this, &SecurityInsertionWidget::submit);
-	QObject::connect(nameEditor, &QLineEdit::returnPressed, this, &SecurityInsertionWidget::submit);
-	QObject::connect(assetClassEditor->lineEdit(), &QLineEdit::returnPressed, this, &SecurityInsertionWidget::submit);
-	QObject::connect(sectorEditor->lineEdit(), &QLineEdit::returnPressed, this, &SecurityInsertionWidget::submit);
-
-	reset();
+    QString symbol = table->model()->data(range.topLeft()).toString();
+    pv::SecurityPtr security =
+        dataFileManager_.dataFile().securityForSymbol(symbol.toStdString());
+    dialogs::SecurityPriceDialog *dialog =
+        new dialogs::SecurityPriceDialog(security, this);
+    dialog->setWindowTitle(tr("Editing Security Prices for ") + symbol);
+    dialog->exec();
+  });
 }
 
-void pvui::SecurityInsertionWidget::reset()
-{
-	symbolEditor->setText("");
-	nameEditor->setText("");
-	assetClassEditor->setCurrentIndex(-1);
-	sectorEditor->setCurrentIndex(-1);
+pvui::SecurityPageWidget::SecurityPageWidget(
+    pvui::DataFileManager &dataFileManager, QWidget *parent)
+    : PageWidget(parent), dataFileManager_(dataFileManager) {
+  setTitle(tr("Securities"));
 
-	symbolEditor->setFocus();
-}
+  // Setup layout
+  auto *mainLayout = new QVBoxLayout();
+  mainLayout->addWidget(toolBar);
+  mainLayout->addWidget(table);
+  mainLayout->addWidget(insertionWidget);
+  setContent(mainLayout);
 
-pvui::SecurityPageWidget::SecurityPageWidget( pvui::DataFileManager& dataFileManager, QWidget* parent) : PageWidget(parent), dataFileManager_(dataFileManager)
-{
-	setTitle(tr("Securities"));
+  // Setup toolbar
+  setupToolbar();
 
-	auto* mainLayout = new QVBoxLayout();
-	mainLayout->addWidget(table);
-	mainLayout->addWidget(insertionWidget);
-
-	setContent(mainLayout);
-
-	QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this, [&](pv::DataFile& dataFile) {
-		tableModel->setSourceModel(new models::SecurityModel(dataFile));
-	});
-	tableModel->setSourceModel(new models::SecurityModel(dataFileManager_.dataFile()));
-	tableModel->sort(0, Qt::AscendingOrder);
-
-	table->setSortingEnabled(true);
-	table->setModel(tableModel);
-	table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-	table->verticalHeader()->hide();
-	table->setSelectionBehavior(QTableView::SelectionBehavior::SelectRows);
-}
-
-void pvui::SecurityInsertionWidget::submit()
-{
-	QString symbol = symbolEditor->text();
-	QString name = nameEditor->text().trimmed();
-	QString assetClass = assetClassEditor->lineEdit()->text().trimmed();
-	QString sector = sectorEditor->lineEdit()->text().trimmed();
-
-	if (symbol.isEmpty() || name.isEmpty() || assetClass.isEmpty() || sector.isEmpty()) {
-		return;
-	}
-
-	
-	dataFileManager.dataFile().addSecurity(
-		symbol.toStdString(),
-		name.toStdString(),
-		assetClass.toStdString(),
-		sector.toStdString()
-	);
-
-	reset();
-}
-
-QValidator::State pvui::SecuritySymbolValidator::validate(QString& input, int& pos) const
-{
-	input = input.trimmed().toUpper();
-	if (input.length() > maximumSymbolLength) return QValidator::State::Invalid;
-	return input.contains(invalidSymbolRegularExpression) ? QValidator::State::Invalid : QValidator::State::Acceptable;
+  // Setup table
+  QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this,
+                   [&](pv::DataFile &dataFile) {
+                     tableModel->setSourceModel(
+                         new models::SecurityModel(dataFile));
+                     table->scrollToBottom();
+                   });
+  tableModel->setSourceModel(
+      new models::SecurityModel(dataFileManager_.dataFile()));
+  tableModel->sort(0, Qt::AscendingOrder);
+  table->setSortingEnabled(true);
+  table->setModel(tableModel);
+  table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+  table->verticalHeader()->hide();
+  table->setSelectionBehavior(QTableView::SelectionBehavior::SelectRows);
+  QObject::connect(table->selectionModel(),
+                   &QItemSelectionModel::selectionChanged, this,
+                   [&](QItemSelection current) {
+                     securityInfoAction->setEnabled(!current.isEmpty());
+                   });
 }

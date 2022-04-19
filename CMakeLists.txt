@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
 
-list(APPEND VCPKG_OVERLAY_PORTS "${CMAKE_SOURCE_DIR}/vcpkg-ports")
 list(PREPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 project(pview VERSION 0.1 LANGUAGES CXX)

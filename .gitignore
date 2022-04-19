@@ -1,4 +1,8 @@
+# Visual Studio
 /.vs/
 /out/
 /CMakeSettings.json
-CMakeCache.txt
+/CMakeLists.txt.user
+
+# Qt Creator
+/.qtc_clangd/
