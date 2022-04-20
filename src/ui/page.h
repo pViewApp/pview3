@@ -18,15 +18,15 @@ private:
 public:
   PageWidget(QWidget *parent = nullptr);
 
-  inline QString title() { return title_; }
+  QString title() { return title_; }
 
 protected slots:
-  inline void setTitle(QString newTitle) {
+  void setTitle(QString newTitle) {
     title_ = newTitle;
     emit titleChanged(newTitle);
   }
 
-  inline void setContent(QLayoutItem *content) {
+  void setContent(QLayoutItem *content) {
     if (content_ != nullptr) {
       contentBoxLayout->removeItem(content_);
     }
@@ -35,7 +35,7 @@ protected slots:
     contentBoxLayout->addItem(content_);
   }
 
-  inline void setContent(QLayout *content) {
+  void setContent(QLayout *content) {
     if (content_ != nullptr) {
       contentBoxLayout->removeItem(content_);
     }
@@ -44,9 +44,7 @@ protected slots:
     contentBoxLayout->addLayout(content);
   }
 
-  inline void setContent(QWidget *content) {
-    setContent(new QWidgetItem(content));
-  }
+  void setContent(QWidget *content) { setContent(new QWidgetItem(content)); }
 signals:
   void titleChanged(const QString &newTitle);
 };

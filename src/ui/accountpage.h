@@ -38,6 +38,7 @@ public slots:
     table->scrollToBottom();
   }
 };
+
 } // namespace pvui
 
 #endif // PVUI_ACCOUNT_PAGE_H

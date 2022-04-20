@@ -3,7 +3,7 @@
 
 #include "DataFile.h"
 #include "ExtendedSpinBox.h"
-#include <QCombobox>
+#include <QComboBox>
 #include <QDateEdit>
 #include <QHBoxLayout>
 #include <QShowEvent>

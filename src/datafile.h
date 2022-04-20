@@ -62,9 +62,7 @@ public:
 
   std::string sector() const noexcept { return sector_; }
 
-  const std::map<Date, Decimal> &prices() const noexcept {
-    return prices_;
-  }
+  const std::map<Date, Decimal> &prices() const noexcept { return prices_; }
 
   void setPrice(Date, Decimal);
 
@@ -73,8 +71,8 @@ public:
     return signal_beforePriceChanged;
   }
 
-  boost::signals2::signal<void(
-      const Date &, const std::optional<Decimal>, std::optional<Decimal>)> &
+  boost::signals2::signal<void(const Date &, const std::optional<Decimal>,
+                               std::optional<Decimal>)> &
   priceChanged() const noexcept {
     return signal_priceChanged;
   }
@@ -92,8 +90,8 @@ public:
 
 public:
   TransactionBase(pv::Date date, const SecurityPtr security,
-                         Decimal numberOfShares, Decimal sharePrice,
-                         Decimal commission, Decimal totalAmount)
+                  Decimal numberOfShares, Decimal sharePrice,
+                  Decimal commission, Decimal totalAmount)
       : date(date), security(security), numberOfShares(numberOfShares),
         sharePrice(sharePrice), commission(commission),
         totalAmount(totalAmount) {}
@@ -122,7 +120,7 @@ private:
 
 public:
   Transaction(Account &account, unsigned int id, const Action &action,
-                     TransactionBase base)
+              TransactionBase base)
       : account_(account), id_(id), date_(base.date), action_(action),
         security_(base.security), numberOfShares_(base.numberOfShares),
         sharePrice_(base.sharePrice), commission_(base.commission),
@@ -194,8 +192,7 @@ public:
     return transactions_;
   }
 
-  boost::signals2::signal<void()> &
-  beforeTransactionAdded() const noexcept {
+  boost::signals2::signal<void()> &beforeTransactionAdded() const noexcept {
     return signal_beforeTransactionAdded;
   }
 
@@ -204,8 +201,8 @@ public:
     return signal_transactionAdded;
   }
 
-  boost::signals2::signal<void(const std::string &, const std::string &)>
-      &nameChanged() const noexcept {
+  boost::signals2::signal<void(const std::string &, const std::string &)> &
+  nameChanged() const noexcept {
     return signal_nameChanged;
   }
 
@@ -229,16 +226,13 @@ private:
 public:
   DataFile() = default;
 
-  const std::vector<AccountPtr> &accounts() const noexcept {
-    return accounts_;
-  }
+  const std::vector<AccountPtr> &accounts() const noexcept { return accounts_; }
 
   const std::vector<SecurityPtr> &securities() const noexcept {
     return securities_;
   }
 
-  boost::signals2::signal<void(AccountPtr)> &
-  accountAdded() const noexcept {
+  boost::signals2::signal<void(AccountPtr)> &accountAdded() const noexcept {
     return signal_accountAdded;
   }
 

@@ -3,9 +3,6 @@
 #include "SecurityUtils.h"
 #include <QShortcut>
 
-const std::string defaultSecurityAssetClass = "Equities";
-const std::string defaultSecuritySector = "Other";
-
 namespace pvui {
 namespace controls {
 TransactionInsertionWidget::TransactionInsertionWidget(pv::AccountPtr account,
@@ -83,7 +80,7 @@ void TransactionInsertionWidget::setupSecurityList() {
 
   securityEditor->clear();
 
-  for (auto security : account_->dataFile().securities()) {
+  for (const auto &security : account_->dataFile().securities()) {
     securityEditor->addItem(QString::fromStdString(security->symbol()));
   }
 
@@ -104,6 +101,9 @@ void TransactionInsertionWidget::submit() {
     security = account_->dataFile().securityForSymbol(securitySymbol);
 
     if (security == nullptr) {
+      static const std::string defaultSecurityAssetClass = "Equities";
+      static const std::string defaultSecuritySector = "Other";
+
       security = account_->dataFile().addSecurity(
           securitySymbol, securitySymbol, defaultSecurityAssetClass,
           defaultSecuritySector);
