@@ -6,8 +6,7 @@ constexpr int dialogHeight = 600;
 
 namespace pvui {
 namespace dialogs {
-SecurityPriceDialog::SecurityPriceDialog(pv::SecurityPtr security,
-                                         QWidget *parent)
+SecurityPriceDialog::SecurityPriceDialog(pv::SecurityPtr security, QWidget* parent)
     : QDialog(parent), security_(security) {
   // Setup dialog
   setSizeGripEnabled(true);
@@ -18,8 +17,7 @@ SecurityPriceDialog::SecurityPriceDialog(pv::SecurityPtr security,
   layout->addWidget(dialogButtonBox);
 
   // Setup buttons
-  QObject::connect(dialogButtonBox, &QDialogButtonBox::accepted, this,
-                   &SecurityPriceDialog::accept);
+  QObject::connect(dialogButtonBox, &QDialogButtonBox::accepted, this, &SecurityPriceDialog::accept);
 
   // Setup table
   table->verticalHeader()->hide();

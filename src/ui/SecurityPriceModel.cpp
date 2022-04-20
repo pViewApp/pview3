@@ -2,36 +2,32 @@
 #include <QDate>
 #include <QThread>
 
-pvui::models::SecurityPriceModel::SecurityPriceModel(pv::SecurityPtr security,
-                                                     QObject *parent)
+pvui::models::SecurityPriceModel::SecurityPriceModel(pv::SecurityPtr security, QObject* parent)
     : QAbstractItemModel(parent), security_(security) {
   dates.reserve(security_->prices().size());
-  for (const auto &pair : security_->prices()) {
+  for (const auto& pair : security_->prices()) {
     dates.push_back(pair.first);
   }
 
-  QObject::connect(this, &SecurityPriceModel::dateAdded, this,
-                   [&](pv::Date date) {
-                     beginInsertRows(QModelIndex(), rowCount(), rowCount());
-                     dates.push_back(date);
-                     endInsertRows();
-                   });
+  QObject::connect(this, &SecurityPriceModel::dateAdded, this, [&](pv::Date date) {
+    beginInsertRows(QModelIndex(), rowCount(), rowCount());
+    dates.push_back(date);
+    endInsertRows();
+  });
 
-  QObject::connect(
-      this, &SecurityPriceModel::dateRemoved, this, [&](pv::Date date) {
-        auto iter = std::find(dates.cbegin(), dates.cend(), date);
-        if (iter == dates.cend())
-          return;
+  QObject::connect(this, &SecurityPriceModel::dateRemoved, this, [&](pv::Date date) {
+    auto iter = std::find(dates.cbegin(), dates.cend(), date);
+    if (iter == dates.cend())
+      return;
 
-        int index = static_cast<int>(dates.cbegin() - dates.cbegin());
-        beginRemoveRows(QModelIndex(), index, index);
-        dates.erase(iter);
-        endRemoveRows();
-      });
+    int index = static_cast<int>(dates.cbegin() - dates.cbegin());
+    beginRemoveRows(QModelIndex(), index, index);
+    dates.erase(iter);
+    endRemoveRows();
+  });
 
   auto beforeChangeConnection = security_->priceChanged().connect(
-      [&](const pv::Date &date, std::optional<pv::Decimal> before,
-          std::optional<pv::Decimal> after) {
+      [&](const pv::Date& date, std::optional<pv::Decimal> before, std::optional<pv::Decimal> after) {
         if (!before.has_value() && after.has_value()) {
           // Security Price added
           emit dateAdded(date);
@@ -39,8 +35,7 @@ pvui::models::SecurityPriceModel::SecurityPriceModel(pv::SecurityPtr security,
           // Security Price removed
           emit dateRemoved(date);
         } else if (before.has_value() && after.has_value()) {
-          auto row =
-              std::find(dates.cbegin(), dates.cend(), date) - dates.cbegin();
+          auto row = std::find(dates.cbegin(), dates.cend(), date) - dates.cbegin();
           auto index_ = index(row, 1); // Update the price column
           emit dataChanged(index_, index_);
         } else {
@@ -49,20 +44,17 @@ pvui::models::SecurityPriceModel::SecurityPriceModel(pv::SecurityPtr security,
       });
 }
 
-Qt::ItemFlags
-pvui::models::SecurityPriceModel::flags(const QModelIndex &index) const {
+Qt::ItemFlags pvui::models::SecurityPriceModel::flags(const QModelIndex& index) const {
 
   if (index.column() == 0)
     return Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemNeverHasChildren;
   if (index.column() == 1)
-    return Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemNeverHasChildren |
-           Qt::ItemIsEditable;
+    return Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemNeverHasChildren | Qt::ItemIsEditable;
   else
     return QAbstractItemModel::flags(index);
 }
 
-QVariant pvui::models::SecurityPriceModel::data(const QModelIndex &index,
-                                                int role) const {
+QVariant pvui::models::SecurityPriceModel::data(const QModelIndex& index, int role) const {
   if (!index.isValid())
     return QVariant();
   if (index.row() >= rowCount())
@@ -74,8 +66,7 @@ QVariant pvui::models::SecurityPriceModel::data(const QModelIndex &index,
     switch (index.column()) {
     case 0: {
       pv::YearMonthDay ymd(date);
-      return QDate(static_cast<int>(ymd.year()),
-                   static_cast<unsigned int>(ymd.month()),
+      return QDate(static_cast<int>(ymd.year()), static_cast<unsigned int>(ymd.month()),
                    static_cast<unsigned int>(ymd.day()));
     }
     case 1: {
@@ -90,8 +81,7 @@ QVariant pvui::models::SecurityPriceModel::data(const QModelIndex &index,
   return QVariant();
 }
 
-QVariant pvui::models::SecurityPriceModel::headerData(
-    int section, Qt::Orientation orientation, int role) const {
+QVariant pvui::models::SecurityPriceModel::headerData(int section, Qt::Orientation orientation, int role) const {
   if (orientation == Qt::Orientation::Horizontal && role == Qt::DisplayRole) {
     if (section == 0)
       return tr("Date");
@@ -104,9 +94,7 @@ QVariant pvui::models::SecurityPriceModel::headerData(
   }
 }
 
-bool pvui::models::SecurityPriceModel::setData(const QModelIndex &index,
-                                               const QVariant &value,
-                                               int role) {
+bool pvui::models::SecurityPriceModel::setData(const QModelIndex& index, const QVariant& value, int role) {
   if (!index.isValid() || index.row() >= dates.size())
     return false;
   if (role != Qt::EditRole)

@@ -9,7 +9,7 @@ namespace util {
 class SecuritySymbolValidator : public QValidator {
   Q_OBJECT
 public:
-  QValidator::State validate(QString &input, int &pos) const override;
+  QValidator::State validate(QString& input, int& pos) const override;
 };
 } // namespace util
 } // namespace pvui

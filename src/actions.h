@@ -7,7 +7,7 @@
 namespace {
 class BuySellAction : public pv::Action {
 public:
-  inline void processTransaction(pv::TransactionBase &in) const override {
+  inline void processTransaction(pv::TransactionBase& in) const override {
     in.totalAmount = (in.numberOfShares * in.sharePrice) + in.commission;
   }
 };
@@ -29,8 +29,8 @@ static BuyAction BUY = BuyAction();
 static SellAction SELL = SellAction();
 } // namespace actions
 
-inline const std::array<pv::Action *, 2> ACTIONS{&actions::BUY, &actions::SELL};
+inline const std::array<pv::Action*, 2> ACTIONS{&actions::BUY, &actions::SELL};
 
-const pv::Action *actionFromName(std::string name);
+const pv::Action* actionFromName(std::string name);
 } // namespace pv
 #endif // PV_ACTIONS_H

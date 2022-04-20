@@ -21,33 +21,31 @@ namespace pvui {
 class MainWindow : public QMainWindow {
   Q_OBJECT
 private:
-  QTreeView *navigationWidget;
-  QStandardItemModel *navigationModel;
-  QWidget *content;
-  QLabel *noPageOpen;
-  QStackedLayout *contentLayout;
-  AccountPageWidget *accountPage;
+  QTreeView* navigationWidget;
+  QStandardItemModel* navigationModel;
+  QWidget* content;
+  QLabel* noPageOpen;
+  QStackedLayout* contentLayout;
+  AccountPageWidget* accountPage;
   DataFileManager dataFileManager;
-  SecurityPageWidget *securityPage = new SecurityPageWidget(dataFileManager);
-  QStandardItem *m_navigationAccountItem;
+  SecurityPageWidget* securityPage = new SecurityPageWidget(dataFileManager);
+  QStandardItem* m_navigationAccountItem;
 
-  QStandardItem *securitiesNavigationItem = new QStandardItem(tr("Securities"));
-  std::unordered_map<QStandardItem *, pv::AccountPtr> accountNavigationItems;
+  QStandardItem* securitiesNavigationItem = new QStandardItem(tr("Securities"));
+  std::unordered_map<QStandardItem*, pv::AccountPtr> accountNavigationItems;
 
   void setupDataFile();
 
 public:
-  MainWindow(QWidget *parent = nullptr);
+  MainWindow(QWidget* parent = nullptr);
 
   void setupMenuBar();
   void setupNavigation();
 
 protected:
-  inline pv::DataFile &dataFile() noexcept {
-    return dataFileManager.dataFile();
-  }
+  inline pv::DataFile& dataFile() noexcept { return dataFileManager.dataFile(); }
 protected slots:
-  void pageChanged(const QItemSelection &selection);
+  void pageChanged(const QItemSelection& selection);
   void addAccount();
 };
 } // namespace pvui

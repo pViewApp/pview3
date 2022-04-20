@@ -9,46 +9,35 @@ namespace pvui::models {
 class SecurityModel : public QAbstractItemModel {
   Q_OBJECT
 private:
-  pv::DataFile &dataFile_;
+  pv::DataFile& dataFile_;
   boost::signals2::scoped_connection beforeSecurityAddedConnection;
   boost::signals2::scoped_connection afterSecurityAddedConnection;
 
 public:
-  SecurityModel(pv::DataFile &dataFile);
+  SecurityModel(pv::DataFile& dataFile);
 
-  inline int
-  rowCount(const QModelIndex &parent = QModelIndex()) const override {
+  inline int rowCount(const QModelIndex& parent = QModelIndex()) const override {
     if (parent.isValid())
       return 0;
     return static_cast<int>(dataFile_.securities().size());
   }
 
-  inline QModelIndex
-  parent(const QModelIndex &index = QModelIndex()) const override {
-    return QModelIndex();
-  }
+  inline QModelIndex parent(const QModelIndex& index = QModelIndex()) const override { return QModelIndex(); }
 
-  inline int
-  columnCount(const QModelIndex &index = QModelIndex()) const override {
+  inline int columnCount(const QModelIndex& index = QModelIndex()) const override {
     return 4; // Symbol, name, asset class, sector
   }
 
-  inline QModelIndex
-  index(int row, int column,
-        const QModelIndex &parent = QModelIndex()) const override {
+  inline QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override {
     return createIndex(row, column,
-                       row > dataFile_.securities().size() - 1
-                           ? nullptr
-                           : dataFile_.securities().at(row).get());
+                       row > dataFile_.securities().size() - 1 ? nullptr : dataFile_.securities().at(row).get());
   }
 
-  QVariant data(const QModelIndex &index,
-                int role = Qt::DisplayRole) const override;
+  QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
-  QVariant headerData(int section, Qt::Orientation orientation,
-                      int role = Qt::DisplayRole) const override;
+  QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 signals:
-  void beforeSecurityAdded(const QModelIndex &index, int first, int last);
+  void beforeSecurityAdded(const QModelIndex& index, int first, int last);
   void afterSecurityAdded();
 };
 } // namespace pvui::models

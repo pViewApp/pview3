@@ -4,8 +4,7 @@
 
 namespace pvui {
 namespace controls {
-SecurityInsertionWidget::SecurityInsertionWidget(
-    DataFileManager &dataFileManager, QWidget *parent)
+SecurityInsertionWidget::SecurityInsertionWidget(DataFileManager& dataFileManager, QWidget* parent)
     : QWidget(parent), dataFileManager_(dataFileManager) {
   layout->addWidget(symbolEditor, 1);
   layout->addWidget(nameEditor, 1);
@@ -20,8 +19,7 @@ SecurityInsertionWidget::SecurityInsertionWidget(
   assetClassEditor->lineEdit()->setPlaceholderText("Asset Class");
   sectorEditor->lineEdit()->setPlaceholderText("Sector");
 
-  static const QSizePolicy sizePolicy = {QSizePolicy::Ignored,
-                                         QSizePolicy::Preferred};
+  static const QSizePolicy sizePolicy = {QSizePolicy::Ignored, QSizePolicy::Preferred};
 
   symbolEditor->setSizePolicy(sizePolicy);
   nameEditor->setSizePolicy(sizePolicy);
@@ -52,17 +50,15 @@ SecurityInsertionWidget::SecurityInsertionWidget(
   assetClassEditor->addItems(assetClasses);
   sectorEditor->addItems(sectors);
 
-  auto *validator = new util::SecuritySymbolValidator;
+  auto* validator = new util::SecuritySymbolValidator;
   symbolEditor->setValidator(validator);
   validator->setParent(symbolEditor); // Prevent memory leak
 
-  QShortcut *returnShortcut = new QShortcut(Qt::Key_Return, this);
-  QShortcut *enterShortcut = new QShortcut(Qt::Key_Enter, this);
+  QShortcut* returnShortcut = new QShortcut(Qt::Key_Return, this);
+  QShortcut* enterShortcut = new QShortcut(Qt::Key_Enter, this);
 
-  QObject::connect(returnShortcut, &QShortcut::activated, this,
-                   &SecurityInsertionWidget::submit);
-  QObject::connect(enterShortcut, &QShortcut::activated, this,
-                   &SecurityInsertionWidget::submit);
+  QObject::connect(returnShortcut, &QShortcut::activated, this, &SecurityInsertionWidget::submit);
+  QObject::connect(enterShortcut, &QShortcut::activated, this, &SecurityInsertionWidget::submit);
 
   reset();
 }
@@ -82,14 +78,12 @@ void SecurityInsertionWidget::submit() {
   QString assetClass = assetClassEditor->lineEdit()->text().trimmed();
   QString sector = sectorEditor->lineEdit()->text().trimmed();
 
-  if (symbol.isEmpty() || name.isEmpty() || assetClass.isEmpty() ||
-      sector.isEmpty()) {
+  if (symbol.isEmpty() || name.isEmpty() || assetClass.isEmpty() || sector.isEmpty()) {
     return;
   }
 
-  dataFileManager_.dataFile().addSecurity(
-      symbol.toStdString(), name.toStdString(), assetClass.toStdString(),
-      sector.toStdString());
+  dataFileManager_.dataFile().addSecurity(symbol.toStdString(), name.toStdString(), assetClass.toStdString(),
+                                          sector.toStdString());
 
   reset();
 }

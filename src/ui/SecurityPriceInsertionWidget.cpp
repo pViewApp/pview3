@@ -1,8 +1,7 @@
 #include "SecurityPriceInsertionWidget.h"
 #include <QShortcut>
 
-pvui::controls::SecurityPriceInsertionWidget::SecurityPriceInsertionWidget(
-    pv::SecurityPtr security, QWidget *parent)
+pvui::controls::SecurityPriceInsertionWidget::SecurityPriceInsertionWidget(pv::SecurityPtr security, QWidget* parent)
     : QWidget(parent) {
   layout->addWidget(dateEditor, 1);
   layout->addWidget(priceEditor, 1);
@@ -11,18 +10,15 @@ pvui::controls::SecurityPriceInsertionWidget::SecurityPriceInsertionWidget(
   priceEditor->setPlaceholderText(tr("Price"));
 
   // Set Size Policy
-  static const QSizePolicy sizePolicy = {QSizePolicy::Ignored,
-                                         QSizePolicy::Preferred};
+  static const QSizePolicy sizePolicy = {QSizePolicy::Ignored, QSizePolicy::Preferred};
   dateEditor->setSizePolicy(sizePolicy);
   priceEditor->setSizePolicy(sizePolicy);
 
-  QShortcut *submitShortcutReturn = new QShortcut(Qt::Key_Return, this);
-  QShortcut *submitShortcutEnter = new QShortcut(Qt::Key_Enter, this);
+  QShortcut* submitShortcutReturn = new QShortcut(Qt::Key_Return, this);
+  QShortcut* submitShortcutEnter = new QShortcut(Qt::Key_Enter, this);
 
-  QObject::connect(submitShortcutEnter, &QShortcut::activated, this,
-                   &SecurityPriceInsertionWidget::submit);
-  QObject::connect(submitShortcutReturn, &QShortcut::activated, this,
-                   &SecurityPriceInsertionWidget::submit);
+  QObject::connect(submitShortcutEnter, &QShortcut::activated, this, &SecurityPriceInsertionWidget::submit);
+  QObject::connect(submitShortcutReturn, &QShortcut::activated, this, &SecurityPriceInsertionWidget::submit);
 
   setSecurity(security);
 }
@@ -41,8 +37,7 @@ bool pvui::controls::SecurityPriceInsertionWidget::submit() {
   using namespace pv;
 
   auto qDate = dateEditor->date();
-  Date date(
-      YearMonthDay(Year(qDate.year()), Month(qDate.month()), Day(qDate.day())));
+  Date date(YearMonthDay(Year(qDate.year()), Month(qDate.month()), Day(qDate.day())));
 
   if (security_->prices().find(date) != security_->prices().cend())
     return false;
@@ -55,8 +50,7 @@ bool pvui::controls::SecurityPriceInsertionWidget::submit() {
   return true;
 }
 
-void pvui::controls::SecurityPriceInsertionWidget::setSecurity(
-    pv::SecurityPtr security) {
+void pvui::controls::SecurityPriceInsertionWidget::setSecurity(pv::SecurityPtr security) {
   security_ = security;
   reset();
 }

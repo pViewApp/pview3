@@ -23,12 +23,12 @@ class AccountPageWidget : public PageWidget {
   Q_OBJECT
 private:
   pv::AccountPtr account_ = nullptr;
-  QTableView *table;
-  controls::TransactionInsertionWidget *insertWidget;
-  QSortFilterProxyModel *model;
+  QTableView* table;
+  controls::TransactionInsertionWidget* insertWidget;
+  QSortFilterProxyModel* model;
 
 public:
-  AccountPageWidget(QWidget *parent = nullptr);
+  AccountPageWidget(QWidget* parent = nullptr);
 public slots:
   inline void setAccount(pv::AccountPtr account) {
     account_ = account;

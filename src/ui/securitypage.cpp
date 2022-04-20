@@ -14,22 +14,19 @@ void pvui::SecurityPageWidget::setupToolbar() {
       return;
 
     QString symbol = table->model()->data(range.topLeft()).toString();
-    pv::SecurityPtr security =
-        dataFileManager_.dataFile().securityForSymbol(symbol.toStdString());
-    dialogs::SecurityPriceDialog *dialog =
-        new dialogs::SecurityPriceDialog(security, this);
+    pv::SecurityPtr security = dataFileManager_.dataFile().securityForSymbol(symbol.toStdString());
+    dialogs::SecurityPriceDialog* dialog = new dialogs::SecurityPriceDialog(security, this);
     dialog->setWindowTitle(tr("Editing Security Prices for ") + symbol);
     dialog->exec();
   });
 }
 
-pvui::SecurityPageWidget::SecurityPageWidget(
-    pvui::DataFileManager &dataFileManager, QWidget *parent)
+pvui::SecurityPageWidget::SecurityPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent)
     : PageWidget(parent), dataFileManager_(dataFileManager) {
   setTitle(tr("Securities"));
 
   // Setup layout
-  auto *mainLayout = new QVBoxLayout();
+  auto* mainLayout = new QVBoxLayout();
   mainLayout->addWidget(toolBar);
   mainLayout->addWidget(table);
   mainLayout->addWidget(insertionWidget);
@@ -39,23 +36,17 @@ pvui::SecurityPageWidget::SecurityPageWidget(
   setupToolbar();
 
   // Setup table
-  QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this,
-                   [&](pv::DataFile &dataFile) {
-                     tableModel->setSourceModel(
-                         new models::SecurityModel(dataFile));
-                     table->scrollToBottom();
-                   });
-  tableModel->setSourceModel(
-      new models::SecurityModel(dataFileManager_.dataFile()));
+  QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this, [&](pv::DataFile& dataFile) {
+    tableModel->setSourceModel(new models::SecurityModel(dataFile));
+    table->scrollToBottom();
+  });
+  tableModel->setSourceModel(new models::SecurityModel(dataFileManager_.dataFile()));
   tableModel->sort(0, Qt::AscendingOrder);
   table->setSortingEnabled(true);
   table->setModel(tableModel);
   table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
   table->verticalHeader()->hide();
   table->setSelectionBehavior(QTableView::SelectionBehavior::SelectRows);
-  QObject::connect(table->selectionModel(),
-                   &QItemSelectionModel::selectionChanged, this,
-                   [&](QItemSelection current) {
-                     securityInfoAction->setEnabled(!current.isEmpty());
-                   });
+  QObject::connect(table->selectionModel(), &QItemSelectionModel::selectionChanged, this,
+                   [&](QItemSelection current) { securityInfoAction->setEnabled(!current.isEmpty()); });
 }

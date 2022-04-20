@@ -19,22 +19,20 @@ namespace pvui {
 class SecurityPageWidget : public PageWidget {
   Q_OBJECT
 private:
-  pvui::DataFileManager &dataFileManager_;
+  pvui::DataFileManager& dataFileManager_;
 
-  QToolBar *toolBar = new QToolBar;
-  QTableView *table = new QTableView;
-  controls::SecurityInsertionWidget *insertionWidget =
-      new controls::SecurityInsertionWidget(dataFileManager_);
+  QToolBar* toolBar = new QToolBar;
+  QTableView* table = new QTableView;
+  controls::SecurityInsertionWidget* insertionWidget = new controls::SecurityInsertionWidget(dataFileManager_);
 
-  QAction *securityInfoAction = new QAction(tr("Edit Security Prices..."));
+  QAction* securityInfoAction = new QAction(tr("Edit Security Prices..."));
 
-  QSortFilterProxyModel *tableModel = new QSortFilterProxyModel;
+  QSortFilterProxyModel* tableModel = new QSortFilterProxyModel;
 
   void setupToolbar();
 
 public:
-  SecurityPageWidget(pvui::DataFileManager &dataFileManager,
-                     QWidget *parent = nullptr);
+  SecurityPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent = nullptr);
 };
 } // namespace pvui
 

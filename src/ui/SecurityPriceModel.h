@@ -15,42 +15,33 @@ private:
   pv::SecurityPtr security_;
 
 public:
-  SecurityPriceModel(pv::SecurityPtr security, QObject *parent = nullptr);
+  SecurityPriceModel(pv::SecurityPtr security, QObject* parent = nullptr);
 
-  inline QModelIndex
-  index(int row, int column,
-        const QModelIndex &parent = QModelIndex()) const override {
+  inline QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override {
     return createIndex(row, column, nullptr);
   }
 
-  inline int
-  rowCount(const QModelIndex &parent = QModelIndex()) const override {
+  inline int rowCount(const QModelIndex& parent = QModelIndex()) const override {
     if (parent.isValid())
       return 0; // No children
     return static_cast<int>(dates.size());
   }
 
-  inline int
-  columnCount(const QModelIndex &parent = QModelIndex()) const override {
+  inline int columnCount(const QModelIndex& parent = QModelIndex()) const override {
     if (parent.isValid())
       return 0;
     return 2;
   }
 
-  inline QModelIndex parent(const QModelIndex &) const override {
-    return QModelIndex();
-  }
+  inline QModelIndex parent(const QModelIndex&) const override { return QModelIndex(); }
 
-  Qt::ItemFlags flags(const QModelIndex &index) const override;
+  Qt::ItemFlags flags(const QModelIndex& index) const override;
 
-  QVariant data(const QModelIndex &index,
-                int role = Qt::DisplayRole) const override;
+  QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
-  QVariant headerData(int section, Qt::Orientation orientation,
-                      int role = Qt::DisplayRole) const override;
+  QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 
-  bool setData(const QModelIndex &index, const QVariant &value,
-               int role = Qt::EditRole) override;
+  bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole) override;
 signals:
   void dateAdded(pv::Date date);
   void dateRemoved(pv::Date date);

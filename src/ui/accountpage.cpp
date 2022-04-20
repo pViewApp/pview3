@@ -11,13 +11,12 @@
 #include <fmt/format.h>
 #include <string>
 
-pvui::AccountPageWidget::AccountPageWidget(QWidget *parent)
-    : PageWidget(parent), table(new QTableView),
-      insertWidget(new controls::TransactionInsertionWidget),
+pvui::AccountPageWidget::AccountPageWidget(QWidget* parent)
+    : PageWidget(parent), table(new QTableView), insertWidget(new controls::TransactionInsertionWidget),
       model(new QSortFilterProxyModel) {
   setTitle("No Account Open");
 
-  QVBoxLayout *layout = new QVBoxLayout;
+  QVBoxLayout* layout = new QVBoxLayout;
   layout->addWidget(table, 1);
   layout->addWidget(insertWidget);
   setContent(layout);

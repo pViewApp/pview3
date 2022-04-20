@@ -19,7 +19,7 @@ namespace util {
 class NonCopyable {
 public:
   NonCopyable() = default;
-  NonCopyable(const NonCopyable &) = delete;
+  NonCopyable(const NonCopyable&) = delete;
 };
 } // namespace util
 
@@ -33,26 +33,24 @@ using SecurityPtr = std::shared_ptr<Security>;
 
 class Security : util::NonCopyable {
 private:
-  pv::DataFile &dataFile_;
+  pv::DataFile& dataFile_;
   std::string symbol_;
   std::string name_;
   std::string assetClass_;
   std::string sector_;
   std::map<Date, Decimal> prices_;
 
-  mutable boost::signals2::signal<void(const Date &)> signal_beforePriceChanged;
+  mutable boost::signals2::signal<void(const Date&)> signal_beforePriceChanged;
 
-  mutable boost::signals2::signal<void(
-      const Date &, const std::optional<Decimal>, const std::optional<Decimal>)>
+  mutable boost::signals2::signal<void(const Date&, const std::optional<Decimal>, const std::optional<Decimal>)>
       signal_priceChanged;
 
 public:
   inline static const SecurityPtr None = nullptr;
 
-  Security(pv::DataFile &dataFile, std::string symbol, std::string name,
-           std::string assetClass, std::string sector);
+  Security(pv::DataFile& dataFile, std::string symbol, std::string name, std::string assetClass, std::string sector);
 
-  pv::DataFile &dataFile() const noexcept { return dataFile_; }
+  pv::DataFile& dataFile() const noexcept { return dataFile_; }
 
   std::string symbol() const noexcept { return symbol_; }
 
@@ -62,17 +60,13 @@ public:
 
   std::string sector() const noexcept { return sector_; }
 
-  const std::map<Date, Decimal> &prices() const noexcept { return prices_; }
+  const std::map<Date, Decimal>& prices() const noexcept { return prices_; }
 
   void setPrice(Date, Decimal);
 
-  boost::signals2::signal<void(const Date &)> &
-  beforePriceChanged() const noexcept {
-    return signal_beforePriceChanged;
-  }
+  boost::signals2::signal<void(const Date&)>& beforePriceChanged() const noexcept { return signal_beforePriceChanged; }
 
-  boost::signals2::signal<void(const Date &, const std::optional<Decimal>,
-                               std::optional<Decimal>)> &
+  boost::signals2::signal<void(const Date&, const std::optional<Decimal>, std::optional<Decimal>)>&
   priceChanged() const noexcept {
     return signal_priceChanged;
   }
@@ -89,11 +83,9 @@ public:
   Decimal totalAmount;
 
 public:
-  TransactionBase(pv::Date date, const SecurityPtr security,
-                  Decimal numberOfShares, Decimal sharePrice,
+  TransactionBase(pv::Date date, const SecurityPtr security, Decimal numberOfShares, Decimal sharePrice,
                   Decimal commission, Decimal totalAmount)
-      : date(date), security(security), numberOfShares(numberOfShares),
-        sharePrice(sharePrice), commission(commission),
+      : date(date), security(security), numberOfShares(numberOfShares), sharePrice(sharePrice), commission(commission),
         totalAmount(totalAmount) {}
 };
 
@@ -101,17 +93,17 @@ class Action {
 public:
   Action() = default;
 
-  virtual void processTransaction(TransactionBase &in) const = 0;
+  virtual void processTransaction(TransactionBase& in) const = 0;
 
   virtual std::string name() const noexcept = 0;
 };
 
 class Transaction : util::NonCopyable {
 private:
-  Account &account_;
+  Account& account_;
   unsigned int id_;
   Date date_;
-  const Action &action_;
+  const Action& action_;
   const SecurityPtr security_;
   Decimal numberOfShares_;
   Decimal sharePrice_;
@@ -119,19 +111,17 @@ private:
   Decimal totalAmount_;
 
 public:
-  Transaction(Account &account, unsigned int id, const Action &action,
-              TransactionBase base)
-      : account_(account), id_(id), date_(base.date), action_(action),
-        security_(base.security), numberOfShares_(base.numberOfShares),
-        sharePrice_(base.sharePrice), commission_(base.commission),
+  Transaction(Account& account, unsigned int id, const Action& action, TransactionBase base)
+      : account_(account), id_(id), date_(base.date), action_(action), security_(base.security),
+        numberOfShares_(base.numberOfShares), sharePrice_(base.sharePrice), commission_(base.commission),
         totalAmount_(base.totalAmount) {}
 
   unsigned int id() const noexcept { return id_; }
 
-  Account &account() const noexcept { return account_; }
+  Account& account() const noexcept { return account_; }
   Date date() const noexcept { return date_; }
 
-  const Action &action() const noexcept { return action_; }
+  const Action& action() const noexcept { return action_; }
 
   const SecurityPtr security() const noexcept { return security_; }
 
@@ -148,7 +138,7 @@ using TransactionPtr = std::shared_ptr<Transaction>;
 
 class Account : public util::NonCopyable {
 private:
-  DataFile &dataFile_;
+  DataFile& dataFile_;
   unsigned int id_;
   std::string name_;
 
@@ -156,15 +146,11 @@ private:
   std::vector<TransactionPtr> transactions_;
 
   mutable boost::signals2::signal<void()> signal_beforeTransactionAdded;
-  mutable boost::signals2::signal<void(const TransactionPtr)>
-      signal_transactionAdded;
-  mutable boost::signals2::signal<void(const std::string &,
-                                       const std::string &)>
-      signal_nameChanged;
+  mutable boost::signals2::signal<void(const TransactionPtr)> signal_transactionAdded;
+  mutable boost::signals2::signal<void(const std::string&, const std::string&)> signal_nameChanged;
 
 public:
-  Account(DataFile &dataFile, unsigned int id, std::string name)
-      : dataFile_(dataFile), id_(id), name_(name) {}
+  Account(DataFile& dataFile, unsigned int id, std::string name) : dataFile_(dataFile), id_(id), name_(name) {}
 
   TransactionPtr transactionForId(unsigned int id) {
     for (TransactionPtr transaction : transactions_) {
@@ -176,7 +162,7 @@ public:
     return nullptr;
   }
 
-  DataFile &dataFile() const noexcept { return dataFile_; }
+  DataFile& dataFile() const noexcept { return dataFile_; }
 
   unsigned int id() const noexcept { return id_; }
 
@@ -188,28 +174,20 @@ public:
     signal_nameChanged(name, name_);
   }
 
-  const std::vector<TransactionPtr> &transactions() const noexcept {
-    return transactions_;
-  }
+  const std::vector<TransactionPtr>& transactions() const noexcept { return transactions_; }
 
-  boost::signals2::signal<void()> &beforeTransactionAdded() const noexcept {
-    return signal_beforeTransactionAdded;
-  }
+  boost::signals2::signal<void()>& beforeTransactionAdded() const noexcept { return signal_beforeTransactionAdded; }
 
-  boost::signals2::signal<void(const TransactionPtr)> &
-  transactionAdded() const noexcept {
+  boost::signals2::signal<void(const TransactionPtr)>& transactionAdded() const noexcept {
     return signal_transactionAdded;
   }
 
-  boost::signals2::signal<void(const std::string &, const std::string &)> &
-  nameChanged() const noexcept {
+  boost::signals2::signal<void(const std::string&, const std::string&)>& nameChanged() const noexcept {
     return signal_nameChanged;
   }
 
-  TransactionPtr addTransaction(pv::Date date, const pv::Action &action,
-                                const SecurityPtr security,
-                                pv::Decimal numberOfShares,
-                                pv::Decimal sharePrice, pv::Decimal commission,
+  TransactionPtr addTransaction(pv::Date date, const pv::Action& action, const SecurityPtr security,
+                                pv::Decimal numberOfShares, pv::Decimal sharePrice, pv::Decimal commission,
                                 pv::Decimal totalAmount);
 };
 class DataFile : util::NonCopyable {
@@ -226,23 +204,15 @@ private:
 public:
   DataFile() = default;
 
-  const std::vector<AccountPtr> &accounts() const noexcept { return accounts_; }
+  const std::vector<AccountPtr>& accounts() const noexcept { return accounts_; }
 
-  const std::vector<SecurityPtr> &securities() const noexcept {
-    return securities_;
-  }
+  const std::vector<SecurityPtr>& securities() const noexcept { return securities_; }
 
-  boost::signals2::signal<void(AccountPtr)> &accountAdded() const noexcept {
-    return signal_accountAdded;
-  }
+  boost::signals2::signal<void(AccountPtr)>& accountAdded() const noexcept { return signal_accountAdded; }
 
-  boost::signals2::signal<void(SecurityPtr)> &securityAdded() {
-    return signal_securityAdded;
-  }
+  boost::signals2::signal<void(SecurityPtr)>& securityAdded() { return signal_securityAdded; }
 
-  boost::signals2::signal<void()> &beforeSecurityAdded() {
-    return signal_beforeSecurityAdded;
-  }
+  boost::signals2::signal<void()>& beforeSecurityAdded() { return signal_beforeSecurityAdded; }
 
   AccountPtr accountForId(unsigned int id) {
     for (AccountPtr account : accounts_) {
@@ -265,8 +235,7 @@ public:
   }
 
   AccountPtr addAccount(std::string name);
-  SecurityPtr addSecurity(std::string symbol, std::string name,
-                          std::string assetClass, std::string sector);
+  SecurityPtr addSecurity(std::string symbol, std::string name, std::string assetClass, std::string sector);
 };
 } // namespace pv
 

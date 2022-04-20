@@ -17,18 +17,14 @@ class TransactionInsertionWidget : public QWidget {
 private:
   pv::AccountPtr account_;
 
-  QHBoxLayout *layout = new QHBoxLayout(this);
-  QDateEdit *dateEditor = new QDateEdit;
-  QComboBox *actionEditor = new QComboBox;
-  QComboBox *securityEditor = new QComboBox;
-  controls::ExtendedDoubleSpinBox *numberOfSharesEditor =
-      new controls::ExtendedDoubleSpinBox;
-  controls::ExtendedDoubleSpinBox *sharePriceEditor =
-      new controls::ExtendedDoubleSpinBox;
-  controls::ExtendedDoubleSpinBox *commissionEditor =
-      new controls::ExtendedDoubleSpinBox;
-  controls::ExtendedDoubleSpinBox *totalAmountEditor =
-      new controls::ExtendedDoubleSpinBox;
+  QHBoxLayout* layout = new QHBoxLayout(this);
+  QDateEdit* dateEditor = new QDateEdit;
+  QComboBox* actionEditor = new QComboBox;
+  QComboBox* securityEditor = new QComboBox;
+  controls::ExtendedDoubleSpinBox* numberOfSharesEditor = new controls::ExtendedDoubleSpinBox;
+  controls::ExtendedDoubleSpinBox* sharePriceEditor = new controls::ExtendedDoubleSpinBox;
+  controls::ExtendedDoubleSpinBox* commissionEditor = new controls::ExtendedDoubleSpinBox;
+  controls::ExtendedDoubleSpinBox* totalAmountEditor = new controls::ExtendedDoubleSpinBox;
 
   std::optional<boost::signals2::connection> dataFileSecurityConnection =
       std::nullopt; // Connection to the current DataFile's securityAdded()
@@ -36,15 +32,14 @@ private:
   void reset();
 
 protected:
-  inline void showEvent(QShowEvent *showEvent) override {
+  inline void showEvent(QShowEvent* showEvent) override {
     if (!showEvent->spontaneous()) {
       dateEditor->setFocus();
     }
   }
 
 public:
-  TransactionInsertionWidget(pv::AccountPtr account = nullptr,
-                             QWidget *parent = nullptr);
+  TransactionInsertionWidget(pv::AccountPtr account = nullptr, QWidget* parent = nullptr);
 protected slots:
   void setupSecurityList();
 public slots:

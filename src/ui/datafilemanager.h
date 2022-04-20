@@ -13,13 +13,11 @@ private:
 public:
   inline DataFileManager() = default;
 
-  inline pv::DataFile &dataFile() noexcept { return m_dataFile; }
+  inline pv::DataFile& dataFile() noexcept { return m_dataFile; }
 
-  inline const pv::DataFile &constDataFile() const noexcept {
-    return m_dataFile;
-  }
+  inline const pv::DataFile& constDataFile() const noexcept { return m_dataFile; }
 signals:
-  void dataFileChanged(pv::DataFile &newDataFile);
+  void dataFileChanged(pv::DataFile& newDataFile);
 };
 } // namespace pvui
 

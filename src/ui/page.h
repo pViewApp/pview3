@@ -11,12 +11,12 @@ class PageWidget : public QWidget {
   Q_OBJECT
 private:
   QString title_;
-  QGroupBox *contentBox;
-  QVBoxLayout *contentBoxLayout;
-  QLayoutItem *content_;
+  QGroupBox* contentBox;
+  QVBoxLayout* contentBoxLayout;
+  QLayoutItem* content_;
 
 public:
-  PageWidget(QWidget *parent = nullptr);
+  PageWidget(QWidget* parent = nullptr);
 
   QString title() { return title_; }
 
@@ -26,7 +26,7 @@ protected slots:
     emit titleChanged(newTitle);
   }
 
-  void setContent(QLayoutItem *content) {
+  void setContent(QLayoutItem* content) {
     if (content_ != nullptr) {
       contentBoxLayout->removeItem(content_);
     }
@@ -35,7 +35,7 @@ protected slots:
     contentBoxLayout->addItem(content_);
   }
 
-  void setContent(QLayout *content) {
+  void setContent(QLayout* content) {
     if (content_ != nullptr) {
       contentBoxLayout->removeItem(content_);
     }
@@ -44,9 +44,9 @@ protected slots:
     contentBoxLayout->addLayout(content);
   }
 
-  void setContent(QWidget *content) { setContent(new QWidgetItem(content)); }
+  void setContent(QWidget* content) { setContent(new QWidgetItem(content)); }
 signals:
-  void titleChanged(const QString &newTitle);
+  void titleChanged(const QString& newTitle);
 };
 } // namespace pvui
 

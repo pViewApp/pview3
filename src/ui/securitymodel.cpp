@@ -1,30 +1,23 @@
 #include "SecurityModel.h"
 
-pvui::models::SecurityModel::SecurityModel(pv::DataFile &dataFile)
-    : dataFile_(dataFile) {
+pvui::models::SecurityModel::SecurityModel(pv::DataFile& dataFile) : dataFile_(dataFile) {
   // Before security_ added
 
-  QObject::connect(this, &SecurityModel::beforeSecurityAdded, this,
-                   &SecurityModel::beginInsertRows);
-  beforeSecurityAddedConnection = dataFile.beforeSecurityAdded().connect([&]() {
-    emit beforeSecurityAdded(QModelIndex(), rowCount(), rowCount());
-  });
+  QObject::connect(this, &SecurityModel::beforeSecurityAdded, this, &SecurityModel::beginInsertRows);
+  beforeSecurityAddedConnection = dataFile.beforeSecurityAdded().connect(
+      [&]() { emit beforeSecurityAdded(QModelIndex(), rowCount(), rowCount()); });
 
   // After security_ added
 
-  QObject::connect(this, &SecurityModel::afterSecurityAdded, this,
-                   &SecurityModel::endInsertRows);
-  afterSecurityAddedConnection = dataFile.securityAdded().connect(
-      [&](pv::SecurityPtr) { emit afterSecurityAdded(); });
+  QObject::connect(this, &SecurityModel::afterSecurityAdded, this, &SecurityModel::endInsertRows);
+  afterSecurityAddedConnection = dataFile.securityAdded().connect([&](pv::SecurityPtr) { emit afterSecurityAdded(); });
 }
 
-QVariant pvui::models::SecurityModel::data(const QModelIndex &index,
-                                           int role) const {
-  if (role != Qt::DisplayRole || index.internalPointer() == nullptr ||
-      !index.isValid())
+QVariant pvui::models::SecurityModel::data(const QModelIndex& index, int role) const {
+  if (role != Qt::DisplayRole || index.internalPointer() == nullptr || !index.isValid())
     return QVariant();
 
-  pv::Security *security = static_cast<pv::Security *>(index.internalPointer());
+  pv::Security* security = static_cast<pv::Security*>(index.internalPointer());
   switch (index.column()) {
   case 0:
     return QString::fromStdString(security->symbol());
@@ -39,9 +32,7 @@ QVariant pvui::models::SecurityModel::data(const QModelIndex &index,
   }
 }
 
-QVariant pvui::models::SecurityModel::headerData(int section,
-                                                 Qt::Orientation orientation,
-                                                 int role) const {
+QVariant pvui::models::SecurityModel::headerData(int section, Qt::Orientation orientation, int role) const {
   if (orientation != Qt::Orientation::Horizontal)
     return QVariant();
   if (role != Qt::DisplayRole)

@@ -19,18 +19,15 @@ class SecurityPriceDialog : public QDialog {
 private:
   pv::SecurityPtr security_;
 
-  QSortFilterProxyModel *model = new QSortFilterProxyModel;
+  QSortFilterProxyModel* model = new QSortFilterProxyModel;
 
-  QVBoxLayout *layout = new QVBoxLayout(this);
-  QTableView *table = new QTableView;
-  controls::SecurityPriceInsertionWidget *insertionBar =
-      new controls::SecurityPriceInsertionWidget;
-  QDialogButtonBox *dialogButtonBox =
-      new QDialogButtonBox(QDialogButtonBox::Ok);
+  QVBoxLayout* layout = new QVBoxLayout(this);
+  QTableView* table = new QTableView;
+  controls::SecurityPriceInsertionWidget* insertionBar = new controls::SecurityPriceInsertionWidget;
+  QDialogButtonBox* dialogButtonBox = new QDialogButtonBox(QDialogButtonBox::Ok);
 
 public:
-  SecurityPriceDialog(pv::SecurityPtr security = nullptr,
-                      QWidget *parent = nullptr);
+  SecurityPriceDialog(pv::SecurityPtr security = nullptr, QWidget* parent = nullptr);
 public slots:
   void setSecurity(pv::SecurityPtr security);
 };

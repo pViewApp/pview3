@@ -12,24 +12,23 @@ namespace pvui::controls {
 class SecurityPriceInsertionWidget : public QWidget {
   Q_OBJECT
 private:
-  QHBoxLayout *layout = new QHBoxLayout(this);
-  QDateEdit *dateEditor = new QDateEdit(QDate::currentDate());
-  ExtendedDoubleSpinBox *priceEditor = new ExtendedDoubleSpinBox;
+  QHBoxLayout* layout = new QHBoxLayout(this);
+  QDateEdit* dateEditor = new QDateEdit(QDate::currentDate());
+  ExtendedDoubleSpinBox* priceEditor = new ExtendedDoubleSpinBox;
 
   pv::SecurityPtr security_;
 
   void reset();
 
 protected:
-  inline void showEvent(QShowEvent *evt) override {
+  inline void showEvent(QShowEvent* evt) override {
     if (!evt->spontaneous()) {
       dateEditor->setFocus();
     }
   }
 
 public:
-  SecurityPriceInsertionWidget(pv::SecurityPtr security = nullptr,
-                               QWidget *parent = nullptr);
+  SecurityPriceInsertionWidget(pv::SecurityPtr security = nullptr, QWidget* parent = nullptr);
 public slots:
   /// @brief Attempts to add a security price with the current user-provided
   /// values.

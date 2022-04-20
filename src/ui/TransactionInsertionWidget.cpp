@@ -5,16 +5,14 @@
 
 namespace pvui {
 namespace controls {
-TransactionInsertionWidget::TransactionInsertionWidget(pv::AccountPtr account,
-                                                       QWidget *parent)
-    : QWidget(parent) {
+TransactionInsertionWidget::TransactionInsertionWidget(pv::AccountPtr account, QWidget* parent) : QWidget(parent) {
   dateEditor->setCalendarPopup(true);
   actionEditor->setEditable(true);
   securityEditor->setEditable(true);
 
   QStringList actions{pv::ACTIONS.size()};
   std::transform(pv::ACTIONS.cbegin(), pv::ACTIONS.cend(), actions.begin(),
-                 [](pv::Action *action) { return tr(action->name().c_str()); });
+                 [](pv::Action* action) { return tr(action->name().c_str()); });
 
   actionEditor->addItems(actions);
 
@@ -33,8 +31,7 @@ TransactionInsertionWidget::TransactionInsertionWidget(pv::AccountPtr account,
   layout->addWidget(commissionEditor, 1);
   layout->addWidget(totalAmountEditor, 1);
 
-  static const QSizePolicy sizePolicy = {QSizePolicy::Ignored,
-                                         QSizePolicy::Preferred};
+  static const QSizePolicy sizePolicy = {QSizePolicy::Ignored, QSizePolicy::Preferred};
 
   dateEditor->setSizePolicy(sizePolicy);
   actionEditor->setSizePolicy(sizePolicy);
@@ -44,17 +41,15 @@ TransactionInsertionWidget::TransactionInsertionWidget(pv::AccountPtr account,
   commissionEditor->setSizePolicy(sizePolicy);
   totalAmountEditor->setSizePolicy(sizePolicy);
 
-  auto *securityValidator = new util::SecuritySymbolValidator;
+  auto* securityValidator = new util::SecuritySymbolValidator;
   securityEditor->setValidator(securityValidator);
   securityValidator->setParent(securityEditor);
 
   // Setup submit on enter key press
-  QShortcut *returnShortcut = new QShortcut(Qt::Key_Return, this);
-  QShortcut *enterShortcut = new QShortcut(Qt::Key_Enter, this);
-  QObject::connect(returnShortcut, &QShortcut::activated, this,
-                   &TransactionInsertionWidget::submit);
-  QObject::connect(enterShortcut, &QShortcut::activated, this,
-                   &TransactionInsertionWidget::submit);
+  QShortcut* returnShortcut = new QShortcut(Qt::Key_Return, this);
+  QShortcut* enterShortcut = new QShortcut(Qt::Key_Enter, this);
+  QObject::connect(returnShortcut, &QShortcut::activated, this, &TransactionInsertionWidget::submit);
+  QObject::connect(enterShortcut, &QShortcut::activated, this, &TransactionInsertionWidget::submit);
 
   setAccount(account);
 }
@@ -70,17 +65,16 @@ void TransactionInsertionWidget::setupSecurityList() {
     return;
   }
 
-  dataFileSecurityConnection = account_->dataFile().securityAdded().connect(
-      [&](pv::SecurityPtr security) {
-        QString text = securityEditor->currentText();
-        securityEditor->addItem(QString::fromStdString(security->symbol()));
-        securityEditor->model()->sort(0);
-        securityEditor->setCurrentText(text);
-      });
+  dataFileSecurityConnection = account_->dataFile().securityAdded().connect([&](pv::SecurityPtr security) {
+    QString text = securityEditor->currentText();
+    securityEditor->addItem(QString::fromStdString(security->symbol()));
+    securityEditor->model()->sort(0);
+    securityEditor->setCurrentText(text);
+  });
 
   securityEditor->clear();
 
-  for (const auto &security : account_->dataFile().securities()) {
+  for (const auto& security : account_->dataFile().securities()) {
     securityEditor->addItem(QString::fromStdString(security->symbol()));
   }
 
@@ -90,8 +84,7 @@ void TransactionInsertionWidget::setupSecurityList() {
 void TransactionInsertionWidget::submit() {
   using namespace date;
 
-  std::string securitySymbol =
-      securityEditor->currentText().trimmed().toStdString();
+  std::string securitySymbol = securityEditor->currentText().trimmed().toStdString();
 
   pv::SecurityPtr security;
 
@@ -104,26 +97,21 @@ void TransactionInsertionWidget::submit() {
       static const std::string defaultSecurityAssetClass = "Equities";
       static const std::string defaultSecuritySector = "Other";
 
-      security = account_->dataFile().addSecurity(
-          securitySymbol, securitySymbol, defaultSecurityAssetClass,
-          defaultSecuritySector);
+      security = account_->dataFile().addSecurity(securitySymbol, securitySymbol, defaultSecurityAssetClass,
+                                                  defaultSecuritySector);
     }
   }
 
   if (account_ != nullptr) {
     auto date = dateEditor->date();
 
-    auto *action = pv::actionFromName(
-        actionEditor->itemText(actionEditor->currentIndex()).toStdString());
+    auto* action = pv::actionFromName(actionEditor->itemText(actionEditor->currentIndex()).toStdString());
     if (action == nullptr)
       return;
 
-    account_->addTransaction(
-        local_days(year_month_day(year(date.year()), month(date.month()),
-                                  day(date.day()))),
-        *action, security, numberOfSharesEditor->decimalValue(),
-        sharePriceEditor->decimalValue(), commissionEditor->decimalValue(),
-        totalAmountEditor->decimalValue());
+    account_->addTransaction(local_days(year_month_day(year(date.year()), month(date.month()), day(date.day()))),
+                             *action, security, numberOfSharesEditor->decimalValue(), sharePriceEditor->decimalValue(),
+                             commissionEditor->decimalValue(), totalAmountEditor->decimalValue());
 
     reset();
   }
