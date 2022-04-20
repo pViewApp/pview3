@@ -95,7 +95,7 @@ QVariant pvui::models::SecurityPriceModel::headerData(int section, Qt::Orientati
 }
 
 bool pvui::models::SecurityPriceModel::setData(const QModelIndex& index, const QVariant& value, int role) {
-  if (!index.isValid() || index.row() >= dates.size())
+  if (!index.isValid() || static_cast<std::size_t>(index.row()) >= dates.size())
     return false;
   if (role != Qt::EditRole)
     return false;

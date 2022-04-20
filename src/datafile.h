@@ -62,7 +62,11 @@ public:
 
   const std::map<Date, Decimal>& prices() const noexcept { return prices_; }
 
-  void setPrice(Date, Decimal);
+  void setPrice(Date date, Decimal price);
+
+  /// @brief Removes a security price.
+  /// @return true if the price was removed succesfully
+  bool removePrice(Date date);
 
   boost::signals2::signal<void(const Date&)>& beforePriceChanged() const noexcept { return signal_beforePriceChanged; }
 

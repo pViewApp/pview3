@@ -8,6 +8,7 @@
 #include <vector>
 
 namespace pvui::models {
+
 class SecurityPriceModel : public QAbstractItemModel {
   Q_OBJECT
 private:
@@ -17,24 +18,28 @@ private:
 public:
   SecurityPriceModel(pv::SecurityPtr security, QObject* parent = nullptr);
 
-  inline QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override {
+  pv::Date mapToDate(const QModelIndex& index) const noexcept { return dates.at(index.row()); }
+
+  // Overrides
+
+  QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override {
     if (parent.isValid()) return QModelIndex(); // No children
     return createIndex(row, column, nullptr);
   }
 
-  inline int rowCount(const QModelIndex& parent = QModelIndex()) const override {
+  int rowCount(const QModelIndex& parent = QModelIndex()) const override {
     if (parent.isValid())
       return 0; // No children
     return static_cast<int>(dates.size());
   }
 
-  inline int columnCount(const QModelIndex& parent = QModelIndex()) const override {
+  int columnCount(const QModelIndex& parent = QModelIndex()) const override {
     if (parent.isValid())
       return 0;
     return 2;
   }
 
-  inline QModelIndex parent(const QModelIndex&) const override { return QModelIndex(); }
+  QModelIndex parent(const QModelIndex&) const override { return QModelIndex(); }
 
   Qt::ItemFlags flags(const QModelIndex& index) const override;
 
@@ -46,12 +51,8 @@ public:
 signals:
   void dateAdded(pv::Date date);
   void dateRemoved(pv::Date date);
-
-  void beforeDateAdded();
-  void afterDateAdded();
-  void beforeDateRemoved();
-  void afterDateRemoved();
 };
+
 } // namespace pvui::models
 
 #endif // PVUI_MODELS_SECURITYPRICEMODEL_H

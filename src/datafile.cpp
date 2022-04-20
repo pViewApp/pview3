@@ -57,3 +57,19 @@ void pv::Security::setPrice(pv::Date date, pv::Decimal price) {
 
   signal_priceChanged(date, oldPrice, price);
 }
+
+bool pv::Security::removePrice(Date date) {
+  signal_beforePriceChanged(date);
+
+  auto oldPriceIter = prices_.find(date);
+  if (oldPriceIter == prices_.cend())
+    return false;
+
+  std::optional<pv::Decimal> oldPrice = oldPriceIter->second;
+
+  prices_.erase(oldPriceIter);
+
+  signal_priceChanged(date, oldPrice, std::nullopt);
+
+  return true;
+}
