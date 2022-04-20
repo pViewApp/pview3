@@ -11,9 +11,7 @@
 #include <fmt/format.h>
 #include <string>
 
-pvui::AccountPageWidget::AccountPageWidget(QWidget* parent)
-    : PageWidget(parent), table(new QTableView), insertWidget(new controls::TransactionInsertionWidget),
-      model(new QSortFilterProxyModel) {
+pvui::AccountPageWidget::AccountPageWidget(pv::AccountPtr account, QWidget* parent) : PageWidget(parent) {
   setTitle("No Account Open");
 
   QVBoxLayout* layout = new QVBoxLayout;
@@ -29,6 +27,25 @@ pvui::AccountPageWidget::AccountPageWidget(QWidget* parent)
 
   table->setSelectionBehavior(QTableView::SelectRows);
 
-  table->setModel(model);
+  table->setModel(proxyModel);
+  table->scrollToBottom();
+
+  setAccount(account);
+}
+
+void pvui::AccountPageWidget::setAccount(pv::AccountPtr account) {
+  account_ = account;
+
+  setDisabled(account_ == nullptr);
+
+  if (account_ == nullptr) {
+    setTitle(tr("No Account Open"));
+  } else {
+    setTitle(QString::fromStdString(account_->name()));
+  }
+
+  model = account_ == nullptr ? nullptr : std::make_unique<models::TransactionModel>(account_);
+  proxyModel->setSourceModel(model.get());
+  insertWidget->setAccount(account_);
   table->scrollToBottom();
 }

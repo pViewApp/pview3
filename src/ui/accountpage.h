@@ -15,6 +15,7 @@
 #include <QVariant>
 #include <QWidget>
 #include <boost/signals2.hpp>
+#include <memory>
 #include <optional>
 
 namespace pvui {
@@ -23,20 +24,15 @@ class AccountPageWidget : public PageWidget {
   Q_OBJECT
 private:
   pv::AccountPtr account_ = nullptr;
-  QTableView* table;
-  controls::TransactionInsertionWidget* insertWidget;
-  QSortFilterProxyModel* model;
+  QTableView* table = new QTableView;
+  controls::TransactionInsertionWidget* insertWidget = new controls::TransactionInsertionWidget;
+  QSortFilterProxyModel* proxyModel = new QSortFilterProxyModel(table);
+  std::unique_ptr<models::TransactionModel> model = nullptr;
 
 public:
-  AccountPageWidget(QWidget* parent = nullptr);
+  AccountPageWidget(pv::AccountPtr account = nullptr, QWidget* parent = nullptr);
 public slots:
-  inline void setAccount(pv::AccountPtr account) {
-    account_ = account;
-    setTitle(QString::fromStdString(account->name()));
-    model->setSourceModel(new models::TransactionModel(account_));
-    insertWidget->setAccount(account);
-    table->scrollToBottom();
-  }
+  void setAccount(pv::AccountPtr account);
 };
 
 } // namespace pvui

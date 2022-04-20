@@ -4,12 +4,15 @@
 #include "DataFile.h"
 #include <QAbstractItemModel>
 #include <QObject>
+#include <boost/signals2.hpp>
 
 namespace pvui::models {
 class TransactionModel : public QAbstractItemModel {
   Q_OBJECT
 private:
   const pv::AccountPtr account_;
+  boost::signals2::scoped_connection beforeTransactionAddedConnection;
+  boost::signals2::scoped_connection afterTransactionAddedConnection;
 
 public:
   TransactionModel(const pv::AccountPtr account, QObject* parent = nullptr);

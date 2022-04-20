@@ -12,9 +12,7 @@ pvui::models::TransactionModel::TransactionModel(const pv::AccountPtr account, Q
     emit this->beforeTransactionAdded(index, rowCount(), rowCount());
   };
 
-  auto beforeTransactionAddedConnection = account_->beforeTransactionAdded().connect(beforeTransactionAddedSlot);
-
-  QObject::connect(this, &QObject::destroyed, this, [&]() { beforeTransactionAddedConnection.disconnect(); });
+  beforeTransactionAddedConnection = account_->beforeTransactionAdded().connect(beforeTransactionAddedSlot);
 
   // Listen for after transaction added
 
@@ -22,9 +20,7 @@ pvui::models::TransactionModel::TransactionModel(const pv::AccountPtr account, Q
 
   auto afterTransactionAddedSlot = [&](const pv::TransactionPtr) { emit this->afterTransactionAdded(); };
 
-  auto afterTransactionAddedConnection = account_->transactionAdded().connect(afterTransactionAddedSlot);
-
-  QObject::connect(this, &QObject::destroyed, this, [&]() { afterTransactionAddedConnection.disconnect(); });
+  afterTransactionAddedConnection = account_->transactionAdded().connect(afterTransactionAddedSlot);
 }
 
 QVariant pvui::models::TransactionModel::data(const QModelIndex& index, int role) const {

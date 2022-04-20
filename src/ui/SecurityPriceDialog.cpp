@@ -64,8 +64,8 @@ void SecurityPriceDialog::setSecurity(pv::SecurityPtr security) {
   security_ = security;
   setEnabled(security_ != nullptr);
 
-  model = new models::SecurityPriceModel(security, proxyModel);
-  proxyModel->setSourceModel(model);
+  model = std::make_unique<models::SecurityPriceModel>(security, proxyModel);
+  proxyModel->setSourceModel(model.get());
   insertionBar->setSecurity(security);
   table->scrollToBottom();
 }

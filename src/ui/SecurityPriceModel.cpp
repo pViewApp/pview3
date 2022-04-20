@@ -26,7 +26,7 @@ pvui::models::SecurityPriceModel::SecurityPriceModel(pv::SecurityPtr security, Q
     endRemoveRows();
   });
 
-  auto beforeChangeConnection = security_->priceChanged().connect(
+  securityPriceAddedConnection = security_->priceChanged().connect(
       [&](const pv::Date& date, std::optional<pv::Decimal> before, std::optional<pv::Decimal> after) {
         if (!before.has_value() && after.has_value()) {
           // Security Price added

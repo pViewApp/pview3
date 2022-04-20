@@ -11,6 +11,7 @@
 #include <QSortFilterProxyModel>
 #include <QTableView>
 #include <QWidget>
+#include <memory>
 
 namespace pvui {
 namespace dialogs {
@@ -25,7 +26,7 @@ private:
   QDialogButtonBox* dialogButtonBox = new QDialogButtonBox(QDialogButtonBox::Ok);
 
   QSortFilterProxyModel* proxyModel = new QSortFilterProxyModel(table);
-  models::SecurityPriceModel* model = nullptr;
+  std::unique_ptr<models::SecurityPriceModel> model = nullptr;
 
   void setupTableContextMenu();
 

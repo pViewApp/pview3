@@ -21,6 +21,12 @@ void pvui::SecurityPageWidget::setupToolbar() {
   });
 }
 
+void pvui::SecurityPageWidget::setDataFile(pv::DataFile& dataFile) {
+  model = std::make_unique<models::SecurityModel>(dataFile);
+  proxyModel->setSourceModel(new models::SecurityModel(dataFile));
+  table->scrollToBottom();
+}
+
 pvui::SecurityPageWidget::SecurityPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent)
     : PageWidget(parent), dataFileManager_(dataFileManager) {
   setTitle(tr("Securities"));
@@ -36,17 +42,16 @@ pvui::SecurityPageWidget::SecurityPageWidget(pvui::DataFileManager& dataFileMana
   setupToolbar();
 
   // Setup table
-  QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this, [&](pv::DataFile& dataFile) {
-    tableModel->setSourceModel(new models::SecurityModel(dataFile));
-    table->scrollToBottom();
-  });
-  tableModel->setSourceModel(new models::SecurityModel(dataFileManager_.dataFile()));
-  tableModel->sort(0, Qt::AscendingOrder);
+  QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this,
+                   [this](pv::DataFile& dataFile) { setDataFile(dataFile); });
+  proxyModel->sort(0, Qt::AscendingOrder);
   table->setSortingEnabled(true);
-  table->setModel(tableModel);
+  table->setModel(proxyModel);
   table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
   table->verticalHeader()->hide();
   table->setSelectionBehavior(QTableView::SelectionBehavior::SelectRows);
   QObject::connect(table->selectionModel(), &QItemSelectionModel::selectionChanged, this,
                    [&](QItemSelection current) { securityInfoAction->setEnabled(!current.isEmpty()); });
+
+  setDataFile(*dataFileManager);
 }

@@ -4,6 +4,7 @@
 #include "DataFile.h"
 #include "Types.h"
 #include <QAbstractItemModel>
+#include <boost/signals2.hpp>
 #include <set>
 #include <vector>
 
@@ -14,6 +15,8 @@ class SecurityPriceModel : public QAbstractItemModel {
 private:
   std::vector<pv::Date> dates;
   pv::SecurityPtr security_;
+
+  boost::signals2::scoped_connection securityPriceAddedConnection;
 
 public:
   SecurityPriceModel(pv::SecurityPtr security, QObject* parent = nullptr);

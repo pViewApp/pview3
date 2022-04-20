@@ -4,6 +4,7 @@
 #include "DataFileManager.h"
 #include "Page.h"
 #include "SecurityInsertionWidget.h"
+#include "SecurityModel.h"
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QLineEdit>
@@ -13,6 +14,7 @@
 #include <QTableView>
 #include <QToolBar>
 #include <QValidator>
+#include <memory>
 
 namespace pvui {
 
@@ -25,15 +27,18 @@ private:
   QTableView* table = new QTableView;
   controls::SecurityInsertionWidget* insertionWidget = new controls::SecurityInsertionWidget(dataFileManager_);
 
+  QSortFilterProxyModel* proxyModel = new QSortFilterProxyModel(table);
+  std::unique_ptr<models::SecurityModel> model = nullptr;
+
   QAction* securityInfoAction = new QAction(tr("Edit Security Prices..."));
 
-  QSortFilterProxyModel* tableModel = new QSortFilterProxyModel;
-
   void setupToolbar();
+  void setDataFile(pv::DataFile& dataFile);
 
 public:
   SecurityPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent = nullptr);
 };
+
 } // namespace pvui
 
 #endif // PVUI_SECURITY_PAGE_H

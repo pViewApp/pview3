@@ -8,14 +8,22 @@ namespace pvui {
 class DataFileManager : public QObject {
   Q_OBJECT
 private:
-  pv::DataFile m_dataFile;
+  pv::DataFile dataFile_;
 
 public:
-  inline DataFileManager() = default;
+  DataFileManager() = default;
 
-  inline pv::DataFile& dataFile() noexcept { return m_dataFile; }
+  pv::DataFile& dataFile() noexcept { return dataFile_; }
 
-  inline const pv::DataFile& constDataFile() const noexcept { return m_dataFile; }
+  const pv::DataFile& constDataFile() const noexcept { return dataFile_; }
+
+  const pv::DataFile& operator*() const noexcept { return dataFile_; }
+
+  pv::DataFile& operator*() noexcept { return dataFile_; }
+
+  const pv::DataFile& operator->() const noexcept { return dataFile_; }
+
+  pv::DataFile& operator->() noexcept { return dataFile_; }
 signals:
   void dataFileChanged(pv::DataFile& newDataFile);
 };
