@@ -47,6 +47,12 @@ target_include_directories(pview PRIVATE ${QWT_INCLUDE_DIR})
 target_compile_features(pview PRIVATE cxx_std_17)
 target_link_libraries(pview PRIVATE ${Boost_LIBRARIES} ${QWT_LIBRARIES} Qt6::Core Qt6::Gui Qt6::Widgets date::date)
 
+if(MSVC)
+  target_compile_options(pview PRIVATE /W4 /WX)
+else()
+  target_compile_options(pview PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
 set_target_properties(pview PROPERTIES
      MACOSX_BUNDLE_GUI_IDENTIFIER io.github.pviewapp.pview
 	 MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}

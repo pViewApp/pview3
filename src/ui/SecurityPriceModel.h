@@ -18,6 +18,7 @@ public:
   SecurityPriceModel(pv::SecurityPtr security, QObject* parent = nullptr);
 
   inline QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override {
+    if (parent.isValid()) return QModelIndex(); // No children
     return createIndex(row, column, nullptr);
   }
 

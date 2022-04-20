@@ -22,13 +22,14 @@ public:
     return static_cast<int>(dataFile_.securities().size());
   }
 
-  inline QModelIndex parent(const QModelIndex& index = QModelIndex()) const override { return QModelIndex(); }
+  inline QModelIndex parent(const QModelIndex& = QModelIndex()) const override { return QModelIndex(); }
 
-  inline int columnCount(const QModelIndex& index = QModelIndex()) const override {
+  inline int columnCount(const QModelIndex& = QModelIndex()) const override {
     return 4; // Symbol, name, asset class, sector
   }
 
   inline QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override {
+    if (parent.isValid()) return QModelIndex(); // No children
     return createIndex(row, column,
                        row > dataFile_.securities().size() - 1 ? nullptr : dataFile_.securities().at(row).get());
   }

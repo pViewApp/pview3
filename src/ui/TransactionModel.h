@@ -14,7 +14,7 @@ private:
 public:
   TransactionModel(const pv::AccountPtr account, QObject* parent = nullptr);
 
-  inline QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override {
+  QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override {
     if (parent.isValid())
       return QModelIndex(); // Only top-level parents are
     return createIndex(
@@ -23,20 +23,20 @@ public:
                                                                                   // than the number of transactions
   }
 
-  inline int rowCount(const QModelIndex& parent = QModelIndex()) const override {
+  int rowCount(const QModelIndex& parent = QModelIndex()) const override {
     if (parent.isValid())
       return 0; // Only top-level parents are allowed
     return static_cast<int>(account_->transactions().size());
   }
 
-  inline int columnCount(const QModelIndex& parent = QModelIndex()) const override {
+  int columnCount(const QModelIndex& parent = QModelIndex()) const override {
     if (parent.isValid())
       return 0; // Only top-level parents are allowed
     return 7;   // The columns are Date, Action, Security, Number of Shares, Share
                 // Price, Commission, Total Amount
   }
 
-  inline QModelIndex parent(const QModelIndex& index) const override {
+  QModelIndex parent(const QModelIndex&) const override {
     return QModelIndex(); // There cannot be any parents since there will never
                           // be children
   }
