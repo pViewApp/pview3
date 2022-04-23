@@ -39,7 +39,6 @@ void pvui::AccountPageWidget::setAccount(pv::AccountPtr account) {
   setDisabled(account_ == nullptr);
 
   if (account_ == nullptr) {
-    setTitle(tr("No Account Open"));
   } else {
     setTitle(QString::fromStdString(account_->name()));
   }
@@ -47,5 +46,12 @@ void pvui::AccountPageWidget::setAccount(pv::AccountPtr account) {
   model = account_ == nullptr ? nullptr : std::make_unique<models::TransactionModel>(account_);
   proxyModel->setSourceModel(model.get());
   insertWidget->setAccount(account_);
+
+  if (!isEnabled())
+    return;
+
   table->scrollToBottom();
+
+  accountNameChangedConnection = account->nameChanged().connect(
+      [&](std::string newName, std::string) { setTitle(QString::fromStdString(newName)); });
 }

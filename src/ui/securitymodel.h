@@ -31,7 +31,9 @@ public:
   inline QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override {
     if (parent.isValid()) return QModelIndex(); // No children
     return createIndex(row, column,
-                       row > dataFile_.securities().size() - 1 ? nullptr : dataFile_.securities().at(row).get());
+                       static_cast<std::size_t>(row) > dataFile_.securities().size() - 1
+                           ? nullptr
+                           : dataFile_.securities().at(row).get());
   }
 
   QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;

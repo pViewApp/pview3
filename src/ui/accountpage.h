@@ -15,6 +15,7 @@
 #include <QVariant>
 #include <QWidget>
 #include <boost/signals2.hpp>
+#include <boost/signals2/connection.hpp>
 #include <memory>
 #include <optional>
 
@@ -28,6 +29,8 @@ private:
   controls::TransactionInsertionWidget* insertWidget = new controls::TransactionInsertionWidget;
   QSortFilterProxyModel* proxyModel = new QSortFilterProxyModel(table);
   std::unique_ptr<models::TransactionModel> model = nullptr;
+
+  boost::signals2::scoped_connection accountNameChangedConnection;
 
 public:
   AccountPageWidget(pv::AccountPtr account = nullptr, QWidget* parent = nullptr);

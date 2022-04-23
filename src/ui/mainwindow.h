@@ -15,26 +15,28 @@
 #include "AccountPage.h"
 #include "DataFile.h"
 #include "DataFileManager.h"
+#include "NavigationModel.h"
 #include "SecurityPage.h"
 
 namespace pvui {
 class MainWindow : public QMainWindow {
   Q_OBJECT
 private:
-  QTreeView* navigationWidget;
-  QStandardItemModel* navigationModel;
-  QWidget* content;
-  QLabel* noPageOpen;
-  QStackedLayout* contentLayout;
-  AccountPageWidget* accountPage;
   DataFileManager dataFileManager;
+  QTreeView* navigationWidget = new QTreeView;
+  models::NavigationModel navigationModel{dataFileManager};
+  QWidget* content = new QWidget;
+  QLabel* noPageOpen = new QLabel(tr("No Page Open"), content);
+
+  QStackedLayout* contentLayout = new QStackedLayout(content);
+  AccountPageWidget* accountPage = new AccountPageWidget;
   SecurityPageWidget* securityPage = new SecurityPageWidget(dataFileManager);
-  QStandardItem* m_navigationAccountItem;
 
-  QStandardItem* securitiesNavigationItem = new QStandardItem(tr("Securities"));
-  std::unordered_map<QStandardItem*, pv::AccountPtr> accountNavigationItems;
-
-  void setupDataFile();
+  // navigationWidget context menu actions
+  QAction deleteAccountAction = QAction(tr("&Delete Account"));
+  QAction newAccountAction = QAction(tr("New Account..."));
+private slots:
+  void pageChanged();
 
 public:
   MainWindow(QWidget* parent = nullptr);
@@ -43,10 +45,11 @@ public:
   void setupNavigation();
 
 protected:
-  inline pv::DataFile& dataFile() noexcept { return dataFileManager.dataFile(); }
+  pv::DataFile& dataFile() noexcept { return dataFileManager.dataFile(); }
 protected slots:
-  void pageChanged(const QItemSelection& selection);
-  void addAccount();
+  // Dialogs
+  void showDeleteAccountDialog();
+  void showAddAccountDialog();
 };
 } // namespace pvui
 #endif // PVUI_MAINWINDOW_H

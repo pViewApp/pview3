@@ -31,6 +31,19 @@ class Security;
 using AccountPtr = std::shared_ptr<Account>;
 using SecurityPtr = std::shared_ptr<Security>;
 
+class Invalidatable {
+private:
+  std::atomic_bool valid = true;
+
+protected:
+  bool invalidate() noexcept { return valid.exchange(false); }
+
+  friend class DataFile;
+
+public:
+  bool isValid() const noexcept { return valid; }
+};
+
 class Security : util::NonCopyable {
 private:
   pv::DataFile& dataFile_;
@@ -140,7 +153,7 @@ public:
 
 using TransactionPtr = std::shared_ptr<Transaction>;
 
-class Account : public util::NonCopyable {
+class Account : public Invalidatable, util::NonCopyable {
 private:
   DataFile& dataFile_;
   unsigned int id_;
@@ -172,11 +185,7 @@ public:
 
   std::string name() const noexcept { return name_; }
 
-  void setName(std::string name) noexcept {
-    std::string oldName = name_;
-    name_ = name;
-    signal_nameChanged(name, name_);
-  }
+  bool setName(std::string name) noexcept;
 
   const std::vector<TransactionPtr>& transactions() const noexcept { return transactions_; }
 
@@ -201,9 +210,13 @@ private:
   std::vector<SecurityPtr> securities_;
   std::vector<AccountPtr> accounts_;
 
+  mutable boost::signals2::signal<void()> signal_beforeAccountAdded;
   mutable boost::signals2::signal<void(AccountPtr)> signal_accountAdded;
   mutable boost::signals2::signal<void(SecurityPtr)> signal_securityAdded;
   mutable boost::signals2::signal<void()> signal_beforeSecurityAdded;
+
+  mutable boost::signals2::signal<void(AccountPtr)> signal_beforeAccountRemoved;
+  mutable boost::signals2::signal<void(AccountPtr)> signal_accountRemoved;
 
 public:
   DataFile() = default;
@@ -212,11 +225,19 @@ public:
 
   const std::vector<SecurityPtr>& securities() const noexcept { return securities_; }
 
+  boost::signals2::signal<void()>& beforeAccountAdded() const noexcept { return signal_beforeAccountAdded; }
+
   boost::signals2::signal<void(AccountPtr)>& accountAdded() const noexcept { return signal_accountAdded; }
 
-  boost::signals2::signal<void(SecurityPtr)>& securityAdded() { return signal_securityAdded; }
+  boost::signals2::signal<void(AccountPtr)>& beforeAccountRemoved() const noexcept {
+    return signal_beforeAccountRemoved;
+  }
+
+  boost::signals2::signal<void(AccountPtr)>& accountRemoved() const noexcept { return signal_accountRemoved; }
 
   boost::signals2::signal<void()>& beforeSecurityAdded() { return signal_beforeSecurityAdded; }
+
+  boost::signals2::signal<void(SecurityPtr)>& securityAdded() { return signal_securityAdded; }
 
   AccountPtr accountForId(unsigned int id) {
     for (AccountPtr account : accounts_) {
@@ -240,6 +261,8 @@ public:
 
   AccountPtr addAccount(std::string name);
   SecurityPtr addSecurity(std::string symbol, std::string name, std::string assetClass, std::string sector);
+
+  bool removeAccount(AccountPtr account) noexcept;
 };
 } // namespace pv
 

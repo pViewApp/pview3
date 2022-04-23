@@ -31,13 +31,6 @@ private:
                     // signal
   void reset();
 
-protected:
-  inline void showEvent(QShowEvent* showEvent) override {
-    if (!showEvent->spontaneous()) {
-      dateEditor->setFocus();
-    }
-  }
-
 public:
   TransactionInsertionWidget(pv::AccountPtr account = nullptr, QWidget* parent = nullptr);
 protected slots:

@@ -6,16 +6,42 @@
 #include <QLayout>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QShortcut>
 #include <QString>
 #include <functional>
 
 constexpr int windowWidth = 800;
 constexpr int windowHeight = 600;
 
-pvui::MainWindow::MainWindow(QWidget* parent)
-    : QMainWindow(parent), navigationWidget(new QTreeView), navigationModel(new QStandardItemModel),
-      content(new QWidget), noPageOpen(new QLabel("No Page Open")), contentLayout(new QStackedLayout(content)),
-      accountPage(new AccountPageWidget), m_navigationAccountItem(new QStandardItem("Accounts")) {
+void pvui::MainWindow::pageChanged() {
+  // clear the actions
+  QList actions(navigationWidget->actions());
+  for (const auto& action : actions) {
+    navigationWidget->removeAction(action);
+  }
+
+  QModelIndex indexOfNewPage = navigationWidget->selectionModel()->currentIndex();
+
+  // Create context menu
+  if (navigationModel.isAccountsHeader(indexOfNewPage)) {
+    navigationWidget->addAction(&newAccountAction);
+  } else if (navigationModel.isAccountPage(indexOfNewPage)) {
+    navigationWidget->addAction(&newAccountAction);
+    navigationWidget->addAction(&deleteAccountAction);
+  }
+
+  if (navigationModel.isAccountPage(indexOfNewPage)) {
+    contentLayout->setCurrentWidget(accountPage);
+    accountPage->setAccount(navigationModel.mapToAccount(indexOfNewPage));
+
+  } else if (navigationModel.isSecuritiesPage(indexOfNewPage)) {
+    contentLayout->setCurrentWidget(securityPage);
+  } else {
+    contentLayout->setCurrentWidget(noPageOpen);
+  }
+}
+
+pvui::MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   QWidget* centralWidget = new QWidget;
   QVBoxLayout* layout = new QVBoxLayout;
 
@@ -34,7 +60,6 @@ pvui::MainWindow::MainWindow(QWidget* parent)
   setWindowTitle(QApplication::translate("windowTitle", "pView"));
 
   setupNavigation();
-  setupDataFile();
   setupMenuBar();
 }
 
@@ -53,7 +78,7 @@ void pvui::MainWindow::setupMenuBar() {
   auto* accountMenu = menuBar()->addMenu("&Accounts");
   {
     auto* newItem = new QAction("&New");
-    QObject::connect(newItem, &QAction::triggered, this, &MainWindow::addAccount);
+    QObject::connect(newItem, &QAction::triggered, this, &MainWindow::showAddAccountDialog);
 
     accountMenu->addActions({newItem});
   }
@@ -68,65 +93,52 @@ void pvui::MainWindow::setupNavigation() {
 
   noPageOpen->setAlignment(Qt::AlignCenter);
 
-  navigationWidget->setModel(navigationModel);
+  navigationWidget->setModel(&navigationModel);
   navigationWidget->setHeaderHidden(true);
   navigationWidget->setMaximumWidth(500);
 
-  QItemSelectionModel* selectionModel = new QItemSelectionModel(navigationModel);
   navigationWidget->setSelectionMode(QTreeView::SelectionMode::SingleSelection);
-  navigationWidget->setSelectionModel(selectionModel);
 
-  QStandardItem* reports = new QStandardItem("Reports");
-  reports->setEditable(false);
-  securitiesNavigationItem->setEditable(false);
+  QObject::connect(navigationWidget->selectionModel(), &QItemSelectionModel::currentRowChanged, this,
+                   &MainWindow::pageChanged);
 
-  navigationModel->setHorizontalHeaderLabels({"Navigation"});
+  // Setup context menu
 
-  navigationModel->appendRow(m_navigationAccountItem);
-  navigationModel->appendRow(reports);
-  navigationModel->appendRow(securitiesNavigationItem);
+  deleteAccountAction.setShortcut(QKeySequence::StandardKey::Delete);
 
-  QObject::connect(selectionModel, &QItemSelectionModel::selectionChanged, this, &MainWindow::pageChanged);
+  QObject::connect(&newAccountAction, &QAction::triggered, this, &MainWindow::showAddAccountDialog);
+  QObject::connect(&deleteAccountAction, &QAction::triggered, this, &MainWindow::showDeleteAccountDialog);
+
+  navigationWidget->setContextMenuPolicy(Qt::ActionsContextMenu);
 }
 
-void pvui::MainWindow::setupDataFile() {
-  dataFile().accountAdded().connect([&](pv::AccountPtr account) {
-    navigationWidget->setExpanded(m_navigationAccountItem->index(), true);
+void pvui::MainWindow::showDeleteAccountDialog() {
+  pv::AccountPtr account = navigationModel.mapToAccount(navigationWidget->selectionModel()->currentIndex());
 
-    auto* navigationItem = new QStandardItem(QString::fromStdString(account->name()));
-    m_navigationAccountItem->appendRow(navigationItem);
+  QMessageBox::Button userResponse = QMessageBox::warning(
+      this, tr("Deleting Account %1").arg(QString::fromStdString(account->name())),
+      tr("Are you sure you want to delete this account and it's transactions? This cannot be undone."),
+      QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
 
-    accountNavigationItems.insert({navigationItem, account});
-  });
+  if (userResponse == QMessageBox::Yes) {
+    account->dataFile().removeAccount(account);
+  }
 }
 
-void pvui::MainWindow::addAccount() {
+void pvui::MainWindow::showAddAccountDialog() {
   bool ok = false;
   QString text = QInputDialog::getText(this, tr("Create an Account"), tr("Account Name:"), QLineEdit::Normal, "", &ok);
 
   if (ok) {
     auto trimmedText = text.trimmed();
     if (!trimmedText.isEmpty()) {
-      dataFile().addAccount(trimmedText.toStdString());
+      pv::AccountPtr account = dataFile().addAccount(trimmedText.toStdString());
+
+      navigationWidget->expand(navigationModel.accountsHeader());
+      navigationWidget->selectionModel()->setCurrentIndex(navigationModel.mapFromAccount(account),
+                                                          QItemSelectionModel::ClearAndSelect);
     } else {
       QMessageBox::warning(this, tr("Invalid Account Name"), tr("The account name must not be empty"));
     }
-  }
-}
-
-void pvui::MainWindow::pageChanged(const QItemSelection& selection) {
-  contentLayout->setCurrentWidget(noPageOpen);
-  if (selection.indexes().isEmpty())
-    return;
-  auto index = selection.indexes().first();
-
-  auto* selectedItem = navigationModel->itemFromIndex(index);
-
-  if (accountNavigationItems.find(selectedItem) != accountNavigationItems.cend()) {
-    // This is an account page
-    accountPage->setAccount(accountNavigationItems.at(selectedItem));
-    contentLayout->setCurrentWidget(accountPage);
-  } else if (selectedItem == securitiesNavigationItem) {
-    contentLayout->setCurrentWidget(securityPage);
   }
 }

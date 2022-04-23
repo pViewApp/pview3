@@ -21,9 +21,9 @@ public:
 
   pv::DataFile& operator*() noexcept { return dataFile_; }
 
-  const pv::DataFile& operator->() const noexcept { return dataFile_; }
+  const pv::DataFile* operator->() const noexcept { return &dataFile_; }
 
-  pv::DataFile& operator->() noexcept { return dataFile_; }
+  pv::DataFile* operator->() noexcept { return &dataFile_; }
 signals:
   void dataFileChanged(pv::DataFile& newDataFile);
 };

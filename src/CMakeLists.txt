@@ -1,6 +1,4 @@
-set(Qt_VERSION 6 CACHE STRING "Specifies the version of the Qt Tookit to use.")
-
-find_package(Qt${Qt_VERSION} COMPONENTS Core Gui Widgets REQUIRED)
+find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Qwt REQUIRED)
 find_package(date CONFIG REQUIRED)
@@ -20,6 +18,8 @@ add_executable(pview
 	 ui/ExtendedSpinbox.cpp
 	 ui/MainWindow.cpp
 	 ui/MainWindow.h
+	 ui/NavigationModel.h
+	 ui/NavigationModel.cpp
 	 ui/Page.cpp
 	 ui/Page.h
 	 ui/SecurityInsertionWidget.cpp

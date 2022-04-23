@@ -21,13 +21,6 @@ private:
   pvui::DataFileManager& dataFileManager_;
   void reset();
 
-protected:
-  inline void showEvent(QShowEvent* showEvent) override {
-    if (!showEvent->spontaneous()) {
-      symbolEditor->setFocus();
-    }
-  }
-
 public:
   SecurityInsertionWidget(pvui::DataFileManager& manager, QWidget* parent = nullptr);
 public slots:

@@ -4,6 +4,8 @@
 pv::TransactionPtr pv::Account::addTransaction(pv::Date date, const pv::Action& action, const pv::SecurityPtr security,
                                                pv::Decimal numberOfShares, pv::Decimal sharePrice,
                                                pv::Decimal commission, pv::Decimal totalAmount) {
+  if (!isValid())
+    return nullptr;
   pv::TransactionBase base(date, security, numberOfShares, sharePrice, commission, totalAmount);
   action.processTransaction(base);
 
@@ -20,6 +22,8 @@ pv::TransactionPtr pv::Account::addTransaction(pv::Date date, const pv::Action& 
 }
 
 pv::AccountPtr pv::DataFile::addAccount(std::string name) {
+  signal_beforeAccountAdded();
+
   unsigned int id = nextAccountId.fetch_add(1);
 
   pv::AccountPtr account = std::make_shared<Account>(*this, id, name);
@@ -40,6 +44,23 @@ pv::SecurityPtr pv::DataFile::addSecurity(std::string symbol, std::string name, 
   signal_securityAdded(security);
 
   return security;
+}
+
+bool pv::DataFile::removeAccount(AccountPtr account) noexcept {
+  if (&(account->dataFile()) != this)
+    return false;
+  if (!account->isValid())
+    return false;
+
+  signal_beforeAccountRemoved(account);
+
+  accounts_.erase(std::find(accounts_.begin(), accounts_.end(), account));
+
+  account->invalidate();
+
+  signal_accountRemoved(account);
+
+  return true;
 }
 
 pv::Security::Security(pv::DataFile& dataFile, std::string symbol, std::string name, std::string assetClass,
@@ -70,6 +91,14 @@ bool pv::Security::removePrice(Date date) {
   prices_.erase(oldPriceIter);
 
   signal_priceChanged(date, oldPrice, std::nullopt);
+
+  return true;
+}
+
+bool pv::Account::setName(std::string name) noexcept {
+  std::string oldName = name_;
+  name_ = name;
+  signal_nameChanged(name_, oldName);
 
   return true;
 }

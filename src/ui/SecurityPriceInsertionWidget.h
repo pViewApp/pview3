@@ -20,13 +20,6 @@ private:
 
   void reset();
 
-protected:
-  inline void showEvent(QShowEvent* evt) override {
-    if (!evt->spontaneous()) {
-      dateEditor->setFocus();
-    }
-  }
-
 public:
   SecurityPriceInsertionWidget(pv::SecurityPtr security = nullptr, QWidget* parent = nullptr);
 public slots:
