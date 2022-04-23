@@ -5,7 +5,6 @@
 #include "ExtendedSpinBox.h"
 #include <QDateEdit>
 #include <QHBoxLayout>
-#include <QShowEvent>
 #include <QWidget>
 
 namespace pvui::controls {

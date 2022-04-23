@@ -6,7 +6,6 @@
 #include <QComboBox>
 #include <QDateEdit>
 #include <QHBoxLayout>
-#include <QShowEvent>
 #include <QWidget>
 #include <boost/signals2.hpp>
 

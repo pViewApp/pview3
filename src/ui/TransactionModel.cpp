@@ -2,55 +2,46 @@
 #include <QDate>
 
 pvui::models::TransactionModel::TransactionModel(const pv::AccountPtr account, QObject* parent)
-    : QAbstractItemModel(parent), account_(account) {
-  // Listen for before transaction added
+    : QAbstractTableModel(parent), account_(account) {
+  QObject::connect(this, &TransactionModel::transactionAdded, this, [&](pv::TransactionPtr transaction) {
+    beginInsertRows(QModelIndex(), rowCount(), rowCount());
+    transactions.push_back(transaction);
+    endInsertRows();
+  });
 
-  QObject::connect(this, &TransactionModel::beforeTransactionAdded, this, &TransactionModel::beginInsertRows);
-
-  auto beforeTransactionAddedSlot = [&]() {
-    const auto index = QModelIndex();
-    emit this->beforeTransactionAdded(index, rowCount(), rowCount());
-  };
-
-  beforeTransactionAddedConnection = account_->beforeTransactionAdded().connect(beforeTransactionAddedSlot);
-
-  // Listen for after transaction added
-
-  QObject::connect(this, &TransactionModel::afterTransactionAdded, this, &TransactionModel::endInsertRows);
-
-  auto afterTransactionAddedSlot = [&](const pv::TransactionPtr) { emit this->afterTransactionAdded(); };
-
-  afterTransactionAddedConnection = account_->transactionAdded().connect(afterTransactionAddedSlot);
+  transactionAddedConnection =
+      account->transactionAdded().connect([&](pv::TransactionPtr transaction) { emit transactionAdded(transaction); });
 }
 
 QVariant pvui::models::TransactionModel::data(const QModelIndex& index, int role) const {
-  if (role != Qt::DisplayRole || !index.isValid() || index.row() > rowCount() - 1)
+  if ((role != Qt::EditRole && role != Qt::DisplayRole) || !index.isValid())
     return QVariant();
 
-  pv::Transaction& transaction = *static_cast<pv::Transaction*>(index.internalPointer());
+  const pv::TransactionPtr& transaction = transactions.at(index.row());
   switch (index.column()) {
   case 0: {
-    date::year_month_day ymd{transaction.date()};
+    date::year_month_day ymd{transaction->date()};
     return QDate(static_cast<int>(ymd.year()), static_cast<unsigned int>(ymd.month()),
                  static_cast<unsigned int>(ymd.day()));
   }
   case 1: {
-    return QString::fromStdString(transaction.action().name());
+    return QString::fromStdString(transaction->action().name());
   }
   case 2: {
-    return transaction.security() == pv::Security::None ? "" : QString::fromStdString(transaction.security()->symbol());
+    return transaction->security() == pv::Security::None ? ""
+                                                         : QString::fromStdString(transaction->security()->symbol());
   }
   case 3: {
-    return QString::fromStdString(transaction.numberOfShares().str());
+    return QString::fromStdString(transaction->numberOfShares().str());
   }
   case 4: {
-    return QString::fromStdString(transaction.sharePrice().str());
+    return QString::fromStdString(transaction->sharePrice().str());
   }
   case 5: {
-    return QString::fromStdString(transaction.commission().str());
+    return QString::fromStdString(transaction->commission().str());
   }
   case 6: {
-    return QString::fromStdString(transaction.totalAmount().str());
+    return QString::fromStdString(transaction->totalAmount().str());
   }
   default: {
     return QVariant();

@@ -14,8 +14,7 @@ namespace models {
 
 void NavigationModel::setupAccount(const pv::AccountPtr account) noexcept {
   accountNameChangedConnections.push_back(account->nameChanged().connect([&](const std::string&, const std::string&) {
-    int accountIndex = std::find(dataFileManager_->accounts().cbegin(), dataFileManager_->accounts().cend(), account) -
-                       dataFileManager_->accounts().cbegin();
+    int accountIndex = std::find(accounts.cbegin(), accounts.cend(), account) - accounts.cbegin();
     QModelIndex modelIndex = index(accountIndex, 0, accountsHeaderIndex);
     emit dataChanged(modelIndex, modelIndex);
   }));
@@ -31,26 +30,31 @@ void NavigationModel::setDataFile(pv::DataFile& dataFile) noexcept {
     setupAccount(account);
   };
 
-  // Listen for new accounts
-  beforeAccountAddedConnection = dataFile.beforeAccountAdded().connect([this] {
+  // Listen for new account
+  accountAddedConnection = dataFile.accountAdded().connect([&](pv::AccountPtr account) { emit accountAdded(account); });
+
+  QObject::connect(this, &NavigationModel::accountAdded, this, [&](pv::AccountPtr account) {
     auto indexToInsertAt = rowCount(accountsHeaderIndex);
     emit beginInsertRows(accountsHeaderIndex, indexToInsertAt, indexToInsertAt);
-  });
 
-  afterAccountAddedConnection = dataFile.accountAdded().connect([&](pv::AccountPtr account) {
+    accounts.push_back(account);
+
     emit endInsertRows();
     setupAccount(account);
   });
 
   // Listen for account removal
-  beforeAccountRemovedConnection = dataFile.beforeAccountRemoved().connect([&](pv::AccountPtr account) {
-    int rowIndex = std::find(dataFileManager_->accounts().cbegin(), dataFileManager_->accounts().cend(), account) -
-                   dataFileManager_->accounts().cbegin();
+  accountRemovedConnection =
+      dataFile.accountRemoved().connect([&](pv::AccountPtr account) { emit accountRemoved(account); });
+
+  QObject::connect(this, &NavigationModel::accountRemoved, this, [&](pv::AccountPtr account) {
+    auto iter = std::find(accounts.cbegin(), accounts.cend(), account);
+    int rowIndex = iter - accounts.cbegin();
 
     emit beginRemoveRows(accountsHeaderIndex, rowIndex, rowIndex);
+    accounts.erase(iter);
+    emit endRemoveRows();
   });
-
-  afterAccountRemovedConnection = dataFile.accountRemoved().connect([&](pv::AccountPtr) { emit endRemoveRows(); });
 }
 
 NavigationModel::NavigationModel(pvui::DataFileManager& dataFileManager, QObject* parent)
@@ -73,7 +77,7 @@ int NavigationModel::rowCount(const QModelIndex& parent) const {
 
   switch (parent.row()) {
   case accountHeaderRowIndex: {
-    return static_cast<int>(dataFileManager_->accounts().size());
+    return static_cast<int>(accounts.size());
   }
   case reportHeaderRowIndex: {
     return 0; // todo Reports not implemented yet
@@ -112,7 +116,7 @@ QVariant NavigationModel::data(const QModelIndex& index, int role) const {
     // Sub-row
     if (index.parent().row() == accountHeaderRowIndex) {
       // Account row
-      return QString::fromStdString(dataFileManager_->accounts().at(index.row())->name());
+      return QString::fromStdString(accounts.at(index.row())->name());
     } else if (index.parent().row() == reportHeaderRowIndex) {
       // todo not implemented
       return QVariant();
@@ -185,7 +189,7 @@ bool NavigationModel::setData(const QModelIndex& index, const QVariant& value, i
     if (newAccountName.isEmpty())
       return false;
 
-    return dataFileManager_->accounts().at(index.row())->setName(newAccountName.toStdString());
+    return accounts.at(index.row())->setName(newAccountName.toStdString());
   } else
     return false; // Not editable by default
 }
@@ -207,12 +211,10 @@ bool NavigationModel::isSecuritiesPage(const QModelIndex& index) const { return 
 pv::AccountPtr NavigationModel::mapToAccount(const QModelIndex& index) const {
   if (!isAccountPage(index))
     return nullptr;
-  return dataFileManager_->accounts().at(index.row());
+  return accounts.at(index.row());
 }
 
 QModelIndex NavigationModel::mapFromAccount(const pv::AccountPtr account) const {
-  const auto& accounts = dataFileManager_->accounts();
-
   int rowIndex = std::find(accounts.cbegin(), accounts.cend(), account) - accounts.cbegin();
 
   return index(rowIndex, 0, accountsHeaderIndex);

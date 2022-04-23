@@ -14,8 +14,11 @@ SecurityPriceDialog::SecurityPriceDialog(pv::SecurityPtr security, QWidget* pare
   resize(dialogWidth, dialogHeight);
 
   layout->addWidget(table);
-  layout->addWidget(insertionBar);
+  layout->addWidget(insertionWidget);
   layout->addWidget(dialogButtonBox);
+
+  setFocusPolicy(Qt::TabFocus);
+  setFocusProxy(insertionWidget);
 
   // Setup buttons
   QObject::connect(dialogButtonBox, &QDialogButtonBox::accepted, this, &SecurityPriceDialog::accept);
@@ -66,7 +69,7 @@ void SecurityPriceDialog::setSecurity(pv::SecurityPtr security) {
 
   model = std::make_unique<models::SecurityPriceModel>(security, proxyModel);
   proxyModel->setSourceModel(model.get());
-  insertionBar->setSecurity(security);
+  insertionWidget->setSecurity(security);
   table->scrollToBottom();
 }
 

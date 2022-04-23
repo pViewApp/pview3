@@ -5,7 +5,6 @@
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QLineEdit>
-#include <QShowEvent>
 #include <QWidget>
 
 namespace pvui {

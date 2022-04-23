@@ -22,7 +22,7 @@ private:
 
   QVBoxLayout* layout = new QVBoxLayout(this);
   QTableView* table = new QTableView;
-  controls::SecurityPriceInsertionWidget* insertionBar = new controls::SecurityPriceInsertionWidget;
+  controls::SecurityPriceInsertionWidget* insertionWidget = new controls::SecurityPriceInsertionWidget;
   QDialogButtonBox* dialogButtonBox = new QDialogButtonBox(QDialogButtonBox::Ok);
 
   QSortFilterProxyModel* proxyModel = new QSortFilterProxyModel(table);
@@ -32,6 +32,7 @@ private:
 
 public:
   SecurityPriceDialog(pv::SecurityPtr security = nullptr, QWidget* parent = nullptr);
+  void showEvent(QShowEvent*) override { insertionWidget->setFocus(); }
 public slots:
   void setSecurity(pv::SecurityPtr security);
 };

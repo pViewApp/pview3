@@ -2,46 +2,38 @@
 #define PVUI_MODELS_SECURITY_MODEL_H
 
 #include "DataFile.h"
-#include <QAbstractItemModel>
+#include <QAbstractTableModel>
+#include <QObject>
 #include <boost/signals2.hpp>
+#include <vector>
 
 namespace pvui::models {
-class SecurityModel : public QAbstractItemModel {
+class SecurityModel : public QAbstractTableModel {
   Q_OBJECT
 private:
   pv::DataFile& dataFile_;
-  boost::signals2::scoped_connection beforeSecurityAddedConnection;
-  boost::signals2::scoped_connection afterSecurityAddedConnection;
+  boost::signals2::scoped_connection securityAddedConnection;
+
+  std::vector<pv::SecurityPtr> securities;
 
 public:
-  SecurityModel(pv::DataFile& dataFile);
+  SecurityModel(pv::DataFile& dataFile, QObject* parent = nullptr);
 
-  inline int rowCount(const QModelIndex& parent = QModelIndex()) const override {
+  int rowCount(const QModelIndex& parent = QModelIndex()) const override {
     if (parent.isValid())
       return 0;
-    return static_cast<int>(dataFile_.securities().size());
+    return static_cast<int>(securities.size());
   }
 
-  inline QModelIndex parent(const QModelIndex& = QModelIndex()) const override { return QModelIndex(); }
-
-  inline int columnCount(const QModelIndex& = QModelIndex()) const override {
+  int columnCount(const QModelIndex& = QModelIndex()) const override {
     return 4; // Symbol, name, asset class, sector
-  }
-
-  inline QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override {
-    if (parent.isValid()) return QModelIndex(); // No children
-    return createIndex(row, column,
-                       static_cast<std::size_t>(row) > dataFile_.securities().size() - 1
-                           ? nullptr
-                           : dataFile_.securities().at(row).get());
   }
 
   QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
   QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 signals:
-  void beforeSecurityAdded(const QModelIndex& index, int first, int last);
-  void afterSecurityAdded();
+  void securityAdded(pv::SecurityPtr security);
 };
 } // namespace pvui::models
 

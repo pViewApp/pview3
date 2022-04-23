@@ -1,23 +1,24 @@
 #include "SecurityModel.h"
 
-pvui::models::SecurityModel::SecurityModel(pv::DataFile& dataFile) : dataFile_(dataFile) {
-  // Before security_ added
+pvui::models::SecurityModel::SecurityModel(pv::DataFile& dataFile, QObject* parent)
+    : QAbstractTableModel(parent), dataFile_(dataFile) {
+  securityAddedConnection =
+      dataFile.securityAdded().connect([&](pv::SecurityPtr security) { emit securityAdded(security); });
 
-  QObject::connect(this, &SecurityModel::beforeSecurityAdded, this, &SecurityModel::beginInsertRows);
-  beforeSecurityAddedConnection = dataFile.beforeSecurityAdded().connect(
-      [&]() { emit beforeSecurityAdded(QModelIndex(), rowCount(), rowCount()); });
+  QObject::connect(this, &SecurityModel::securityAdded, this, [&](pv::SecurityPtr security) {
+    beginInsertRows(QModelIndex(), rowCount(), rowCount());
 
-  // After security_ added
+    securities.push_back(security);
 
-  QObject::connect(this, &SecurityModel::afterSecurityAdded, this, &SecurityModel::endInsertRows);
-  afterSecurityAddedConnection = dataFile.securityAdded().connect([&](pv::SecurityPtr) { emit afterSecurityAdded(); });
+    endInsertRows();
+  });
 }
 
 QVariant pvui::models::SecurityModel::data(const QModelIndex& index, int role) const {
-  if (role != Qt::DisplayRole || index.internalPointer() == nullptr || !index.isValid())
+  if (role != Qt::DisplayRole || !index.isValid())
     return QVariant();
 
-  pv::Security* security = static_cast<pv::Security*>(index.internalPointer());
+  const pv::SecurityPtr& security = securities.at(index.row());
   switch (index.column()) {
   case 0:
     return QString::fromStdString(security->symbol());

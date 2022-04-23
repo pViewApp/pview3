@@ -9,6 +9,9 @@ pvui::controls::SecurityPriceInsertionWidget::SecurityPriceInsertionWidget(pv::S
   dateEditor->setCalendarPopup(true);
   priceEditor->setPlaceholderText(tr("Price"));
 
+  setFocusPolicy(Qt::FocusPolicy::StrongFocus);
+  setFocusProxy(dateEditor);
+
   // Set Size Policy
   static const QSizePolicy sizePolicy = {QSizePolicy::Ignored, QSizePolicy::Preferred};
   dateEditor->setSizePolicy(sizePolicy);

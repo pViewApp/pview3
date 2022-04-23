@@ -9,8 +9,6 @@ pv::TransactionPtr pv::Account::addTransaction(pv::Date date, const pv::Action& 
   pv::TransactionBase base(date, security, numberOfShares, sharePrice, commission, totalAmount);
   action.processTransaction(base);
 
-  signal_beforeTransactionAdded();
-
   unsigned int id = nextTransactionId.fetch_add(1);
   pv::TransactionPtr transaction = std::make_shared<pv::Transaction>(*this, id, action, base);
 
@@ -22,8 +20,6 @@ pv::TransactionPtr pv::Account::addTransaction(pv::Date date, const pv::Action& 
 }
 
 pv::AccountPtr pv::DataFile::addAccount(std::string name) {
-  signal_beforeAccountAdded();
-
   unsigned int id = nextAccountId.fetch_add(1);
 
   pv::AccountPtr account = std::make_shared<Account>(*this, id, name);
@@ -36,8 +32,6 @@ pv::AccountPtr pv::DataFile::addAccount(std::string name) {
 
 pv::SecurityPtr pv::DataFile::addSecurity(std::string symbol, std::string name, std::string assetClass,
                                           std::string sector) {
-  signal_beforeSecurityAdded();
-
   pv::SecurityPtr security = std::make_shared<pv::Security>(*this, symbol, name, assetClass, sector);
   securities_.push_back(security);
 
@@ -51,8 +45,6 @@ bool pv::DataFile::removeAccount(AccountPtr account) noexcept {
     return false;
   if (!account->isValid())
     return false;
-
-  signal_beforeAccountRemoved(account);
 
   accounts_.erase(std::find(accounts_.begin(), accounts_.end(), account));
 
@@ -68,8 +60,6 @@ pv::Security::Security(pv::DataFile& dataFile, std::string symbol, std::string n
     : dataFile_(dataFile), symbol_(symbol), name_(name), assetClass_(assetClass), sector_(sector) {}
 
 void pv::Security::setPrice(pv::Date date, pv::Decimal price) {
-  signal_beforePriceChanged(date);
-
   auto oldPriceIter = prices_.find(date);
   std::optional<pv::Decimal> oldPrice =
       oldPriceIter == prices_.cend() ? std::optional<pv::Decimal>(std::nullopt) : std::optional(oldPriceIter->second);
@@ -80,8 +70,6 @@ void pv::Security::setPrice(pv::Date date, pv::Decimal price) {
 }
 
 bool pv::Security::removePrice(Date date) {
-  signal_beforePriceChanged(date);
-
   auto oldPriceIter = prices_.find(date);
   if (oldPriceIter == prices_.cend())
     return false;

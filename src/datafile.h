@@ -53,8 +53,6 @@ private:
   std::string sector_;
   std::map<Date, Decimal> prices_;
 
-  mutable boost::signals2::signal<void(const Date&)> signal_beforePriceChanged;
-
   mutable boost::signals2::signal<void(const Date&, const std::optional<Decimal>, const std::optional<Decimal>)>
       signal_priceChanged;
 
@@ -80,8 +78,6 @@ public:
   /// @brief Removes a security price.
   /// @return true if the price was removed succesfully
   bool removePrice(Date date);
-
-  boost::signals2::signal<void(const Date&)>& beforePriceChanged() const noexcept { return signal_beforePriceChanged; }
 
   boost::signals2::signal<void(const Date&, const std::optional<Decimal>, std::optional<Decimal>)>&
   priceChanged() const noexcept {
@@ -162,7 +158,6 @@ private:
   std::atomic_uint nextTransactionId;
   std::vector<TransactionPtr> transactions_;
 
-  mutable boost::signals2::signal<void()> signal_beforeTransactionAdded;
   mutable boost::signals2::signal<void(const TransactionPtr)> signal_transactionAdded;
   mutable boost::signals2::signal<void(const std::string&, const std::string&)> signal_nameChanged;
 
@@ -189,8 +184,6 @@ public:
 
   const std::vector<TransactionPtr>& transactions() const noexcept { return transactions_; }
 
-  boost::signals2::signal<void()>& beforeTransactionAdded() const noexcept { return signal_beforeTransactionAdded; }
-
   boost::signals2::signal<void(const TransactionPtr)>& transactionAdded() const noexcept {
     return signal_transactionAdded;
   }
@@ -210,13 +203,10 @@ private:
   std::vector<SecurityPtr> securities_;
   std::vector<AccountPtr> accounts_;
 
-  mutable boost::signals2::signal<void()> signal_beforeAccountAdded;
   mutable boost::signals2::signal<void(AccountPtr)> signal_accountAdded;
-  mutable boost::signals2::signal<void(SecurityPtr)> signal_securityAdded;
-  mutable boost::signals2::signal<void()> signal_beforeSecurityAdded;
-
-  mutable boost::signals2::signal<void(AccountPtr)> signal_beforeAccountRemoved;
   mutable boost::signals2::signal<void(AccountPtr)> signal_accountRemoved;
+
+  mutable boost::signals2::signal<void(SecurityPtr)> signal_securityAdded;
 
 public:
   DataFile() = default;
@@ -225,17 +215,9 @@ public:
 
   const std::vector<SecurityPtr>& securities() const noexcept { return securities_; }
 
-  boost::signals2::signal<void()>& beforeAccountAdded() const noexcept { return signal_beforeAccountAdded; }
-
   boost::signals2::signal<void(AccountPtr)>& accountAdded() const noexcept { return signal_accountAdded; }
 
-  boost::signals2::signal<void(AccountPtr)>& beforeAccountRemoved() const noexcept {
-    return signal_beforeAccountRemoved;
-  }
-
   boost::signals2::signal<void(AccountPtr)>& accountRemoved() const noexcept { return signal_accountRemoved; }
-
-  boost::signals2::signal<void()>& beforeSecurityAdded() { return signal_beforeSecurityAdded; }
 
   boost::signals2::signal<void(SecurityPtr)>& securityAdded() { return signal_securityAdded; }
 

@@ -31,6 +31,9 @@ TransactionInsertionWidget::TransactionInsertionWidget(pv::AccountPtr account, Q
   layout->addWidget(commissionEditor, 1);
   layout->addWidget(totalAmountEditor, 1);
 
+  setFocusPolicy(Qt::StrongFocus);
+  setFocusProxy(dateEditor);
+
   static const QSizePolicy sizePolicy = {QSizePolicy::Ignored, QSizePolicy::Preferred};
 
   dateEditor->setSizePolicy(sizePolicy);

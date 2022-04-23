@@ -19,13 +19,11 @@ private:
   QModelIndex reportsHeaderIndex;
   QModelIndex securitiesPageIndex;
 
-  boost::signals2::scoped_connection beforeAccountAddedConnection;
-  boost::signals2::scoped_connection afterAccountAddedConnection;
-
-  boost::signals2::scoped_connection beforeAccountRemovedConnection;
-  boost::signals2::scoped_connection afterAccountRemovedConnection;
-
+  boost::signals2::scoped_connection accountAddedConnection;
+  boost::signals2::scoped_connection accountRemovedConnection;
   std::vector<boost::signals2::scoped_connection> accountNameChangedConnections;
+
+  std::vector<pv::AccountPtr> accounts;
 
   void setupAccount(const pv::AccountPtr account) noexcept;
 private slots:
@@ -83,7 +81,12 @@ public:
   QModelIndex securitiesPage() const noexcept { return securitiesPageIndex; }
 
   pv::AccountPtr mapToAccount(const QModelIndex& index) const;
+
   QModelIndex mapFromAccount(const pv::AccountPtr account) const;
+
+signals:
+  void accountAdded(pv::AccountPtr account);
+  void accountRemoved(pv::AccountPtr account);
 };
 
 } // namespace models

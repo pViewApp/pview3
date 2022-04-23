@@ -11,6 +11,9 @@ SecurityInsertionWidget::SecurityInsertionWidget(DataFileManager& dataFileManage
   layout->addWidget(assetClassEditor, 1);
   layout->addWidget(sectorEditor, 1);
 
+  setFocusPolicy(Qt::StrongFocus);
+  setFocusProxy(symbolEditor);
+
   assetClassEditor->setEditable(true);
   sectorEditor->setEditable(true);
 
