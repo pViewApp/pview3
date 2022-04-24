@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -44,7 +45,7 @@ public:
   bool isValid() const noexcept { return valid; }
 };
 
-class Security : util::NonCopyable {
+class Security : public Invalidatable, util::NonCopyable {
 private:
   pv::DataFile& dataFile_;
   std::string symbol_;
@@ -55,6 +56,12 @@ private:
 
   mutable boost::signals2::signal<void(const Date&, const std::optional<Decimal>, const std::optional<Decimal>)>
       signal_priceChanged;
+
+  mutable boost::signals2::signal<void(std::string, std::string)> signal_nameChanged;
+
+  mutable boost::signals2::signal<void(std::string, std::string)> signal_assetClassChanged;
+
+  mutable boost::signals2::signal<void(std::string, std::string)> signal_sectorChanged;
 
 public:
   inline static const SecurityPtr None = nullptr;
@@ -71,9 +78,13 @@ public:
 
   std::string sector() const noexcept { return sector_; }
 
+  bool setName(std::string name);
+  bool setAssetClass(std::string name);
+  bool setSector(std::string name);
+
   const std::map<Date, Decimal>& prices() const noexcept { return prices_; }
 
-  void setPrice(Date date, Decimal price);
+  bool setPrice(Date date, Decimal price);
 
   /// @brief Removes a security price.
   /// @return true if the price was removed succesfully
@@ -82,6 +93,16 @@ public:
   boost::signals2::signal<void(const Date&, const std::optional<Decimal>, std::optional<Decimal>)>&
   priceChanged() const noexcept {
     return signal_priceChanged;
+  }
+
+  boost::signals2::signal<void(std::string, std::string)>& nameChanged() const noexcept { return signal_nameChanged; }
+
+  boost::signals2::signal<void(std::string, std::string)>& assetClassChanged() const noexcept {
+    return signal_assetClassChanged;
+  }
+
+  boost::signals2::signal<void(std::string, std::string)>& sectorChanged() const noexcept {
+    return signal_sectorChanged;
   }
 };
 
@@ -203,10 +224,13 @@ private:
   std::vector<SecurityPtr> securities_;
   std::vector<AccountPtr> accounts_;
 
+  std::set<std::string> securitySymbols;
+
   mutable boost::signals2::signal<void(AccountPtr)> signal_accountAdded;
   mutable boost::signals2::signal<void(AccountPtr)> signal_accountRemoved;
 
   mutable boost::signals2::signal<void(SecurityPtr)> signal_securityAdded;
+  mutable boost::signals2::signal<void(SecurityPtr)> signal_securityRemoved;
 
 public:
   DataFile() = default;
@@ -221,6 +245,8 @@ public:
 
   boost::signals2::signal<void(SecurityPtr)>& securityAdded() { return signal_securityAdded; }
 
+  boost::signals2::signal<void(SecurityPtr)>& securityRemoved() { return signal_securityRemoved; }
+
   AccountPtr accountForId(unsigned int id) {
     for (AccountPtr account : accounts_) {
       if (account->id() == id) {
@@ -232,6 +258,9 @@ public:
   }
 
   SecurityPtr securityForSymbol(std::string symbol) {
+    if (securitySymbols.count(symbol) == 0)
+      return nullptr;
+
     for (SecurityPtr security : securities_) {
       if (security->symbol() == symbol) {
         return security;
@@ -245,6 +274,7 @@ public:
   SecurityPtr addSecurity(std::string symbol, std::string name, std::string assetClass, std::string sector);
 
   bool removeAccount(AccountPtr account) noexcept;
+  bool removeSecurity(SecurityPtr security) noexcept;
 };
 } // namespace pv
 

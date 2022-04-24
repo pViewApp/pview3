@@ -1,8 +1,11 @@
+# General
+/build
+/CMakeLists.txt.user
+
 # Visual Studio
 /.vs/
 /out/
 /CMakeSettings.json
-/CMakeLists.txt.user
 
 # Qt Creator
 /.qtc_clangd/
@@ -10,3 +13,6 @@
 # KDevelop
 *.kdev4
 /.kdev4
+
+# Clangd
+/.cache

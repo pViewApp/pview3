@@ -5,6 +5,7 @@
 #include "Page.h"
 #include "SecurityInsertionWidget.h"
 #include "SecurityModel.h"
+#include <QAction>
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QLineEdit>
@@ -27,13 +28,16 @@ private:
   QTableView* table = new QTableView;
   controls::SecurityInsertionWidget* insertionWidget = new controls::SecurityInsertionWidget(dataFileManager_);
 
-  QSortFilterProxyModel* proxyModel = new QSortFilterProxyModel(table);
+  QSortFilterProxyModel proxyModel = QSortFilterProxyModel(table);
   std::unique_ptr<models::SecurityModel> model = nullptr;
 
-  QAction* securityInfoAction = new QAction(tr("Edit Security Prices..."));
+  QAction securityInfoAction = QAction(tr("Edit Security Prices..."));
+  QAction deleteSecurityAction = QAction(tr("Delete Security"));
 
-  void setupToolbar();
+  void setupActions();
   void setDataFile(pv::DataFile& dataFile);
+
+  pv::SecurityPtr currentSelectedSecurity();
 
 public:
   SecurityPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent = nullptr);

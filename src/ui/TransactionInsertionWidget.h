@@ -35,7 +35,7 @@ public:
 protected slots:
   void setupSecurityList();
 public slots:
-  void submit();
+  bool submit();
   void setAccount(pv::AccountPtr account);
 };
 } // namespace controls

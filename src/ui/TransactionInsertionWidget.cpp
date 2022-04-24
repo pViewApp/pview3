@@ -84,7 +84,7 @@ void TransactionInsertionWidget::setupSecurityList() {
   securityEditor->model()->sort(0);
 }
 
-void TransactionInsertionWidget::submit() {
+bool TransactionInsertionWidget::submit() {
   using namespace date;
 
   std::string securitySymbol = securityEditor->currentText().trimmed().toStdString();
@@ -105,19 +105,23 @@ void TransactionInsertionWidget::submit() {
     }
   }
 
-  if (account_ != nullptr) {
-    auto date = dateEditor->date();
+  if (account_ == nullptr)
+    return false;
+  auto date = dateEditor->date();
 
-    auto* action = pv::actionFromName(actionEditor->itemText(actionEditor->currentIndex()).toStdString());
-    if (action == nullptr)
-      return;
+  auto* action = pv::actionFromName(actionEditor->itemText(actionEditor->currentIndex()).toStdString());
+  if (action == nullptr)
+    return false;
 
-    account_->addTransaction(local_days(year_month_day(year(date.year()), month(date.month()), day(date.day()))),
-                             *action, security, numberOfSharesEditor->decimalValue(), sharePriceEditor->decimalValue(),
-                             commissionEditor->decimalValue(), totalAmountEditor->decimalValue());
+  if (account_->addTransaction(local_days(year_month_day(year(date.year()), month(date.month()), day(date.day()))),
+                               *action, security, numberOfSharesEditor->decimalValue(),
+                               sharePriceEditor->decimalValue(), commissionEditor->decimalValue(),
+                               totalAmountEditor->decimalValue()) == nullptr)
+    return false;
 
-    reset();
-  }
+  reset();
+
+  return true;
 }
 
 void TransactionInsertionWidget::reset() {

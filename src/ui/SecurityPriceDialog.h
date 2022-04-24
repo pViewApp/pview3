@@ -11,6 +11,7 @@
 #include <QSortFilterProxyModel>
 #include <QTableView>
 #include <QWidget>
+#include <boost/signals2/connection.hpp>
 #include <memory>
 
 namespace pvui {
@@ -28,7 +29,10 @@ private:
   QSortFilterProxyModel* proxyModel = new QSortFilterProxyModel(table);
   std::unique_ptr<models::SecurityPriceModel> model = nullptr;
 
+  boost::signals2::scoped_connection securityNameChangeConnection;
+
   void setupTableContextMenu();
+  void updateTitle();
 
 public:
   SecurityPriceDialog(pv::SecurityPtr security = nullptr, QWidget* parent = nullptr);

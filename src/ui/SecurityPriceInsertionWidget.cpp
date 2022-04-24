@@ -45,7 +45,11 @@ bool pvui::controls::SecurityPriceInsertionWidget::submit() {
   if (security_->prices().find(date) != security_->prices().cend())
     return false;
 
-  security_->setPrice(date, priceEditor->decimalValue());
+  if (priceEditor->cleanText().isEmpty())
+    return false;
+
+  if (!security_->setPrice(date, priceEditor->decimalValue()))
+    return false;
 
   reset();
   dateEditor->setFocus();

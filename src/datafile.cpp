@@ -55,11 +55,58 @@ bool pv::DataFile::removeAccount(AccountPtr account) noexcept {
   return true;
 }
 
+bool pv::DataFile::removeSecurity(SecurityPtr security) noexcept {
+  if (&(security->dataFile()) != this)
+    return false;
+
+  if (!security->isValid())
+    return false;
+
+  security->invalidate();
+
+  auto iter = std::find(securities_.cbegin(), securities_.cend(), security);
+  securities_.erase(iter);
+
+  signal_securityRemoved(security);
+
+  return true;
+}
+
 pv::Security::Security(pv::DataFile& dataFile, std::string symbol, std::string name, std::string assetClass,
                        std::string sector)
     : dataFile_(dataFile), symbol_(symbol), name_(name), assetClass_(assetClass), sector_(sector) {}
 
-void pv::Security::setPrice(pv::Date date, pv::Decimal price) {
+bool pv::Security::setName(std::string name) {
+  std::string oldName = name_;
+  name_ = name;
+  signal_nameChanged(name_, oldName);
+
+  return true;
+}
+
+bool pv::Security::setAssetClass(std::string name) {
+  if (!isValid())
+    return false;
+  std::string oldAssetClass = assetClass_;
+  assetClass_ = name;
+  signal_assetClassChanged(name_, oldAssetClass);
+
+  return true;
+}
+
+bool pv::Security::setSector(std::string name) {
+  if (!isValid())
+    return false;
+  std::string oldSector = sector_;
+  sector_ = name;
+  signal_sectorChanged(name_, oldSector);
+
+  return true;
+}
+
+bool pv::Security::setPrice(pv::Date date, pv::Decimal price) {
+  if (!isValid())
+    return false;
   auto oldPriceIter = prices_.find(date);
   std::optional<pv::Decimal> oldPrice =
       oldPriceIter == prices_.cend() ? std::optional<pv::Decimal>(std::nullopt) : std::optional(oldPriceIter->second);
@@ -67,9 +114,13 @@ void pv::Security::setPrice(pv::Date date, pv::Decimal price) {
   prices_.insert_or_assign(date, price);
 
   signal_priceChanged(date, oldPrice, price);
+
+  return true;
 }
 
 bool pv::Security::removePrice(Date date) {
+  if (!isValid())
+    return false;
   auto oldPriceIter = prices_.find(date);
   if (oldPriceIter == prices_.cend())
     return false;
@@ -84,6 +135,8 @@ bool pv::Security::removePrice(Date date) {
 }
 
 bool pv::Account::setName(std::string name) noexcept {
+  if (!isValid())
+    return false;
   std::string oldName = name_;
   name_ = name;
   signal_nameChanged(name_, oldName);

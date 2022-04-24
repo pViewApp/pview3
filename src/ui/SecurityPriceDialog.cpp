@@ -63,6 +63,10 @@ void SecurityPriceDialog::setupTableContextMenu() {
   table->addAction(deleteAction);
 }
 
+void SecurityPriceDialog::updateTitle() {
+  setWindowTitle(tr("Editing Security Prices for %1").arg(QString::fromStdString(security_->name())));
+}
+
 void SecurityPriceDialog::setSecurity(pv::SecurityPtr security) {
   security_ = security;
   setEnabled(security_ != nullptr);
@@ -71,6 +75,14 @@ void SecurityPriceDialog::setSecurity(pv::SecurityPtr security) {
   proxyModel->setSourceModel(model.get());
   insertionWidget->setSecurity(security);
   table->scrollToBottom();
+
+  securityNameChangeConnection.disconnect();
+
+  if (security_ == nullptr)
+    return;
+
+  updateTitle();
+  securityNameChangeConnection = security_->nameChanged().connect([&](std::string, std::string) { updateTitle(); });
 }
 
 } // namespace dialogs
