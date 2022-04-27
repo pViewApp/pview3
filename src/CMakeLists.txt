@@ -1,45 +1,53 @@
-find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
 find_package(Boost REQUIRED)
-find_package(Qwt REQUIRED)
 find_package(date CONFIG REQUIRED)
+find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
+find_package(Qwt REQUIRED)
 
 add_executable(pview
-     Actions.h
-	 Actions.cpp
-	 DataFile.h
-	 DataFile.cpp
-	 Main.cpp
-	 Types.h
+	pv/Account.h
+	pv/Account.cpp
+	pv/Action.h
+	pv/Actions.h
+	pv/Transaction.h
+	pv/Transaction.cpp
+	pv/Date.h
+	pv/Decimal.h
+	pv/Security.h
+	pv/Security.cpp
+	pv/DataFile.h
+	pv/DataFile.cpp
 
-	 ui/AccountPage.cpp
-	 ui/AccountPage.h
-	 ui/DataFileManager.h
-	 ui/ExtendedSpinBox.h
-	 ui/ExtendedSpinbox.cpp
-	 ui/MainWindow.cpp
-	 ui/MainWindow.h
-	 ui/NavigationModel.h
-	 ui/NavigationModel.cpp
-	 ui/Page.cpp
-	 ui/Page.h
-	 ui/SecurityInsertionWidget.cpp
-	 ui/SecurityInsertionWidget.h
-	 ui/SecurityModel.cpp
-	 ui/SecurityModel.h
-	 ui/SecurityPage.cpp
-	 ui/SecurityPage.h
-	 ui/SecurityPriceDialog.cpp
-	 ui/SecurityPriceDialog.h
-	 ui/SecurityPriceInsertionWidget.cpp
-	 ui/SecurityPriceInsertionWidget.h
-	 ui/SecurityPriceModel.cpp
-	 ui/SecurityPriceModel.h
-	 ui/SecurityUtils.cpp
-	 ui/SecurityUtils.h
-	 ui/TransactionInsertionWidget.cpp
-	 ui/TransactionInsertionWidget.h
-	 ui/TransactionModel.cpp
-	 ui/TransactionModel.h
+	pvui/AccountPage.cpp
+	pvui/AccountPage.h
+	pvui/ActionMappings.h
+	pvui/DataFileManager.h
+	pvui/ExtendedSpinBox.h
+	pvui/ExtendedSpinbox.cpp
+	pvui/MainWindow.cpp
+	pvui/MainWindow.h
+	pvui/NavigationModel.h
+	pvui/NavigationModel.cpp
+	pvui/Page.cpp
+	pvui/Page.h
+	pvui/pView.cpp
+	pvui/SecurityInsertionWidget.cpp
+	pvui/SecurityInsertionWidget.h
+	pvui/SecurityModel.cpp
+	pvui/SecurityModel.h
+	pvui/SecurityPage.cpp
+	pvui/SecurityPage.h
+	pvui/SecurityPriceDialog.cpp
+	pvui/SecurityPriceDialog.h
+	pvui/SecurityPriceInsertionWidget.cpp
+	pvui/SecurityPriceInsertionWidget.h
+	pvui/SecurityPriceModel.cpp
+	pvui/SecurityPriceModel.h
+	pvui/SecurityUtils.cpp
+	pvui/SecurityUtils.h
+	pvui/TransactionInsertionWidget.cpp
+	pvui/TransactionInsertionWidget.h
+	pvui/TransactionModel.cpp
+	pvui/TransactionModel.h
 )
 
 target_include_directories(pview PRIVATE ${Boost_INCLUDE_DIRS})
@@ -48,13 +56,13 @@ target_compile_features(pview PRIVATE cxx_std_17)
 target_link_libraries(pview PRIVATE ${Boost_LIBRARIES} ${QWT_LIBRARIES} Qt6::Core Qt6::Gui Qt6::Widgets date::date)
 
 if(MSVC)
-  target_compile_options(pview PRIVATE /W4 /WX)
+	target_compile_options(pview PRIVATE /W4 /WX)
 else()
-  target_compile_options(pview PRIVATE -Wall -Wextra -Wpedantic -Werror)
+	target_compile_options(pview PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
 set_target_properties(pview PROPERTIES
-     MACOSX_BUNDLE_GUI_IDENTIFIER io.github.pviewapp.pview
+		 MACOSX_BUNDLE_GUI_IDENTIFIER io.github.pviewapp.pview
 	 MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
 	 MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
 	 MACOSX_BUNDLE TRUE
