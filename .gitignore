@@ -1,6 +1,7 @@
 # General
 /build
 /CMakeLists.txt.user
+/CMakeLists.txt.user.*
 
 # Visual Studio
 /.vs/
