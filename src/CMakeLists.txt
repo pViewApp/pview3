@@ -8,6 +8,8 @@ add_executable(pview
 	pv/Account.cpp
 	pv/Action.h
 	pv/Actions.h
+	pv/Algorithms.h
+	pv/Algorithms.cpp
 	pv/Transaction.h
 	pv/Transaction.cpp
 	pv/Date.h

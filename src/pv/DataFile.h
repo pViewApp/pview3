@@ -25,12 +25,6 @@ private:
   mutable boost::signals2::signal<void(Security&)> signal_securityAdded;
   mutable boost::signals2::signal<void(const Security&)> signal_securityRemoved;
 
-  std::unordered_map<Account, boost::signals2::scoped_connection> accountInvalidationConnections;
-  std::unordered_map<Security, boost::signals2::scoped_connection> securityInvalidationConnections;
-
-  void removeAccountImpl(const Account& account) noexcept;
-  void removeSecurityImpl(const Security& account) noexcept;
-
 public:
   DataFile() = default;
   ~DataFile();
@@ -53,15 +47,9 @@ public:
   Account addAccount(std::string name) noexcept;
   Security addSecurity(std::string symbol, std::string name, std::string assetClass, std::string sector) noexcept;
 
-  bool removeAccount(Account account) {
-    account.invalidate();
-    return true;
-  }
+  bool removeAccount(Account account);
 
-  bool removeSecurity(Security security) {
-    security.invalidate();
-    return true;
-  }
+  bool removeSecurity(Security security);
 
   // Signals
 

@@ -14,6 +14,8 @@ class TransactionModel : public QAbstractTableModel {
 private:
   const pv::Account account_;
   boost::signals2::scoped_connection transactionAddedConnection;
+  boost::signals2::scoped_connection transactionChangedConnection;
+  boost::signals2::scoped_connection transactionRemovedConnection;
 
   std::vector<pv::Transaction> transactions;
 
@@ -22,18 +24,25 @@ public:
 
   int rowCount(const QModelIndex& = QModelIndex()) const override { return static_cast<int>(transactions.size()); }
 
-  int columnCount(const QModelIndex& parent = QModelIndex()) const override {
-    if (parent.isValid())
-      return 0; // Only top-level parents are allowed
-    return 7;   // The columns are Date, Action, Security, Number of Shares, Share
-                // Price, Commission, Total Amount
+  int columnCount(const QModelIndex&) const override {
+    return 7; // The columns are Date, Action, Security, Number of Shares, Share
+              // Price, Commission, Total Amount
   }
 
   QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 
   QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+
+  Qt::ItemFlags flags(const QModelIndex& index) const override;
+
+  bool setData(const QModelIndex& index, const QVariant& value, int role) override;
+
+  QModelIndex mapToIndex(const pv::Transaction& transaction) const noexcept;
+  std::optional<pv::Transaction> mapFromIndex(const QModelIndex& index) noexcept;
 signals:
-  void transactionAdded(pv::Transaction& transaction);
+  void transactionAdded(const pv::Transaction& transaction);
+  void transactionChanged(const pv::Transaction& transaction);
+  void transactionRemoved(const pv::Transaction& transaction);
 };
 } // namespace pvui::models
 

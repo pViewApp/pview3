@@ -2,28 +2,15 @@
 #include <algorithm>
 
 namespace pv {
-
-void DataFile::removeAccountImpl(const Account& account) noexcept {
-  accounts_.erase(std::find(accounts_.cbegin(), accounts_.cend(), account));
-  signal_accountRemoved(account);
-  accountInvalidationConnections.erase(account);
-}
-
-void DataFile::removeSecurityImpl(const Security& security) noexcept {
-  securities_.erase(std::find(securities_.cbegin(), securities_.cend(), security));
-  signal_securityRemoved(security);
-  securityInvalidationConnections.erase(security);
-}
-
 DataFile::~DataFile() {
-  accountInvalidationConnections.clear();
-  securityInvalidationConnections.clear();
+  std::vector<Account> accountsCopy = accounts_;
+  std::vector<Security> securitiesCopy = securities_;
 
-  for (auto& account : accounts_) {
-    account.invalidate();
+  for (auto& account : accountsCopy) {
+    removeAccount(account);
   }
-  for (auto& security : securities_) {
-    security.invalidate();
+  for (auto& security : securitiesCopy) {
+    removeSecurity(security);
   }
 }
 
@@ -50,12 +37,7 @@ std::optional<Security> DataFile::securityForSymbol(std::string symbol) const no
 Account DataFile::addAccount(std::string name) noexcept {
   Account account(*this, nextAccountId.fetch_add(1), name);
   accounts_.push_back(account);
-
-  accountInvalidationConnections.insert(
-      {account, account.invalidated().connect([=]() { removeAccountImpl(account); })});
-
   signal_accountAdded(account);
-
   return account;
 }
 
@@ -63,12 +45,26 @@ Security DataFile::addSecurity(std::string symbol, std::string name, std::string
                                std::string sector) noexcept {
   Security security(*this, symbol, name, assetClass, sector);
   securities_.push_back(security);
-  securityInvalidationConnections.insert(
-      {security, security.invalidated().connect([=]() { removeSecurityImpl(security); })});
-
   signal_securityAdded(security);
-
   return security;
+}
+
+bool DataFile::removeAccount(Account account) {
+  if (account.dataFile() != this || !account.valid())
+    return false;
+  account.invalidate();
+  accounts_.erase(std::find(accounts_.cbegin(), accounts_.cend(), account));
+  signal_accountRemoved(account);
+  return true;
+}
+
+bool DataFile::removeSecurity(Security security) {
+  if (security.dataFile() != this || !security.valid())
+    return false;
+  security.invalidate();
+  securities_.erase(std::find(securities_.cbegin(), securities_.cend(), security));
+  signal_securityRemoved(security);
+  return true;
 }
 
 } // namespace pv

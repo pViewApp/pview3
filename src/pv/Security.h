@@ -81,8 +81,8 @@ public:
   boost::signals2::signal<void()>& invalidated() const noexcept;
 
   // Operators
-
   bool operator==(const Security& other) const noexcept { return shared == other.shared; }
+  bool operator!=(const Security& other) const noexcept { return shared != other.shared; }
 };
 
 } // namespace pv

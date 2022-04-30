@@ -9,8 +9,8 @@
 
 namespace {
 
-static std::vector<std::pair<std::string, const pv::Action*>> mappingsBase = {{"Buy", &pv::actions::BUY},
-                                                                              {"Sell", &pv::actions::SELL}};
+static std::vector<std::pair<std::string, const pv::Action*>> mappingsBase = {
+    {"Buy", &pv::actions::BUY}, {"Sell", &pv::actions::SELL}, {"In", &pv::actions::IN}, {"Out", &pv::actions::OUT}};
 
 std::map<std::string, const pv::Action*> generateNameToActionMappings() noexcept {
   std::map<std::string, const pv::Action*> output;

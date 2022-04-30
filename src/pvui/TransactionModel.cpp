@@ -2,10 +2,13 @@
 #include "ActionMappings.h"
 #include "pv/Action.h"
 #include <QDate>
+#include <cassert>
 
 pvui::models::TransactionModel::TransactionModel(const pv::Account account, QObject* parent)
     : QAbstractTableModel(parent), account_(account), transactions(account.transactions()) {
-  QObject::connect(this, &TransactionModel::transactionAdded, this, [&](pv::Transaction& transaction) {
+
+  // Listen for added transactions
+  QObject::connect(this, &TransactionModel::transactionAdded, this, [&](const pv::Transaction& transaction) {
     beginInsertRows(QModelIndex(), rowCount(), rowCount());
     transactions.push_back(transaction);
     endInsertRows();
@@ -13,6 +16,32 @@ pvui::models::TransactionModel::TransactionModel(const pv::Account account, QObj
 
   transactionAddedConnection =
       account.transactionAdded().connect([&](pv::Transaction transaction) { emit transactionAdded(transaction); });
+
+  // Listen for changed transactions
+  QObject::connect(this, &TransactionModel::transactionChanged, this, [&](const pv::Transaction& transaction) {
+    int rowIndex = std::find(transactions.cbegin(), transactions.cend(), transaction) - transactions.cbegin();
+
+    QModelIndex topLeft = index(rowIndex, 0);
+    QModelIndex bottomRight = index(rowIndex, columnCount(QModelIndex()));
+
+    emit dataChanged(topLeft, bottomRight);
+  });
+
+  transactionChangedConnection = account.transactionChanged().connect(
+      [&](const pv::Transaction& transaction) { emit transactionChanged(transaction); });
+
+  // Listen for removed transactions
+  QObject::connect(this, &TransactionModel::transactionRemoved, this, [&](const pv::Transaction& transaction) {
+    auto iter = std::find(transactions.cbegin(), transactions.cend(), transaction);
+    assert(iter != transactions.cend() && "Transaction removed but not in TransactionModel");
+    int rowIndex = iter - transactions.cbegin();
+    beginRemoveRows(QModelIndex(), rowIndex, rowIndex);
+    transactions.erase(iter);
+    endRemoveRows();
+  });
+
+  transactionRemovedConnection =
+      account.transactionRemoved().connect([&](pv::Transaction transaction) { emit transactionRemoved(transaction); });
 }
 
 QVariant pvui::models::TransactionModel::data(const QModelIndex& index, int role) const {
@@ -54,6 +83,57 @@ QVariant pvui::models::TransactionModel::data(const QModelIndex& index, int role
     return QVariant();
   }
   }
+}
+
+Qt::ItemFlags pvui::models::TransactionModel::flags(const QModelIndex& index) const {
+  static const Qt::ItemFlags NonEditable = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
+  static const Qt::ItemFlags Editable = NonEditable | Qt::ItemIsEditable;
+
+  if (index.column() >= 3) {
+    return Editable;
+  } else {
+    return NonEditable;
+  }
+}
+
+bool pvui::models::TransactionModel::setData(const QModelIndex& index, const QVariant& value, int role) {
+  if (role != Qt::EditRole)
+    return false;
+
+  auto transaction = transactions.at(index.row());
+  if (!value.canConvert<double>())
+    return false;
+
+  double newValue = value.value<double>();
+  switch (index.column()) {
+  case 3: {
+    return transaction.setNumberOfShares(newValue) == pv::TransactionEditResult::Success;
+  }
+  case 4: {
+    return transaction.setSharePrice(newValue) == pv::TransactionEditResult::Success;
+  }
+  case 5: {
+    return transaction.setCommission(newValue) == pv::TransactionEditResult::Success;
+  }
+  case 6: {
+    return transaction.setTotalAmount(newValue) == pv::TransactionEditResult::Success;
+  }
+  }
+  return false;
+}
+
+QModelIndex pvui::models::TransactionModel::mapToIndex(const pv::Transaction& transaction) const noexcept {
+  auto iter = std::find(transactions.cbegin(), transactions.cend(), transaction);
+  if (iter == transactions.cend()) {
+    return QModelIndex();
+  }
+  return index(iter - transactions.begin(), 0);
+}
+
+std::optional<pv::Transaction> pvui::models::TransactionModel::mapFromIndex(const QModelIndex& index) noexcept {
+  if (!index.isValid() || index.row() >= rowCount())
+    return std::nullopt;
+  return transactions.at(index.row());
 }
 
 QVariant pvui::models::TransactionModel::headerData(int section, Qt::Orientation orientation, int role) const {

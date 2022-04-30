@@ -1,0 +1,7 @@
+BasedOnStyle:  LLVM
+ColumnLimit:     120
+PointerAlignment: Left
+ReferenceAlignment: Pointer
+StatementAttributeLikeMacros:
+  - Q_EMIT
+  - emit

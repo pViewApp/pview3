@@ -6,6 +6,7 @@
 #include "TransactionInsertionWidget.h"
 #include "TransactionModel.h"
 #include "pv/Account.h"
+#include <QAction>
 #include <QComboBox>
 #include <QDate>
 #include <QDateEdit>
@@ -31,11 +32,22 @@ private:
   std::unique_ptr<models::TransactionModel> model = nullptr;
 
   boost::signals2::scoped_connection accountNameChangedConnection;
+  boost::signals2::scoped_connection transactionAddedConnection;
+  boost::signals2::scoped_connection transactionRemovedConnection;
+  boost::signals2::scoped_connection transactionChangedConnection;
+
+  QAction deleteTransactionAction = QAction(tr("Delete Selected Transactions"));
 
 public:
   AccountPageWidget(std::optional<pv::Account> account = std::nullopt, QWidget* parent = nullptr);
+private slots:
+  void updateCashBalance() noexcept;
+  void updateTitle();
 public slots:
   void setAccount(std::optional<pv::Account> account);
+signals:
+  void accountTransactionsChanged();
+  void accountNameChanged();
 };
 
 } // namespace pvui

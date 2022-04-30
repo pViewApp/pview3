@@ -57,6 +57,16 @@ public:
                                                                      Decimal numberOfShares, Decimal sharePrice,
                                                                      Decimal commission, Decimal totalAmount) noexcept;
 
+  bool removeTransaction(Transaction transaction) noexcept;
+
+  // Internal
+
+  /// \internal
+  /// Todo, implement in future.
+  int requestTransactionChange_(const Transaction& t, const Date& date, const Action& action,
+                                const std::optional<const pv::Security>& security, const Decimal& numberOfShares,
+                                const Decimal& sharePrice, const Decimal& commission, const Decimal& totalAmount);
+
   // signals
 
   /// \brief Fired whenever the name changes
@@ -75,6 +85,13 @@ public:
   /// #Signal Arguments
   /// \arg \c 1 The removed transaction
   boost::signals2::signal<void(const Transaction&)>& transactionRemoved() const noexcept;
+  /// \brief Fired whenever a transaction is changed
+  ///
+  /// Equivalent to pv::Transaction::changed().
+  ///
+  /// #Signal Arguments
+  /// \arg \c 1 The changed transaction
+  boost::signals2::signal<void(const Transaction&)>& transactionChanged() const noexcept;
   /// \brief Fired when this account becomes invalid.
   ///
   /// #Signal Arguments
@@ -84,6 +101,7 @@ public:
   // operators
 
   bool operator==(const Account& other) const noexcept { return shared == other.shared; }
+  bool operator!=(const Account& other) const noexcept { return shared != other.shared; }
 };
 
 } // namespace pv

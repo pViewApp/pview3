@@ -1,7 +1,7 @@
 #ifndef PVUI_PAGE_H
 #define PVUI_PAGE_H
 
-#include <QGroupBox>
+#include <QLabel>
 #include <QObject>
 #include <QVBoxLayout>
 #include <variant>
@@ -10,43 +10,39 @@ namespace pvui {
 class PageWidget : public QWidget {
   Q_OBJECT
 private:
-  QString title_;
-  QGroupBox* contentBox;
-  QVBoxLayout* contentBoxLayout;
+  QVBoxLayout* layout_ = new QVBoxLayout(this);
+  QLabel* title = new QLabel;
+  QLabel* subtitle = new QLabel;
   QLayoutItem* content_;
 
 public:
   PageWidget(QWidget* parent = nullptr);
-
-  QString title() { return title_; }
-
 protected slots:
-  void setTitle(QString newTitle) {
-    title_ = newTitle;
-    emit titleChanged(newTitle);
+  void setTitle(QString newTitle) { title->setText("<h1>" + newTitle.toHtmlEscaped() + "</h1>"); }
+  void setSubtitle(QString newSubtitle) {
+    subtitle->setText("<h3>" + newSubtitle.toHtmlEscaped() + "</h3>");
+    subtitle->setVisible(true);
   }
 
   void setContent(QLayoutItem* content) {
     if (content_ != nullptr) {
-      contentBoxLayout->removeItem(content_);
+      layout_->removeItem(content_);
     }
 
     content_ = content;
-    contentBoxLayout->addItem(content_);
+    layout_->addItem(content_);
   }
 
   void setContent(QLayout* content) {
     if (content_ != nullptr) {
-      contentBoxLayout->removeItem(content_);
+      layout_->removeItem(content_);
     }
 
     content_ = content;
-    contentBoxLayout->addLayout(content);
+    layout_->addLayout(content);
   }
 
   void setContent(QWidget* content) { setContent(new QWidgetItem(content)); }
-signals:
-  void titleChanged(const QString& newTitle);
 };
 } // namespace pvui
 
