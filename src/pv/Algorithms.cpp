@@ -138,7 +138,8 @@ std::optional<Decimal> averageBuyPrice(const Security& security, Date date) {
     for (const auto& transaction : account.transactions()) {
       if (&transaction.action() == &pv::actions::BUY && transaction.security() == security &&
           transaction.date() <= date) {
-        buyPrices.push_back(transaction.sharePrice());
+        buyPrices.resize(static_cast<std::size_t>(buyPrices.size() + transaction.numberOfShares()),
+                         transaction.sharePrice());
       }
     }
   }
@@ -157,7 +158,8 @@ std::optional<Decimal> averageSellPrice(const Security& security, Date date) {
     for (const auto& transaction : account.transactions()) {
       if (&transaction.action() == &pv::actions::SELL && transaction.security() == security &&
           transaction.date() <= date) {
-        sellPrices.push_back(transaction.sharePrice());
+        sellPrices.resize(static_cast<std::size_t>(sellPrices.size() + transaction.numberOfShares()),
+                          transaction.sharePrice());
       }
     }
   }
@@ -174,7 +176,8 @@ std::optional<Decimal> averageBuyPrice(const Security& security, const Account& 
   for (const auto& transaction : account.transactions()) {
     if (&transaction.action() == &pv::actions::BUY && transaction.security() == security &&
         transaction.date() <= date) {
-      buyPrices.push_back(transaction.sharePrice());
+      buyPrices.resize(static_cast<std::size_t>(buyPrices.size() + transaction.numberOfShares()),
+                       transaction.sharePrice());
     }
   }
 
@@ -191,7 +194,8 @@ std::optional<Decimal> averageSellPrice(const Security& security, const Account&
   for (const auto& transaction : account.transactions()) {
     if (&transaction.action() == &pv::actions::SELL && transaction.security() == security &&
         transaction.date() <= date) {
-      sellPrices.push_back(transaction.sharePrice());
+      sellPrices.resize(static_cast<std::size_t>(sellPrices.size() + transaction.numberOfShares()),
+                        transaction.sharePrice());
     }
   }
 
