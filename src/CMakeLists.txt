@@ -10,6 +10,7 @@ add_executable(pview
 	pv/Actions.h
 	pv/Algorithms.h
 	pv/Algorithms.cpp
+	pv/Invalidatable.h
 	pv/Transaction.h
 	pv/Transaction.cpp
 	pv/Date.h
@@ -25,6 +26,14 @@ add_executable(pview
 	pvui/DataFileManager.h
 	pvui/ExtendedSpinBox.h
 	pvui/ExtendedSpinbox.cpp
+	pvui/FormatUtils.h
+	pvui/FormatUtils.cpp
+	pvui/ModelUtils.h
+	pvui/ModelUtils.cpp
+	pvui/HoldingsReport.cpp
+	pvui/HoldingsReport.h
+	pvui/HoldingsModel.cpp
+	pvui/HoldingsModel.h
 	pvui/MainWindow.cpp
 	pvui/MainWindow.h
 	pvui/NavigationModel.h
@@ -32,6 +41,8 @@ add_executable(pview
 	pvui/Page.cpp
 	pvui/Page.h
 	pvui/pView.cpp
+	pvui/Report.h
+	pvui/ReportFactory.h
 	pvui/SecurityInsertionWidget.cpp
 	pvui/SecurityInsertionWidget.h
 	pvui/SecurityModel.cpp
@@ -46,6 +57,8 @@ add_executable(pview
 	pvui/SecurityPriceModel.h
 	pvui/SecurityUtils.cpp
 	pvui/SecurityUtils.h
+	pvui/StandardReportFactory.h
+	pvui/StandardReportFactory.cpp
 	pvui/TransactionInsertionWidget.cpp
 	pvui/TransactionInsertionWidget.h
 	pvui/TransactionModel.cpp

@@ -2,6 +2,7 @@
 #define PVUI_MODELS_NAVIGATIONMODEL_H
 
 #include "DataFileManager.h"
+#include "Report.h"
 #include "pv/DataFile.h"
 #include <QAbstractItemModel>
 #include <boost/signals2/connection.hpp>
@@ -24,6 +25,7 @@ private:
   std::vector<boost::signals2::scoped_connection> accountNameChangedConnections;
 
   std::vector<pv::Account> accounts;
+  std::vector<const Report*> reports;
 
   void setupAccount(const pv::Account account) noexcept;
 private slots:
@@ -80,9 +82,15 @@ public:
 
   QModelIndex securitiesPage() const noexcept { return securitiesPageIndex; }
 
-  std::optional<pv::Account> mapFromIndex(const QModelIndex& index) const;
+  std::optional<pv::Account> accountFromIndex(const QModelIndex& index) const;
 
-  QModelIndex mapToIndex(const pv::Account account) const;
+  QModelIndex accountToIndex(const pv::Account account) const;
+
+  const Report* reportFromIndex(const QModelIndex& index) const;
+public slots:
+  void addReport(const pvui::Report* report);
+  void addReports(const std::vector<pvui::Report*>& reports);
+  void removeReport(const pvui::Report* report);
 
 signals:
   void accountAdded(pv::Account account);

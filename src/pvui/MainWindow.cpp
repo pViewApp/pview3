@@ -32,10 +32,14 @@ void pvui::MainWindow::pageChanged() {
 
   if (navigationModel.isAccountPage(indexOfNewPage)) {
     contentLayout->setCurrentWidget(accountPage);
-    accountPage->setAccount(navigationModel.mapFromIndex(indexOfNewPage));
+    accountPage->setAccount(navigationModel.accountFromIndex(indexOfNewPage));
 
   } else if (navigationModel.isSecuritiesPage(indexOfNewPage)) {
     contentLayout->setCurrentWidget(securityPage);
+  } else if (navigationModel.isReportPage(indexOfNewPage)) {
+    auto* report = const_cast<Report*>(navigationModel.reportFromIndex(indexOfNewPage));
+    contentLayout->setCurrentWidget(report);
+    report->reload();
   } else {
     contentLayout->setCurrentWidget(noPageOpen);
   }
@@ -89,6 +93,13 @@ void pvui::MainWindow::setupNavigation() {
   contentLayout->addWidget(accountPage);
   contentLayout->addWidget(securityPage);
   contentLayout->addWidget(noPageOpen);
+
+  for (auto* report : reports) {
+    contentLayout->addWidget(report);
+  }
+  navigationModel.addReports(reports);
+  navigationWidget->setExpanded(navigationModel.reportsHeader(), true);
+
   contentLayout->setCurrentWidget(noPageOpen);
 
   noPageOpen->setAlignment(Qt::AlignCenter);
@@ -114,7 +125,7 @@ void pvui::MainWindow::setupNavigation() {
 }
 
 void pvui::MainWindow::showDeleteAccountDialog() {
-  pv::Account account = *(navigationModel.mapFromIndex(navigationWidget->selectionModel()->currentIndex()));
+  pv::Account account = *(navigationModel.accountFromIndex(navigationWidget->selectionModel()->currentIndex()));
 
   QMessageBox::Button userResponse = QMessageBox::warning(
       this, tr("Deleting Account %1").arg(QString::fromStdString(account.name())),
@@ -136,7 +147,7 @@ void pvui::MainWindow::showAddAccountDialog() {
       pv::Account account = dataFile().addAccount(trimmedText.toStdString());
 
       navigationWidget->expand(navigationModel.accountsHeader());
-      navigationWidget->selectionModel()->setCurrentIndex(navigationModel.mapToIndex(account),
+      navigationWidget->selectionModel()->setCurrentIndex(navigationModel.accountToIndex(account),
                                                           QItemSelectionModel::ClearAndSelect);
     } else {
       QMessageBox::warning(this, tr("Invalid Account Name"), tr("The account name must not be empty"));

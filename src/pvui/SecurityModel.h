@@ -25,11 +25,7 @@ private:
 public:
   SecurityModel(pv::DataFile& dataFile, QObject* parent = nullptr);
 
-  int rowCount(const QModelIndex& parent = QModelIndex()) const override {
-    if (parent.isValid())
-      return 0;
-    return static_cast<int>(securities.size());
-  }
+  int rowCount(const QModelIndex& = QModelIndex()) const override { return static_cast<int>(securities.size()); }
 
   int columnCount(const QModelIndex& = QModelIndex()) const override {
     return 4; // Symbol, name, asset class, sector

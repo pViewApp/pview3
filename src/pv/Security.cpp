@@ -9,6 +9,7 @@ private:
 
   std::atomic_bool valid = true;
 
+  // Pointer might be invalid
   DataFile* dataFile;
 
   std::string symbol;
@@ -48,9 +49,9 @@ Security::Security(DataFile& dataFile, std::string symbol, std::string name, std
 
 bool Security::invalidate() noexcept { return shared->invalidate(); }
 
-const DataFile* Security::dataFile() const noexcept { return shared->dataFile; }
+const DataFile* Security::dataFile() const noexcept { return valid() ? shared->dataFile : nullptr; }
 
-DataFile* Security::dataFile() noexcept { return shared->dataFile; }
+DataFile* Security::dataFile() noexcept { return valid() ? shared->dataFile : nullptr; }
 
 std::string Security::symbol() const noexcept { return shared->symbol; }
 
@@ -116,11 +117,11 @@ bool Security::removePrice(Date date) noexcept {
     return false;
   }
   auto oldPriceIter = shared->prices.find(date);
-  std::optional<Decimal> oldPrice;
-
-  if (oldPriceIter != shared->prices.cend()) {
-    oldPrice = oldPriceIter->second;
+  if (oldPriceIter == shared->prices.cend()) {
+    return false;
   }
+
+  auto oldPrice = oldPriceIter->second;
 
   shared->prices.erase(oldPriceIter);
 
@@ -147,5 +148,13 @@ Security::priceChanged() const noexcept {
 }
 
 boost::signals2::signal<void()>& Security::invalidated() const noexcept { return shared->signal_invalidated; }
+
+bool Security::operator<(const Security& other) const noexcept {
+  return shared->dataFile < other.shared->dataFile ? true : symbol() < other.symbol();
+}
+
+bool Security::operator>(const Security& other) const noexcept {
+  return shared->dataFile > other.shared->dataFile ? true : symbol() > other.symbol();
+}
 
 } // namespace pv

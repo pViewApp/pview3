@@ -22,6 +22,9 @@ void NavigationModel::setupAccount(const pv::Account account) noexcept {
 
 // Called whenever the dataFile is changed
 void NavigationModel::setDataFile(pv::DataFile& dataFile) noexcept {
+  beginResetModel();
+
+  accounts.clear();
   // Clear old connections
   accountNameChangedConnections.clear();
   accountNameChangedConnections.reserve(dataFile.accounts().size());
@@ -35,11 +38,11 @@ void NavigationModel::setDataFile(pv::DataFile& dataFile) noexcept {
 
   QObject::connect(this, &NavigationModel::accountAdded, this, [&](pv::Account account) {
     auto indexToInsertAt = rowCount(accountsHeaderIndex);
-    emit beginInsertRows(accountsHeaderIndex, indexToInsertAt, indexToInsertAt);
+    beginInsertRows(accountsHeaderIndex, indexToInsertAt, indexToInsertAt);
 
     accounts.push_back(account);
 
-    emit endInsertRows();
+    endInsertRows();
     setupAccount(account);
   });
 
@@ -51,10 +54,12 @@ void NavigationModel::setDataFile(pv::DataFile& dataFile) noexcept {
     auto iter = std::find(accounts.cbegin(), accounts.cend(), account);
     int rowIndex = iter - accounts.cbegin();
 
-    emit beginRemoveRows(accountsHeaderIndex, rowIndex, rowIndex);
+    beginRemoveRows(accountsHeaderIndex, rowIndex, rowIndex);
     accounts.erase(iter);
-    emit endRemoveRows();
+    endRemoveRows();
   });
+
+  endResetModel();
 }
 
 NavigationModel::NavigationModel(pvui::DataFileManager& dataFileManager, QObject* parent)
@@ -80,7 +85,7 @@ int NavigationModel::rowCount(const QModelIndex& parent) const {
     return static_cast<int>(accounts.size());
   }
   case reportHeaderRowIndex: {
-    return 0; // todo Reports not implemented yet
+    return static_cast<int>(reports.size());
   }
   case securitiesPageRowIndex: {
     return 0;
@@ -118,8 +123,7 @@ QVariant NavigationModel::data(const QModelIndex& index, int role) const {
       // Account row
       return QString::fromStdString(accounts.at(index.row()).name());
     } else if (index.parent().row() == reportHeaderRowIndex) {
-      // todo not implemented
-      return QVariant();
+      return reportFromIndex(index)->name();
     }
   }
 
@@ -202,22 +206,54 @@ bool NavigationModel::isAccountPage(const QModelIndex& index) const {
 
 bool NavigationModel::isReportsHeader(const QModelIndex& index) const { return index == reportsHeaderIndex; }
 
-bool NavigationModel::isReportPage(const QModelIndex&) const {
-  return false; // Not implemented yet todo
+bool NavigationModel::isReportPage(const QModelIndex& index) const {
+  return index.internalPointer() == &reportsHeaderIndex;
 }
 
 bool NavigationModel::isSecuritiesPage(const QModelIndex& index) const { return index == securitiesPageIndex; }
 
-std::optional<pv::Account> NavigationModel::mapFromIndex(const QModelIndex& index) const {
+std::optional<pv::Account> NavigationModel::accountFromIndex(const QModelIndex& index) const {
   if (!isAccountPage(index))
     return std::nullopt;
   return accounts.at(index.row());
 }
 
-QModelIndex NavigationModel::mapToIndex(const pv::Account account) const {
+QModelIndex NavigationModel::accountToIndex(const pv::Account account) const {
   int rowIndex = std::find(accounts.cbegin(), accounts.cend(), account) - accounts.cbegin();
 
   return index(rowIndex, 0, accountsHeaderIndex);
+}
+
+const Report* NavigationModel::reportFromIndex(const QModelIndex& index) const {
+  if (!isReportPage(index))
+    return nullptr;
+  return reports.at(index.row());
+}
+
+void NavigationModel::addReport(const Report* report) {
+  beginInsertRows(reportsHeaderIndex, rowCount(reportsHeaderIndex), rowCount(reportsHeaderIndex));
+  reports.push_back(report);
+  endInsertRows();
+}
+
+void NavigationModel::addReports(const std::vector<Report*>& reportVector) {
+  auto last = static_cast<int>(rowCount(reportsHeaderIndex) - 1 + reportVector.size());
+  beginInsertRows(reportsHeaderIndex, last, last);
+  this->reports.insert(this->reports.end(), reportVector.cbegin(), reportVector.cend());
+  endInsertRows();
+}
+
+void NavigationModel::removeReport(const Report* report) {
+  auto iter = std::find(reports.cbegin(), reports.cend(), report);
+  auto rowIndex = iter - reports.cbegin();
+
+  if (iter == reports.cend()) {
+    return;
+  }
+
+  beginRemoveRows(reportsHeaderIndex, rowIndex, rowIndex);
+  reports.erase(iter);
+  endRemoveRows();
 }
 
 } // namespace models

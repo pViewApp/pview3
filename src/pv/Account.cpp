@@ -14,6 +14,8 @@ private:
 
   std::atomic_bool valid = true;
 
+  /// \internal
+  /// \warning This pointer will be invalid if this account is invalid
   DataFile* dataFile;
   unsigned int id;
   std::string name;
@@ -74,7 +76,7 @@ bool Account::invalidate() noexcept { return shared->invalidate(); }
 
 const DataFile* Account::dataFile() const noexcept { return shared->dataFile; }
 
-DataFile* Account::dataFile() noexcept { return shared->dataFile; }
+DataFile* Account::dataFile() noexcept { return valid() ? shared->dataFile : nullptr; }
 
 unsigned int Account::id() const noexcept { return shared->id; }
 
@@ -161,5 +163,13 @@ boost::signals2::signal<void(const Transaction&)>& Account::transactionChanged()
 }
 
 boost::signals2::signal<void()>& Account::invalidated() const noexcept { return shared->signal_invalidated; }
+
+bool Account::operator<(const Account& other) const noexcept {
+  return shared->dataFile < other.shared->dataFile ? true : id() < other.id();
+}
+
+bool Account::operator>(const Account& other) const noexcept {
+  return shared->dataFile > other.shared->dataFile ? true : id() > other.id();
+}
 
 } // namespace pv

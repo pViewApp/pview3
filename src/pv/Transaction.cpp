@@ -147,4 +147,6 @@ boost::signals2::signal<void(const Decimal&, const Decimal&)>& Transaction::tota
 
 boost::signals2::signal<void()>& Transaction::changed() const noexcept { return shared->signal_changed; }
 
+boost::signals2::signal<void()>& Transaction::invalidated() const noexcept { return shared->signal_invalidated; }
+
 } // namespace pv

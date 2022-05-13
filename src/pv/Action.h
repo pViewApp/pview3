@@ -29,8 +29,18 @@ public:
     return 0;
   }
 
+  virtual Decimal numberOfShares(const Date& /* date */, const std::optional<const Security>& /* security */,
+                                 const Decimal& numberOfShares, const Decimal& /* sharePrice */,
+                                 const Decimal& /* commission */, const Decimal& /* totalAmount */) const noexcept {
+    return numberOfShares;
+  }
+
   Decimal cashBalance(const Transaction& t) const noexcept {
     return cashBalance(t.date(), t.security(), t.numberOfShares(), t.sharePrice(), t.commission(), t.totalAmount());
+  }
+
+  Decimal numberOfShares(const Transaction& t) const noexcept {
+    return numberOfShares(t.date(), t.security(), t.numberOfShares(), t.sharePrice(), t.commission(), t.totalAmount());
   }
 
   virtual std::string id() const noexcept = 0;

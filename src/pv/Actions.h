@@ -40,6 +40,14 @@ public:
                                     pv::Decimal& totalAmount) const noexcept override {
     totalAmount = (numberOfShares * sharePrice) - commission;
   }
+
+  // Action interface
+public:
+  pv::Decimal numberOfShares(const pv::Date&, const std::optional<const pv::Security>&,
+                             const pv::Decimal& numberOfShares, const pv::Decimal&, const pv::Decimal&,
+                             const pv::Decimal&) const noexcept override {
+    return -numberOfShares;
+  }
 };
 
 /// \brief This action deposits money into the account.
@@ -84,10 +92,31 @@ public:
   }
 };
 
+class DividendAction : public pv::Action {
+public:
+  std::string id() const noexcept override { return "pv/dividend"; }
+
+  pv::Decimal cashBalance(const pv::Date&, const std::optional<const pv::Security>&, const pv::Decimal&,
+                          const pv::Decimal&, const pv::Decimal&,
+                          const pv::Decimal& totalAmount) const noexcept override {
+    return totalAmount;
+  }
+
+  void processTransactionParamaters(pv::Date&, std::optional<const pv::Security>&, pv::Decimal& numberOfShares,
+                                    pv::Decimal& sharePrice, pv::Decimal& commission,
+                                    pv::Decimal&) const noexcept override {
+    numberOfShares = 0;
+    sharePrice = 0;
+    commission = 0;
+    // leave total amount, security, and date, reset everything else
+  }
+};
+
 inline BuyAction BUY_;
 inline SellAction SELL_;
 inline InAction IN_;
 inline OutAction OUT_;
+inline DividendAction DIVIDEND_;
 
 } // namespace
 
@@ -97,6 +126,7 @@ inline const pv::Action& BUY = BUY_;
 inline const pv::Action& SELL = SELL_;
 inline const pv::Action& IN = IN_;
 inline const pv::Action& OUT = OUT_;
+inline const pv::Action& DIVIDEND = DIVIDEND_;
 
 } // namespace pv::actions
 

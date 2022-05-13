@@ -45,7 +45,7 @@ void pvui::models::SecurityModel::setupSecurity(pv::Security security) {
 }
 
 QVariant pvui::models::SecurityModel::data(const QModelIndex& index, int role) const {
-  if (role != Qt::DisplayRole || !index.isValid())
+  if ((role != Qt::DisplayRole && role != Qt::AccessibleTextRole && role != Qt::EditRole) || !index.isValid())
     return QVariant();
 
   const pv::Security& security = securities.at(index.row());

@@ -3,6 +3,7 @@
 
 #include "Date.h"
 #include "Decimal.h"
+#include "Invalidatable.h"
 #include <boost/signals2/signal.hpp>
 #include <functional>
 #include <map>
@@ -14,7 +15,7 @@ namespace pv {
 
 class DataFile;
 
-class Security {
+class Security : public Invalidatable {
 private:
   class Shared;
 
@@ -78,11 +79,16 @@ public:
   /// \arg \c 3 the old price, or an empty std::optional if none
   boost::signals2::signal<void(Date, std::optional<Decimal>, std::optional<Decimal>)>& priceChanged() const noexcept;
 
-  boost::signals2::signal<void()>& invalidated() const noexcept;
+  boost::signals2::signal<void()>& invalidated() const noexcept override;
 
   // Operators
   bool operator==(const Security& other) const noexcept { return shared == other.shared; }
   bool operator!=(const Security& other) const noexcept { return shared != other.shared; }
+
+  // todo will when invalidated
+  bool operator<(const Security& other) const noexcept;
+
+  bool operator>(const Security& other) const noexcept;
 };
 
 } // namespace pv

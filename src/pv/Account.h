@@ -3,6 +3,7 @@
 
 #include "Date.h"
 #include "Decimal.h"
+#include "Invalidatable.h"
 #include <boost/signals2/signal.hpp>
 #include <functional>
 #include <memory>
@@ -24,7 +25,7 @@ enum class TransactionAdditionError {
   INVALID_SECURITY = 2,
 };
 
-class Account {
+class Account : public Invalidatable {
 private:
   class Shared;
   friend class DataFile;
@@ -96,12 +97,16 @@ public:
   ///
   /// #Signal Arguments
   /// \arg \c 1 \c this
-  boost::signals2::signal<void()>& invalidated() const noexcept;
+  boost::signals2::signal<void()>& invalidated() const noexcept override;
 
   // operators
 
   bool operator==(const Account& other) const noexcept { return shared == other.shared; }
   bool operator!=(const Account& other) const noexcept { return shared != other.shared; }
+
+  bool operator<(const Account& other) const noexcept;
+
+  bool operator>(const Account& other) const noexcept;
 };
 
 } // namespace pv

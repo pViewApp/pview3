@@ -16,6 +16,7 @@
 #include "DataFileManager.h"
 #include "NavigationModel.h"
 #include "SecurityPage.h"
+#include "StandardReportFactory.h"
 #include "pv/DataFile.h"
 
 namespace pvui {
@@ -24,7 +25,10 @@ class MainWindow : public QMainWindow {
 private:
   DataFileManager dataFileManager;
   QTreeView* navigationWidget = new QTreeView;
-  models::NavigationModel navigationModel{dataFileManager};
+
+  StandardReportFactory factory;
+  std::vector<Report*> reports = factory.createReports(dataFileManager);
+  models::NavigationModel navigationModel = models::NavigationModel(dataFileManager);
   QWidget* content = new QWidget;
   QLabel* noPageOpen = new QLabel(tr("No Page Open"), content);
 

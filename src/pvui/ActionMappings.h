@@ -9,12 +9,21 @@
 
 namespace {
 
-static std::vector<std::pair<std::string, const pv::Action*>> mappingsBase = {
-    {"Buy", &pv::actions::BUY}, {"Sell", &pv::actions::SELL}, {"In", &pv::actions::IN}, {"Out", &pv::actions::OUT}};
+static inline std::vector<std::pair<std::string, const pv::Action*>> mappingsBase() {
+  // clang-format off
+  return {
+    {"Buy", &pv::actions::BUY},
+    {"Sell", &pv::actions::SELL},
+    {"In", &pv::actions::IN},
+    {"Out", &pv::actions::OUT},
+    {"Dividend", &pv::actions::DIVIDEND},
+  };
+  // clang-format on
+};
 
 std::map<std::string, const pv::Action*> generateNameToActionMappings() noexcept {
   std::map<std::string, const pv::Action*> output;
-  for (const auto& pair : mappingsBase) {
+  for (const auto& pair : mappingsBase()) {
     output.insert(pair);
   }
   return output;
@@ -22,7 +31,7 @@ std::map<std::string, const pv::Action*> generateNameToActionMappings() noexcept
 
 std::map<const pv::Action*, std::string> generateActionToNameMappings() noexcept {
   std::map<const pv::Action*, std::string> output;
-  for (const auto& pair : mappingsBase) {
+  for (const auto& pair : mappingsBase()) {
     output.insert({pair.second, pair.first});
   }
 
@@ -31,7 +40,7 @@ std::map<const pv::Action*, std::string> generateActionToNameMappings() noexcept
 
 std::vector<const pv::Action*> generateActionsVector() noexcept {
   std::vector<const pv::Action*> output;
-  for (const auto& pair : mappingsBase) {
+  for (const auto& pair : mappingsBase()) {
     output.push_back(pair.second);
   }
 

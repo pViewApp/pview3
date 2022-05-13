@@ -1,5 +1,5 @@
-#ifndef PVUI_DATAFILEMANAGER_H
-#define PVUI_DATAFILEMANAGER_H
+#ifndef PVUI_DATA_FILE_MANAGER_H
+#define PVUI_DATA_FILE_MANAGER_H
 
 #include "pv/DataFile.h"
 #include <QObject>
