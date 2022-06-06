@@ -23,7 +23,6 @@ private:
   QSortFilterProxyModel proxyModel;
   QTableView* table = new QTableView;
 
-  QVBoxLayout* layout = new QVBoxLayout();
   QGroupBox* summaryGroupBox = new QGroupBox;
   QHBoxLayout* summaryLayout = new QHBoxLayout;
 
@@ -34,10 +33,10 @@ private:
   void populateSummary();
 
 private slots:
-  void setDataFile(const pv::DataFile& dataFile);
+  void setDataFile(pv::DataFile& dataFile);
 
 public:
-  HoldingsReport(const DataFileManager& manager, QWidget* parent = nullptr);
+  HoldingsReport(DataFileManager& manager, QWidget* parent = nullptr);
 
   void reload() noexcept override;
 };

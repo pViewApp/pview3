@@ -5,6 +5,7 @@
 #include <QStyle>
 
 int main(int argc, char* argv[]) {
+  QApplication::setAttribute(Qt::AA_DisableWindowContextHelpButton);
   QCoreApplication::setOrganizationName("pView");
   QCoreApplication::setOrganizationDomain("pviewapp.github.io");
   QCoreApplication::setApplicationName("pView");

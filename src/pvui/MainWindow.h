@@ -8,6 +8,7 @@
 #include <QSplitter>
 #include <QStackedLayout>
 #include <QStandardItemModel>
+#include <QToolBar>
 #include <QTreeView>
 #include <QWidget>
 #include <unordered_map>
@@ -23,6 +24,8 @@ namespace pvui {
 class MainWindow : public QMainWindow {
   Q_OBJECT
 private:
+  QToolBar* mainToolBar = new QToolBar(this);
+  QToolBar* currentToolBar = nullptr;
   DataFileManager dataFileManager;
   QTreeView* navigationWidget = new QTreeView;
 
@@ -36,24 +39,30 @@ private:
   AccountPageWidget* accountPage = new AccountPageWidget;
   SecurityPageWidget* securityPage = new SecurityPageWidget(dataFileManager);
 
+  // General actions
+  QAction newAccountAction = QAction(tr("New Account..."));
   // navigationWidget context menu actions
   QAction deleteAccountAction = QAction(tr("&Delete Account"));
-  QAction newAccountAction = QAction(tr("New Account..."));
+
+  void setupToolBars();
+  void hideToolBars();
 private slots:
   void pageChanged();
 
-public:
-  MainWindow(QWidget* parent = nullptr);
-
-  void setupMenuBar();
-  void setupNavigation();
-
 protected:
   pv::DataFile& dataFile() noexcept { return dataFileManager.dataFile(); }
+  void closeEvent(QCloseEvent* event) override;
 protected slots:
   // Dialogs
   void showDeleteAccountDialog();
   void showAddAccountDialog();
+
+public:
+  MainWindow(QWidget* parent = nullptr);
+
+  void setupToolBar(QToolBar* toolBar);
+  void setupMenuBar();
+  void setupNavigation();
 };
 } // namespace pvui
 #endif // PVUI_MAINWINDOW_H

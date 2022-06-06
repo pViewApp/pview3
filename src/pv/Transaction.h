@@ -5,87 +5,117 @@
 #include "Decimal.h"
 #include "Invalidatable.h"
 #include "Security.h"
-#include <boost/signals2/signal.hpp>
-#include <functional>
-#include <memory>
-#include <optional>
 
 namespace pv {
 
 class Account;
-class Action;
 class DataFile;
-class Security;
 
-enum class TransactionEditResult {
-  Success = 0,
-  UnknownFailure = 1,
-  InvalidTransaction = 2,
-};
+enum class Action : unsigned char { BUY = 0, SELL = 1, DEPOSIT = 2, WITHDRAW = 3, DIVIDEND = 4 };
 
-class Transaction : public Invalidatable {
-private:
-  class Shared;
-  friend class Account;
-  friend struct std::hash<Transaction>; // Let hasher access the pointer
-
-  std::shared_ptr<Shared> shared;
-
-  // pv::Account is responsible for proccessing paramaters to the constructor
-  Transaction(Account& account, unsigned int id, Date date, const Action& action,
-              std::optional<const Security> security, Decimal numberOfShares, Decimal sharePrice, Decimal commission,
-              Decimal totalAmount);
-
-  bool invalidate() noexcept;
-
+struct Transaction {
 public:
+  pv::Date date;
+  virtual Action action() const noexcept = 0;
+
+  virtual ~Transaction() = default;
+
+  Transaction(pv::Date date) noexcept : date(date) {}
+
+  Transaction(Transaction&&) = default;
   Transaction(const Transaction&) = default;
   Transaction& operator=(const Transaction&) = default;
+  Transaction& operator=(Transaction&&) = default;
+};
 
-  // Getters
-  const Account* account() const noexcept;
-  Account* account() noexcept;
-  unsigned int id() const noexcept;
-  Date date() const noexcept;
-  const Action& action() const noexcept;
-  const std::optional<Security> security() const noexcept;
-  Decimal numberOfShares() const noexcept;
-  Decimal sharePrice() const noexcept;
-  Decimal commission() const noexcept;
-  Decimal totalAmount() const noexcept;
+struct BuyTransaction : public Transaction {
+public:
+  pv::Security* security;
+  pv::Decimal numberOfShares;
+  pv::Decimal sharePrice;
+  pv::Decimal commission;
 
-  bool valid() const noexcept;
+  BuyTransaction(BuyTransaction&&) = default;
+  BuyTransaction(const BuyTransaction&) = default;
+  BuyTransaction& operator=(const BuyTransaction&) = default;
+  BuyTransaction& operator=(BuyTransaction&&) = default;
 
-  // Mutators
+  Action action() const noexcept override { return Action::BUY; };
 
-  TransactionEditResult setNumberOfShares(Decimal numberOfShares) noexcept;
-  TransactionEditResult setSharePrice(Decimal sharePrice) noexcept;
-  TransactionEditResult setCommission(Decimal commission) noexcept;
-  TransactionEditResult setTotalAmount(Decimal totalAmount) noexcept;
+  BuyTransaction(pv::Date date, pv::Security* security, pv::Decimal numberOfShares, pv::Decimal sharePrice,
+                 pv::Decimal commission)
+      : Transaction(date), security(security), numberOfShares(numberOfShares), sharePrice(sharePrice),
+        commission(commission) {}
+};
 
-  // Signals
+struct SellTransaction : public Transaction {
+public:
+  pv::Security* security;
+  pv::Decimal numberOfShares;
+  pv::Decimal sharePrice;
+  pv::Decimal commission;
 
-  boost::signals2::signal<void(const Decimal&, const Decimal&)>& numberOfSharesChanged() const noexcept;
-  boost::signals2::signal<void(const Decimal&, const Decimal&)>& sharePriceChanged() const noexcept;
-  boost::signals2::signal<void(const Decimal&, const Decimal&)>& commissionChanged() const noexcept;
-  boost::signals2::signal<void(const Decimal&, const Decimal&)>& totalAmountChanged() const noexcept;
-  boost::signals2::signal<void()>& changed() const noexcept;
+  Action action() const noexcept override { return Action::SELL; }
 
-  boost::signals2::signal<void()>& invalidated() const noexcept override;
+  SellTransaction(SellTransaction&&) = default;
+  SellTransaction(const SellTransaction&) = default;
+  SellTransaction& operator=(const SellTransaction&) = default;
+  SellTransaction& operator=(SellTransaction&&) = default;
 
-  // Operators
-  bool operator==(const Transaction& other) const noexcept { return shared == other.shared; }
-  bool operator!=(const Transaction& other) const noexcept { return shared != other.shared; }
+  SellTransaction(pv::Date date, pv::Security* security, pv::Decimal numberOfShares, pv::Decimal sharePrice,
+                  pv::Decimal commission)
+      : Transaction(date), security(security), numberOfShares(numberOfShares), sharePrice(sharePrice),
+        commission(commission) {}
+};
+
+struct DepositTransaction : public Transaction {
+public:
+  pv::Security* security;
+  pv::Decimal amount;
+
+  DepositTransaction(DepositTransaction&&) = default;
+  DepositTransaction(const DepositTransaction&) = default;
+  DepositTransaction& operator=(const DepositTransaction&) = default;
+  DepositTransaction& operator=(DepositTransaction&&) = default;
+
+  DepositTransaction(pv::Date date, pv::Security* security, pv::Decimal amount) noexcept
+      : Transaction(date), security(security), amount(amount) {}
+
+  Action action() const noexcept override { return Action::DEPOSIT; }
+};
+
+struct WithdrawTransaction : public Transaction {
+public:
+  pv::Security* security;
+  pv::Decimal amount;
+
+  WithdrawTransaction(WithdrawTransaction&&) = default;
+  WithdrawTransaction(const WithdrawTransaction&) = default;
+  WithdrawTransaction& operator=(const WithdrawTransaction&) = default;
+  WithdrawTransaction& operator=(WithdrawTransaction&&) = default;
+
+  WithdrawTransaction(pv::Date date, pv::Security* security, pv::Decimal amount) noexcept
+      : Transaction(date), security(security), amount(amount) {}
+
+  Action action() const noexcept override { return Action::WITHDRAW; }
+};
+
+struct DividendTransaction : public Transaction {
+public:
+  pv::Security* security;
+  pv::Decimal amount;
+
+  DividendTransaction(DividendTransaction&&) = default;
+  DividendTransaction(const DividendTransaction&) = default;
+  DividendTransaction& operator=(const DividendTransaction&) = default;
+  DividendTransaction& operator=(DividendTransaction&&) = default;
+
+  DividendTransaction(pv::Date date, pv::Security* security, pv::Decimal amount) noexcept
+      : Transaction(date), security(security), amount(amount) {}
+
+  Action action() const noexcept override { return Action::DIVIDEND; }
 };
 
 } // namespace pv
-
-template <> struct std::hash<pv::Transaction> {
-public:
-  std::size_t operator()(const pv::Transaction& transaction) const noexcept { return sharedHasher(transaction.shared); }
-
-private:
-  inline static const std::hash<std::shared_ptr<pv::Transaction::Shared>> sharedHasher;
-};
 
 #endif // PV_TRANSACTION_H

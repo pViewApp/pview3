@@ -1,16 +1,14 @@
+set(QT_VERSION "5" CACHE STRING "The Qt Version")
 find_package(Boost REQUIRED)
-find_package(date CONFIG REQUIRED)
-find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
+find_package(Qt${QT_VERSION} COMPONENTS Core Gui Widgets REQUIRED)
 find_package(Qwt REQUIRED)
+find_package(SQLite3 REQUIRED)
 
 add_executable(pview
 	pv/Account.h
 	pv/Account.cpp
-	pv/Action.h
-	pv/Actions.h
 	pv/Algorithms.h
 	pv/Algorithms.cpp
-	pv/Invalidatable.h
 	pv/Transaction.h
 	pv/Transaction.cpp
 	pv/Date.h
@@ -19,10 +17,12 @@ add_executable(pview
 	pv/Security.cpp
 	pv/DataFile.h
 	pv/DataFile.cpp
+	pv/Signals.h
 
 	pvui/AccountPage.cpp
 	pvui/AccountPage.h
-	pvui/ActionMappings.h
+	pvui/ActionData.h
+	pvui/ActionData.cpp
 	pvui/DataFileManager.h
 	pvui/ExtendedSpinBox.h
 	pvui/ExtendedSpinbox.cpp
@@ -34,14 +34,21 @@ add_executable(pview
 	pvui/HoldingsReport.h
 	pvui/HoldingsModel.cpp
 	pvui/HoldingsModel.h
+	pvui/ReportGrouper.h
+	pvui/ReportGroupers.h
+	pvui/ReportGroupers.cpp
 	pvui/MainWindow.cpp
 	pvui/MainWindow.h
 	pvui/NavigationModel.h
 	pvui/NavigationModel.cpp
+	pvui/MarketValueReport.h
+	pvui/MarketValueReport.cpp
 	pvui/Page.cpp
 	pvui/Page.h
-	pvui/pView.cpp
+	pvui/PiePlot.h
+	pvui/PiePlot.cpp
 	pvui/Report.h
+	pvui/Report.cpp
 	pvui/ReportFactory.h
 	pvui/SecurityInsertionWidget.cpp
 	pvui/SecurityInsertionWidget.h
@@ -63,12 +70,15 @@ add_executable(pview
 	pvui/TransactionInsertionWidget.h
 	pvui/TransactionModel.cpp
 	pvui/TransactionModel.h
+
+	pvui/main.cpp
 )
 
 target_include_directories(pview PRIVATE ${Boost_INCLUDE_DIRS})
 target_include_directories(pview PRIVATE ${QWT_INCLUDE_DIR})
+target_include_directories(pview PRIVATE ${SQLite_INCLUDE_DIRS})
 target_compile_features(pview PRIVATE cxx_std_17)
-target_link_libraries(pview PRIVATE ${Boost_LIBRARIES} ${QWT_LIBRARIES} Qt6::Core Qt6::Gui Qt6::Widgets date::date)
+target_link_libraries(pview PRIVATE ${Boost_LIBRARIES} ${SQLite_LIBRARIES} Qt${QT_VERSION}::Core Qt${QT_VERSION}::Gui Qt${QT_VERSION}::Gui Qt${QT_VERSION}::Widgets date::date ${QWT_LIBRARIES})
 
 if(MSVC)
 	target_compile_options(pview PRIVATE /W4 /WX)

@@ -1,8 +1,8 @@
 #include "SecurityPriceInsertionWidget.h"
 #include <QShortcut>
 
-pvui::controls::SecurityPriceInsertionWidget::SecurityPriceInsertionWidget(pv::Security security, QWidget* parent)
-    : QWidget(parent), security_(security) {
+pvui::controls::SecurityPriceInsertionWidget::SecurityPriceInsertionWidget(pv::Security& security, QWidget* parent)
+    : QWidget(parent), security_(&security) {
   layout->addWidget(dateEditor, 1);
   layout->addWidget(priceEditor, 1);
 
@@ -27,11 +27,6 @@ pvui::controls::SecurityPriceInsertionWidget::SecurityPriceInsertionWidget(pv::S
 }
 
 void pvui::controls::SecurityPriceInsertionWidget::reset() {
-  bool enable = security_.valid();
-
-  dateEditor->setEnabled(enable);
-  dateEditor->setEnabled(priceEditor);
-
   dateEditor->setDate(QDate::currentDate());
   priceEditor->setBlank();
 }
@@ -42,13 +37,13 @@ bool pvui::controls::SecurityPriceInsertionWidget::submit() {
   auto qDate = dateEditor->date();
   Date date(YearMonthDay(Year(qDate.year()), Month(qDate.month()), Day(qDate.day())));
 
-  if (security_.prices().find(date) != security_.prices().cend())
+  if (security_->prices().find(date) != security_->prices().cend())
     return false;
 
   if (priceEditor->cleanText().isEmpty())
     return false;
 
-  if (!security_.setPrice(date, priceEditor->decimalValue()))
+  if (!security_->setPrice(date, priceEditor->decimalValue()))
     return false;
 
   reset();
@@ -57,7 +52,7 @@ bool pvui::controls::SecurityPriceInsertionWidget::submit() {
   return true;
 }
 
-void pvui::controls::SecurityPriceInsertionWidget::setSecurity(pv::Security security) {
-  security_ = security;
+void pvui::controls::SecurityPriceInsertionWidget::setSecurity(pv::Security& security) {
+  security_ = &security;
   reset();
 }

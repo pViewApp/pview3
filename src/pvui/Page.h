@@ -3,6 +3,7 @@
 
 #include <QLabel>
 #include <QObject>
+#include <QToolBar>
 #include <QVBoxLayout>
 #include <variant>
 
@@ -15,34 +16,20 @@ private:
   QLabel* subtitle = new QLabel;
   QLayoutItem* content_;
 
+protected:
+  QVBoxLayout* layout() noexcept { return layout_; }
+  QLabel* titleLabel() noexcept { return title; };
+  QLabel* subtitleLabel() noexcept { return subtitle; };
+
 public:
   PageWidget(QWidget* parent = nullptr);
+  virtual QToolBar* toolBar() { return nullptr; }
 protected slots:
   void setTitle(QString newTitle) { title->setText("<h1>" + newTitle.toHtmlEscaped() + "</h1>"); }
   void setSubtitle(QString newSubtitle) {
     subtitle->setText("<h3>" + newSubtitle.toHtmlEscaped() + "</h3>");
     subtitle->setVisible(true);
   }
-
-  void setContent(QLayoutItem* content) {
-    if (content_ != nullptr) {
-      layout_->removeItem(content_);
-    }
-
-    content_ = content;
-    layout_->addItem(content_);
-  }
-
-  void setContent(QLayout* content) {
-    if (content_ != nullptr) {
-      layout_->removeItem(content_);
-    }
-
-    content_ = content;
-    layout_->addLayout(content);
-  }
-
-  void setContent(QWidget* content) { setContent(new QWidgetItem(content)); }
 };
 } // namespace pvui
 

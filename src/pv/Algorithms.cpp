@@ -1,36 +1,59 @@
 #include "Algorithms.h"
-#include "pv/Action.h"
-#include "pv/Actions.h"
 #include "pv/Transaction.h"
 #include <algorithm>
 #include <execution>
 #include <valarray>
 #include <vector>
 
+namespace {
+
+template <typename FwdIt> std::optional<pv::Decimal> weightedAverage(FwdIt begin, FwdIt end) {
+  // https://stackoverflow.com/a/57769088
+  using Value = std::tuple<pv::Decimal, pv::Decimal>; // First decimal is the value, second is the weight
+  auto [values, weights] =
+      std::accumulate(begin, end, std::make_tuple<pv::Decimal, pv::Decimal>(0, 0), [](const Value& a, const Value& b) {
+        auto [valueA, weightA] = a;
+        auto [valueB, weightB] = b;
+        return std::make_tuple<pv::Decimal, pv::Decimal>(valueB * weightB + valueA, weightB + weightA);
+      });
+
+  if (weights == 0) {
+    return std::nullopt;
+  }
+  return values / weights;
+}
+} // namespace
+
 namespace pv {
 namespace algorithms {
 
 Decimal cashBalance(const Account& account, Date date) {
-  std::vector<Transaction> transactions;
+  std::vector<const Transaction*> transactions;
   std::copy_if(account.transactions().cbegin(), account.transactions().cend(), std::back_inserter(transactions),
-               [&date](const Transaction& t) { return t.date() <= date; });
+               [&date](const Transaction* t) { return t->date <= date; });
 
   if (transactions.size() == 0)
     return 0;
 
   std::valarray<Decimal> cashBalances(transactions.size());
   std::transform(transactions.cbegin(), transactions.cend(), std::begin(cashBalances),
-                 [](const Transaction& transaction) { return transaction.action().cashBalance(transaction); });
+                 [](const Transaction* transaction) { return cashBalance(transaction); });
 
   return cashBalances.sum();
 }
 
 Decimal sharesHeld(const Security& security, const Account& account, Date date) {
   std::vector<pv::Decimal> numberOfSharesPerTransaction;
-  for (const auto& t : account.transactions()) {
+  for (const auto* t : account.transactions()) {
 
-    if (t.date() <= date && t.security() == security) {
-      numberOfSharesPerTransaction.push_back(t.action().numberOfShares(t));
+    if (t->date > date || algorithms::security(t) != &security)
+      continue;
+
+    const auto action = t->action();
+    if (action == Action::BUY) {
+      numberOfSharesPerTransaction.push_back(static_cast<const BuyTransaction*>(t)->numberOfShares);
+    } else if (action == Action::SELL) {
+      numberOfSharesPerTransaction.push_back(static_cast<const SellTransaction*>(t)->numberOfShares);
     }
   }
 
@@ -38,29 +61,24 @@ Decimal sharesHeld(const Security& security, const Account& account, Date date) 
 }
 
 Decimal sharesHeld(const Security& security, Date date) {
-  if (security.dataFile()->accounts().size() == 0) {
+  if (security.dataFile().accounts().size() == 0) {
     return 0;
   }
 
-  std::valarray<Decimal> perAccount(security.dataFile()->accounts().size());
-  std::transform(security.dataFile()->accounts().cbegin(), security.dataFile()->accounts().cend(),
-                 std::begin(perAccount),
-                 [&security, &date](const Account& account) { return sharesHeld(security, account, date); });
+  std::valarray<Decimal> perAccount(security.dataFile().accounts().size());
+  std::transform(security.dataFile().accounts().cbegin(), security.dataFile().accounts().cend(), std::begin(perAccount),
+                 [&security, &date](const Account* account) { return sharesHeld(security, *account, date); });
 
   return perAccount.sum();
 }
 
 std::optional<Decimal> sharePrice(const Security& security, Date date) {
-  auto iter = security.prices().lower_bound(date);
-  if (iter == security.prices().cend()) {
-    return std::nullopt;
-  }
+  const std::map<Date, Decimal>& prices = security.prices();
+  // Get the price after date
+  auto iter = prices.upper_bound(date);
 
-  if (iter->first == date) {
-    return iter->second;
-  }
-
-  if (iter == security.prices().cbegin()) {
+  // If iter is equal to the beginning, there are no prices less than or equal to date
+  if (iter == prices.cbegin()) {
     return std::nullopt;
   }
 
@@ -77,14 +95,13 @@ std::optional<Decimal> marketValue(const Security& security, Date date) {
 }
 
 Decimal cashSpent(const Security& security, Date date) {
-  if (security.dataFile()->accounts().size() == 0) {
+  if (security.dataFile().accounts().size() == 0) {
     return 0;
   }
 
-  std::valarray<Decimal> perAccount(security.dataFile()->accounts().size());
-  std::transform(security.dataFile()->accounts().cbegin(), security.dataFile()->accounts().cend(),
-                 std::begin(perAccount),
-                 [&security, &date](const Account& account) { return cashSpent(security, account, date); });
+  std::valarray<Decimal> perAccount(security.dataFile().accounts().size());
+  std::transform(security.dataFile().accounts().cbegin(), security.dataFile().accounts().cend(), std::begin(perAccount),
+                 [&security, &date](const Account* account) { return cashSpent(security, *account, date); });
 
   return perAccount.sum();
 }
@@ -92,8 +109,9 @@ Decimal cashSpent(const Security& security, Date date) {
 Decimal cashSpent(const Security& security, const Account& account, Date date) {
   std::vector<pv::Decimal> cashSpentPerTransaction;
   for (const auto& t : account.transactions()) {
-    if (t.date() <= date && &t.action() == &pv::actions::BUY && t.security() == security) {
-      cashSpentPerTransaction.push_back(-(t.action().cashBalance(t)));
+    Decimal cashBalance = algorithms::cashBalance(t);
+    if (algorithms::security(t) == &security && cashBalance < 0 && t->date <= date) {
+      cashSpentPerTransaction.push_back(cashBalance);
     }
   }
 
@@ -103,8 +121,9 @@ Decimal cashSpent(const Security& security, const Account& account, Date date) {
 Decimal cashEarned(const Security& security, const Account& account, Date date) {
   std::vector<pv::Decimal> cashEarnedPerTransaction;
   for (const auto& t : account.transactions()) {
-    if (t.date() <= date && &t.action() == &pv::actions::SELL && t.security() == security) {
-      cashEarnedPerTransaction.push_back(t.action().cashBalance(t));
+    Decimal cashBalance = algorithms::cashBalance(t);
+    if (algorithms::security(t) == &security && cashBalance < 0 && t->date <= date) {
+      cashEarnedPerTransaction.push_back(cashBalance);
     }
   }
 
@@ -112,14 +131,13 @@ Decimal cashEarned(const Security& security, const Account& account, Date date) 
 }
 
 Decimal cashEarned(const Security& security, Date date) {
-  if (security.dataFile()->accounts().size() == 0) {
+  if (security.dataFile().accounts().size() == 0) {
     return 0;
   }
 
-  std::valarray<Decimal> perAccount(security.dataFile()->accounts().size());
-  std::transform(security.dataFile()->accounts().cbegin(), security.dataFile()->accounts().cend(),
-                 std::begin(perAccount),
-                 [&security, &date](const Account& account) { return cashEarned(security, account, date); });
+  std::valarray<Decimal> perAccount(security.dataFile().accounts().size());
+  std::transform(security.dataFile().accounts().cbegin(), security.dataFile().accounts().cend(), std::begin(perAccount),
+                 [&security, &date](const Account* account) { return cashEarned(security, *account, date); });
 
   return perAccount.sum();
 }
@@ -133,77 +151,75 @@ Decimal cashGained(const Security& security, Date date) {
 }
 
 std::optional<Decimal> averageBuyPrice(const Security& security, Date date) {
-  std::vector<Decimal> buyPrices;
-  for (const auto& account : security.dataFile()->accounts()) {
-    for (const auto& transaction : account.transactions()) {
-      if (&transaction.action() == &pv::actions::BUY && transaction.security() == security &&
-          transaction.date() <= date) {
-        buyPrices.resize(static_cast<std::size_t>(buyPrices.size() + transaction.numberOfShares()),
-                         transaction.sharePrice());
+  using Buy = std::tuple<Decimal, Decimal>; // tuple with the first being the share price and the second being the
+                                            // number of shares
+  std::vector<Buy> buys;
+  for (const auto& account : security.dataFile().accounts()) {
+      for (const auto* transaction : account->transactions()) {
+      if (transaction->action() != Action::BUY)
+        continue;
+
+      auto t = static_cast<const BuyTransaction*>(transaction);
+      if (t->date <= date && t->security == &security) {
+        buys.push_back({t->sharePrice, t->numberOfShares});
       }
     }
   }
 
-  if (buyPrices.size() == 0) {
-    return std::nullopt;
-  }
-
-  return std::reduce(buyPrices.cbegin(), buyPrices.cend()) / buyPrices.size();
+  return weightedAverage(buys.begin(), buys.end());
 }
 
 std::optional<Decimal> averageSellPrice(const Security& security, Date date) {
+  using Sell = std::tuple<Decimal, Decimal>; // tuple with the first being the share price and the second being the
+                                             // number of shares
+  std::vector<Sell> sells;
+  for (const auto& account : security.dataFile().accounts()) {
+      for (const auto* transaction : account->transactions()) {
+      if (transaction->action() != Action::SELL)
+        continue;
 
-  std::vector<Decimal> sellPrices;
-  for (const auto& account : security.dataFile()->accounts()) {
-    for (const auto& transaction : account.transactions()) {
-      if (&transaction.action() == &pv::actions::SELL && transaction.security() == security &&
-          transaction.date() <= date) {
-        sellPrices.resize(static_cast<std::size_t>(sellPrices.size() + transaction.numberOfShares()),
-                          transaction.sharePrice());
+      auto t = static_cast<const BuyTransaction*>(transaction);
+      if (t->date <= date && t->security == &security) {
+        sells.push_back({t->sharePrice, t->numberOfShares});
       }
     }
   }
 
-  if (sellPrices.size() == 0) {
-    return std::nullopt;
-  }
-
-  return std::reduce(sellPrices.cbegin(), sellPrices.cend()) / sellPrices.size();
+  return weightedAverage(sells.begin(), sells.end());
 }
 
 std::optional<Decimal> averageBuyPrice(const Security& security, const Account& account, Date date) {
-  std::vector<Decimal> buyPrices;
-  for (const auto& transaction : account.transactions()) {
-    if (&transaction.action() == &pv::actions::BUY && transaction.security() == security &&
-        transaction.date() <= date) {
-      buyPrices.resize(static_cast<std::size_t>(buyPrices.size() + transaction.numberOfShares()),
-                       transaction.sharePrice());
+  using Buy = std::tuple<Decimal, Decimal>; // tuple with the first being the share price and the second being the
+                                            // number of shares
+  std::vector<Buy> buys;
+  for (const auto* transaction : account.transactions()) {
+    if (transaction->action() != Action::BUY)
+      continue;
+
+    auto t = static_cast<const BuyTransaction*>(transaction);
+    if (t->date <= date && t->security == &security) {
+      buys.push_back({t->sharePrice, t->numberOfShares});
     }
   }
 
-  if (buyPrices.size() == 0) {
-    return std::nullopt;
-  }
-
-  return std::reduce(buyPrices.cbegin(), buyPrices.cend()) / buyPrices.size();
+  return weightedAverage(buys.begin(), buys.end());
 }
 
 std::optional<Decimal> averageSellPrice(const Security& security, const Account& account, Date date) {
+  using Sell = std::tuple<Decimal, Decimal>; // tuple with the first being the share price and the second being the
+                                             // number of shares
+  std::vector<Sell> sells;
+  for (const auto* transaction : account.transactions()) {
+    if (transaction->action() != Action::SELL)
+      continue;
 
-  std::vector<Decimal> sellPrices;
-  for (const auto& transaction : account.transactions()) {
-    if (&transaction.action() == &pv::actions::SELL && transaction.security() == security &&
-        transaction.date() <= date) {
-      sellPrices.resize(static_cast<std::size_t>(sellPrices.size() + transaction.numberOfShares()),
-                        transaction.sharePrice());
+    auto t = static_cast<const BuyTransaction*>(transaction);
+    if (t->date <= date && t->security == &security) {
+      sells.push_back({t->sharePrice, t->numberOfShares});
     }
   }
 
-  if (sellPrices.size() == 0) {
-    return std::nullopt;
-  }
-
-  return std::reduce(sellPrices.cbegin(), sellPrices.cend()) / sellPrices.size();
+  return weightedAverage(sells.begin(), sells.end());
 }
 
 std::optional<Decimal> unrealizedGainRelative(const Security& security, const Account& account, Date date) {
@@ -263,8 +279,9 @@ Decimal totalIncome(const Security& security, const Account& account, Date date)
 Decimal dividendIncome(const Security& security, const Account& account, Date date) {
   std::vector<pv::Decimal> dividendsPerTransaction;
   for (const auto& t : account.transactions()) {
-    if (t.date() <= date && &t.action() == &pv::actions::DIVIDEND && t.security() == security) {
-      dividendsPerTransaction.push_back(t.action().cashBalance(t));
+    auto tSecurity = algorithms::security(t);
+    if (&security == tSecurity && t->date <= date && t->action() == Action::DIVIDEND) {
+      dividendsPerTransaction.push_back(static_cast<const DividendTransaction*>(t)->amount);
     }
   }
 
@@ -272,16 +289,12 @@ Decimal dividendIncome(const Security& security, const Account& account, Date da
 }
 
 Decimal dividendIncome(const Security& security, Date date) {
-  const auto& accounts = security.dataFile()->accounts();
-  if (accounts.size() == 0) {
-    return 0;
+  pv::Decimal total = 0;
+  for (const auto* account : security.dataFile().accounts()) {
+    total += dividendIncome(security, *account, date);
   }
 
-  std::valarray<pv::Decimal> dividendsPerAccount = {accounts.size()};
-  std::transform(accounts.cbegin(), accounts.cend(), std::begin(dividendsPerAccount),
-                 [&](const Account& account) { return dividendIncome(security, account, date); });
-
-  return dividendsPerAccount.sum();
+  return total;
 }
 
 Decimal totalIncome(const Security& security, Date date) {
@@ -296,5 +309,50 @@ Decimal costBasis(const Security& security, Date date) {
   return sharesHeld(security, date) * averageBuyPrice(security, date).value_or(0);
 }
 
+Decimal cashBalance(const Transaction* transaction) {
+  switch (transaction->action()) {
+  case Action::BUY: {
+    auto* t = static_cast<const BuyTransaction*>(transaction);
+    return -((t->numberOfShares * t->sharePrice) + t->commission);
+  }
+  case Action::SELL: {
+    auto* t = static_cast<const SellTransaction*>(transaction);
+    return (t->numberOfShares * t->sharePrice) - t->commission;
+  }
+  case Action::DEPOSIT: {
+    auto* t = static_cast<const DepositTransaction*>(transaction);
+
+    return t->amount;
+  }
+  case Action::WITHDRAW: {
+    auto* t = static_cast<const WithdrawTransaction*>(transaction);
+    return -t->amount;
+  }
+  case Action::DIVIDEND: {
+    return static_cast<const DepositTransaction*>(transaction)->amount;
+  }
+  default:
+    return 0;
+  }
+}
+
+Security* security(const Transaction* transaction) {
+  switch (transaction->action()) {
+  case Action::BUY:
+    return static_cast<const BuyTransaction*>(transaction)->security;
+  case Action::SELL:
+    return static_cast<const SellTransaction*>(transaction)->security;
+  case Action::DEPOSIT:
+    return static_cast<const DepositTransaction*>(transaction)->security;
+  case Action::WITHDRAW:
+    return static_cast<const WithdrawTransaction*>(transaction)->security;
+  case Action::DIVIDEND:
+    return static_cast<const DividendTransaction*>(transaction)->security;
+  default:
+    return nullptr;
+  }
+}
+
 } // namespace algorithms
+
 } // namespace pv

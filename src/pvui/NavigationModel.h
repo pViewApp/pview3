@@ -4,6 +4,7 @@
 #include "DataFileManager.h"
 #include "Report.h"
 #include "pv/DataFile.h"
+#include "pv/Signals.h"
 #include <QAbstractItemModel>
 #include <boost/signals2/connection.hpp>
 #include <vector>
@@ -20,14 +21,14 @@ private:
   QModelIndex reportsHeaderIndex;
   QModelIndex securitiesPageIndex;
 
-  boost::signals2::scoped_connection accountAddedConnection;
-  boost::signals2::scoped_connection accountRemovedConnection;
+  pv::ScopedConnection accountAddedConnection;
+  pv::ScopedConnection accountRemovedConnection;
   std::vector<boost::signals2::scoped_connection> accountNameChangedConnections;
 
-  std::vector<pv::Account> accounts;
+  std::vector<pv::Account*> accounts;
   std::vector<const Report*> reports;
 
-  void setupAccount(const pv::Account account) noexcept;
+  void setupAccount(pv::Account* account) noexcept;
 private slots:
   void setDataFile(pv::DataFile& dataFile) noexcept;
 
@@ -82,9 +83,9 @@ public:
 
   QModelIndex securitiesPage() const noexcept { return securitiesPageIndex; }
 
-  std::optional<pv::Account> accountFromIndex(const QModelIndex& index) const;
+  pv::Account* accountFromIndex(const QModelIndex& index) const;
 
-  QModelIndex accountToIndex(const pv::Account account) const;
+  QModelIndex accountToIndex(const pv::Account& account) const;
 
   const Report* reportFromIndex(const QModelIndex& index) const;
 public slots:
@@ -93,8 +94,8 @@ public slots:
   void removeReport(const pvui::Report* report);
 
 signals:
-  void accountAdded(pv::Account account);
-  void accountRemoved(pv::Account account);
+  void accountAdded(pv::Account* account);
+  void accountRemoved(const pv::Account* account);
 };
 
 } // namespace models

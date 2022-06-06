@@ -25,9 +25,9 @@ namespace pvui {
 class AccountPageWidget : public PageWidget {
   Q_OBJECT
 private:
-  std::optional<pv::Account> account_ = std::nullopt;
+  pv::Account* account_ = nullptr;
   QTableView* table = new QTableView;
-  controls::TransactionInsertionWidget* insertWidget = new controls::TransactionInsertionWidget;
+  controls::TransactionInsertionWidget* insertWidget = new controls::TransactionInsertionWidget();
   QSortFilterProxyModel* proxyModel = new QSortFilterProxyModel(table);
   std::unique_ptr<models::TransactionModel> model = nullptr;
 
@@ -39,12 +39,12 @@ private:
   QAction deleteTransactionAction = QAction(tr("Delete Selected Transactions"));
 
 public:
-  AccountPageWidget(std::optional<pv::Account> account = std::nullopt, QWidget* parent = nullptr);
+  AccountPageWidget(pv::DataFile* dataFile = nullptr, pv::Account* account = nullptr, QWidget* parent = nullptr);
 private slots:
   void updateCashBalance() noexcept;
   void updateTitle();
 public slots:
-  void setAccount(std::optional<pv::Account> account);
+  void setAccount(pv::DataFile* dataFile, pv::Account* account);
 signals:
   void accountTransactionsChanged();
   void accountNameChanged();

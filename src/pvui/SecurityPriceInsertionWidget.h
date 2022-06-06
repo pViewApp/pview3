@@ -15,19 +15,19 @@ private:
   QDateEdit* dateEditor = new QDateEdit(QDate::currentDate());
   ExtendedDoubleSpinBox* priceEditor = new ExtendedDoubleSpinBox;
 
-  pv::Security security_;
+  pv::Security* security_ = nullptr;
 
   void reset();
 
 public:
-  SecurityPriceInsertionWidget(pv::Security security, QWidget* parent = nullptr);
+  SecurityPriceInsertionWidget(pv::Security& security, QWidget* parent = nullptr);
 public slots:
   /// @brief Attempts to add a security price with the current user-provided
   /// values.
   /// @return `true` if the addition was successful, `false` otherwise
   bool submit();
 
-  void setSecurity(pv::Security security);
+  void setSecurity(pv::Security& security);
 };
 } // namespace pvui::controls
 #endif // PVUI_SECURITY_PRICE_INSERTION_WIDGET_H

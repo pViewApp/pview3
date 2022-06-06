@@ -8,6 +8,10 @@
 namespace pv {
 namespace algorithms {
 
+Security* security(const Transaction* transaction);
+
+Decimal cashBalance(const Transaction* transaction);
+
 Decimal cashBalance(const Account& account, Date date = dates::today());
 
 Decimal sharesHeld(const Security& security, const Account& account, Date date = dates::today());

@@ -3,63 +3,89 @@
 
 #include "Account.h"
 #include "Security.h"
-#include <atomic>
-#include <boost/signals2.hpp>
-#include <optional>
+#include "Signals.h"
+#include <list>
 #include <string>
-#include <unordered_map>
-#include <vector>
+
+// Forward declare SQLite
+struct sqlite3;
+struct sqlite3_stmt;
 
 namespace pv {
 
+enum class AccountRemovalResult : unsigned char {
+  SUCCESS = 0,
+  ERR_OTHER = 1,
+  ERR_INVALID_ACCOUNT = 2,
+};
+
+enum class SecurityRemovalResult : unsigned char {
+  SUCCESS = 0,
+  ERR_OTHER = 1,
+  ERR_INVALID_SECURITY = 2,
+  ERR_IN_USE = 3,
+};
+
 class DataFile {
+public:
+  using AccountAddedSignal = Signal<void(Account*)>;
+  using AccountRemovedSignal = Signal<void(const Account*)>;
+
+  using SecurityAddedSignal = Signal<void(Security*)>;
+  using SecurityRemovedSignal = Signal<void(const Security*)>;
+
 private:
-  std::atomic_uint nextAccountId = 0;
+  std::vector<Account*> accounts_;
+  std::vector<Security*> securities_;
 
-  std::vector<Account> accounts_;
-  std::vector<Security> securities_;
+  std::vector<const Account*> accountsConst;
+  std::vector<const Security*> securitiesConst;
 
-  mutable boost::signals2::signal<void(Account&)> signal_accountAdded;
-  mutable boost::signals2::signal<void(const Account&)> signal_accountRemoved;
+  AccountAddedSignal signal_accountAdded;
 
-  mutable boost::signals2::signal<void(Security&)> signal_securityAdded;
-  mutable boost::signals2::signal<void(const Security&)> signal_securityRemoved;
+  AccountRemovedSignal signal_accountRemoved;
+
+  SecurityAddedSignal signal_securityAdded;
+
+  SecurityRemovedSignal signal_securityRemoved;
 
 public:
   DataFile() = default;
+  DataFile(DataFile&&) = default;
+  DataFile& operator=(DataFile&&) = default;
+
   ~DataFile();
+  // Not copyable
 
-  // Disable copy/move
-  DataFile(DataFile&) = delete;
-  void operator=(DataFile&) = delete;
-  DataFile(DataFile&&) = delete;
-  void operator=(DataFile&&) = delete;
+  const std::vector<Account*>& accounts() noexcept;
+  const std::vector<Security*>& securities() noexcept;
 
-  const std::vector<Account>& accounts() const noexcept { return accounts_; }
+  const std::vector<const Account*>& accounts() const noexcept;
+  const std::vector<const Security*>& securities() const noexcept;
 
-  const std::vector<Security>& securities() const noexcept { return securities_; }
+  Account& mutableReference(const Account& account);
+  Security& mutableReference(const Security& account) noexcept;
 
-  std::optional<Account> accountForId(unsigned int id) const noexcept;
-  std::optional<Security> securityForSymbol(std::string symbol) const noexcept;
+  Account* addAccount(std::string name);
+  Security* addSecurity(std::string symbol, std::string name, std::string assetClass, std::string sector);
 
-  // Mutators
+  const pv::Security* securityForSymbol(std::string symbol) const noexcept;
+  pv::Security* securityForSymbol(std::string symbol) noexcept;
 
-  Account addAccount(std::string name) noexcept;
-  Security addSecurity(std::string symbol, std::string name, std::string assetClass, std::string sector) noexcept;
+  AccountRemovalResult removeAccount(Account& account) noexcept;
+  SecurityRemovalResult removeSecurity(Security& security) noexcept;
 
-  bool removeAccount(Account account);
+  // listen methods
+  boost::signals2::connection listenAccountAdded(const AccountAddedSignal::slot_type& slot);
 
-  bool removeSecurity(Security security);
+  boost::signals2::connection listenAccountRemoved(const AccountRemovedSignal::slot_type& slot);
 
-  // Signals
+  boost::signals2::connection listenSecurityAdded(const SecurityAddedSignal::slot_type& slot);
 
-  boost::signals2::signal<void(Account&)>& accountAdded() const noexcept { return signal_accountAdded; }
+  boost::signals2::connection listenSecurityRemoved(const SecurityRemovedSignal::slot_type& slot);
 
-  boost::signals2::signal<void(const Account&)>& accountRemoved() const noexcept { return signal_accountRemoved; }
-
-  boost::signals2::signal<void(Security&)>& securityAdded() const noexcept { return signal_securityAdded; }
-
-  boost::signals2::signal<void(const Security&)>& securityRemoved() const noexcept { return signal_securityRemoved; }
+  bool owns(const Account& account) const noexcept;
+  bool owns(const Security& security) const noexcept;
 };
 
 } // namespace pv

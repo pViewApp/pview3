@@ -26,7 +26,8 @@ class SecurityPageWidget : public PageWidget {
 private:
   pvui::DataFileManager& dataFileManager_;
 
-  QToolBar* toolBar = new QToolBar;
+  QLabel* toolBarTitleLabel = new QLabel();
+  QToolBar* toolBar_ = new QToolBar(this);
   QTableView* table = new QTableView;
   controls::SecurityInsertionWidget* insertionWidget = new controls::SecurityInsertionWidget(dataFileManager_);
 
@@ -39,10 +40,14 @@ private:
   void setupActions();
   void setDataFile(pv::DataFile& dataFile);
 
-  std::optional<pv::Security> currentSelectedSecurity();
+  pv::Security* currentSelectedSecurity();
+
+  void setToolBarLabel(pv::Security* security);
 
 public:
   SecurityPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent = nullptr);
+
+  QToolBar* toolBar() override { return toolBar_; }
 };
 
 } // namespace pvui

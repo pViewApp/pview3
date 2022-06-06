@@ -75,20 +75,22 @@ void SecurityInsertionWidget::reset() {
   symbolEditor->setFocus();
 }
 
-void SecurityInsertionWidget::submit() {
+bool SecurityInsertionWidget::submit() {
   QString symbol = symbolEditor->text();
   QString name = nameEditor->text().trimmed();
   QString assetClass = assetClassEditor->lineEdit()->text().trimmed();
   QString sector = sectorEditor->lineEdit()->text().trimmed();
 
   if (symbol.isEmpty() || name.isEmpty() || assetClass.isEmpty() || sector.isEmpty()) {
-    return;
+    return false;
   }
 
-  dataFileManager_.dataFile().addSecurity(symbol.toStdString(), name.toStdString(), assetClass.toStdString(),
-                                          sector.toStdString());
-
+  if (!dataFileManager_.dataFile().addSecurity(symbol.toStdString(), name.toStdString(), assetClass.toStdString(),
+                                               sector.toStdString()))
+    return false; // Failed
   reset();
+
+  return true;
 }
 
 } // namespace controls

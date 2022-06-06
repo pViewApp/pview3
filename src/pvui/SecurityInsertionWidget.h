@@ -23,7 +23,7 @@ private:
 public:
   SecurityInsertionWidget(pvui::DataFileManager& manager, QWidget* parent = nullptr);
 public slots:
-  void submit();
+  bool submit();
 };
 } // namespace controls
 } // namespace pvui

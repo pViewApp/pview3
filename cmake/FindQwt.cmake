@@ -41,6 +41,7 @@
  # of the authors and should not be interpreted as representing official policies,
  # either expressed or implied, of the FreeBSD Project.
  #=============================================================================
+ # Modified by Owen Wang<o0wang@outlook.com>
 
 
 find_path ( QWT_INCLUDE_DIR
@@ -79,10 +80,22 @@ if ( Qwt_FIND_VERSION AND QWT_VERSION_STRING )
 	endif ()
 endif ()
 
+set(QWT_NAME qwt)
+
 
 find_library ( QWT_LIBRARY
 	 NAMES qwt qwt-qt3 qwt-qt4 qwt-qt5 qwt-qt6
 )
+
+if ( WIN32 )
+  # Use qwt debug library if needed on windows
+  find_library ( QWT_DEBUG_LIBRARY
+	   NAMES qwtd
+  )
+  set(QWT_LIBRARY debug ${QWT_DEBUG_LIBRARY} optimized ${QWT_LIBRARY})
+endif()
+
+
 
  set ( QWT_LIBRARIES ${QWT_LIBRARY} )
 
@@ -102,6 +115,7 @@ find_library ( QWT_LIBRARY
 
  mark_as_advanced (
 	 QWT_LIBRARY
+	 QWT_LIBRARY_DEBUG
 	 QWT_LIBRARIES
 	 QWT_INCLUDE_DIR
 	 QWT_INCLUDE_DIRS

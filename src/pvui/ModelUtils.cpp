@@ -22,6 +22,14 @@ QVariant percentageData(pv::Decimal percentage, int role) {
   }
 }
 
+QVariant numberData(pv::Decimal number, int role) {
+  if (role == Qt::EditRole) {
+    return static_cast<double>(number);
+  } else {
+    return QString::fromStdString(number.str());
+  }
+}
+
 } // namespace util
 } // namespace models
 } // namespace pvui

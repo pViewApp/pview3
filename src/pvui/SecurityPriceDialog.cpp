@@ -3,15 +3,24 @@
 #include <QHeaderView>
 #include <vector>
 
+namespace pvui {
+namespace dialogs {
+
+// Implementation detail
+namespace SecurityPriceDialog_ {
+namespace {
+
 constexpr int dialogWidth = 800;
 constexpr int dialogHeight = 600;
 
-namespace pvui {
-namespace dialogs {
-SecurityPriceDialog::SecurityPriceDialog(pv::Security security, QWidget* parent)
-    : QDialog(parent), security_(security), insertionWidget(new controls::SecurityPriceInsertionWidget(security_)) {
+} // namespace
+} // namespace SecurityPriceDialog_
+
+SecurityPriceDialog::SecurityPriceDialog(pv::Security& security, QWidget* parent)
+    : QDialog(parent), insertionWidget(new controls::SecurityPriceInsertionWidget(security)) {
+  setWindowFlag(Qt::WindowContextHelpButtonHint, true); // Enable the What's This? button
   // Setup dialog
-  resize(dialogWidth, dialogHeight);
+  resize(SecurityPriceDialog_::dialogWidth, SecurityPriceDialog_::dialogHeight);
 
   layout->addWidget(table);
   layout->addWidget(insertionWidget);
@@ -33,6 +42,20 @@ SecurityPriceDialog::SecurityPriceDialog(pv::Security security, QWidget* parent)
   table->setAlternatingRowColors(true);
   setupTableContextMenu();
 
+  table->setWhatsThis(
+      tr("This table shows the current security prices for <b>%1</b>.").arg(QString::fromStdString(security.name())));
+  insertionWidget->setWhatsThis(tr(
+      R"(
+<html>Enter new security prices in this form:
+  <ul>
+    <li><b>Date</b>: the date of this security price</li>
+    <li><b>Price</b>: the price in dollars</li>
+  </ul>
+</html>
+)"));
+
+  QObject::connect(this, &SecurityPriceDialog::securityNameChanged, this,
+                   [&]() { updateTitle(); }); // Update the title when name changed
   setSecurity(security);
 }
 
@@ -54,7 +77,7 @@ void SecurityPriceDialog::setupTableContextMenu() {
       dates.push_back(model->mapToDate(selectionRange.topLeft()));
     }
 
-    std::for_each(dates.cbegin(), dates.cend(), [&](const pv::Date& date) { security_.removePrice(date); });
+    std::for_each(dates.cbegin(), dates.cend(), [&](const pv::Date& date) { security_->removePrice(date); });
   });
 
   QObject::connect(table->selectionModel(), &QItemSelectionModel::selectionChanged, this,
@@ -64,25 +87,22 @@ void SecurityPriceDialog::setupTableContextMenu() {
 }
 
 void SecurityPriceDialog::updateTitle() {
-  setWindowTitle(tr("Editing Security Prices for %1").arg(QString::fromStdString(security_.name())));
+  setWindowTitle(tr("Editing Security Prices for %1").arg(QString::fromStdString(security_->name())));
 }
 
-void SecurityPriceDialog::setSecurity(pv::Security security) {
-  security_ = security;
-  setEnabled(security_.valid());
+void SecurityPriceDialog::setSecurity(pv::Security& security) {
+  security_ = &security;
 
-  model = std::make_unique<models::SecurityPriceModel>(security, proxyModel);
+  model = std::make_unique<models::SecurityPriceModel>(&security, proxyModel);
   proxyModel->setSourceModel(model.get());
   insertionWidget->setSecurity(security);
   table->scrollToBottom();
 
   securityNameChangeConnection.disconnect();
 
-  if (!security_.valid())
-    return;
-
   updateTitle();
-  securityNameChangeConnection = security_.nameChanged().connect([&](std::string, std::string) { updateTitle(); });
+  securityNameChangeConnection =
+      security.listenNameChanged([&](std::string, std::string) { emit securityNameChanged(); });
 }
 
 } // namespace dialogs

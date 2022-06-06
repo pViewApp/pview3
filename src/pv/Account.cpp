@@ -1,175 +1,136 @@
 #include "Account.h"
-#include "Action.h"
+#include "DataFile.h"
 #include "Security.h"
 #include "Transaction.h"
-#include <atomic>
 #include <unordered_map>
 
 namespace pv {
 
-// Impl
-class Account::Shared {
-private:
-  friend class Account;
+Account::Account(const DataFile& dataFile, std::string name) : dataFile_(&dataFile), name_(name) {}
 
-  std::atomic_bool valid = true;
+Account::~Account() {
+  for (auto* t : transactions_) {
+    delete t;
+  }
+}
 
-  /// \internal
-  /// \warning This pointer will be invalid if this account is invalid
-  DataFile* dataFile;
-  unsigned int id;
-  std::string name;
+const DataFile& Account::dataFile() const noexcept { return *dataFile_; }
 
-  std::atomic_uint nextTransactionId = 0;
-  std::vector<Transaction> transactions;
+std::string Account::name() const noexcept { return name_; }
 
-  mutable boost::signals2::signal<void(std::string, std::string)> signal_nameChanged;
+const std::vector<const Transaction*>& Account::transactions() const noexcept { return transactions_; }
 
-  mutable boost::signals2::signal<void(Transaction&)> signal_transactionAdded;
-  mutable boost::signals2::signal<void(const Transaction&)> signal_transactionRemoved;
-  mutable boost::signals2::signal<void(const Transaction&)> signal_transactionChanged;
+void Account::setName(std::string name) noexcept {
+  std::string oldName = std::move(name_);
+  name_ = name;
+  signal_nameChanged(std::move(name), oldName);
+}
 
-  mutable boost::signals2::signal<void()> signal_invalidated;
+#define REPLACE_TRANSACTION(index, transaction)                                                                        \
+  if (transactions_.size() <= index) {                                                                                 \
+    return TransactionOperationResult::INVALID_TRANSACTION;                                                            \
+  }                                                                                                                    \
+                                                                                                                       \
+  auto* oldTransaction = transactions_[index];                                                                         \
+  auto* newTransaction = new (decltype(transaction))(std::move(transaction));                                          \
+  transactions_[index] = newTransaction;                                                                               \
+  signal_transactionReplaced(index, newTransaction, oldTransaction);                                                   \
+  delete oldTransaction;                                                                                               \
+                                                                                                                       \
+  return TransactionOperationResult::SUCCESS;
+// end define
 
-  /// \internal
-  /// Contains connections to the pv::Transaction::changed() signal on every transaction
-  /// Erase any removed transactions from this mapfrom this map when the transaction is removed
-  std::unordered_map<Transaction, boost::signals2::scoped_connection> transactionChangeConnections;
+TransactionOperationResult Account::replaceTransaction(size_t index, BuyTransaction transaction) {
+  REPLACE_TRANSACTION(index, transaction);
+}
 
-  // Implemented here because we need to call in destructor
-  bool invalidate() noexcept {
-    bool wasValid = valid.exchange(false);
-    if (!wasValid) {
-      return false;
-    }
+TransactionOperationResult Account::replaceTransaction(size_t index, SellTransaction transaction) {
+  REPLACE_TRANSACTION(index, transaction);
+}
 
-    signal_invalidated();
-    return wasValid;
+TransactionOperationResult Account::replaceTransaction(size_t index, DepositTransaction transaction) {
+  REPLACE_TRANSACTION(index, transaction);
+}
+
+TransactionOperationResult Account::replaceTransaction(size_t index, WithdrawTransaction transaction) {
+  REPLACE_TRANSACTION(index, transaction);
+}
+
+TransactionOperationResult Account::replaceTransaction(size_t index, DividendTransaction transaction) {
+  REPLACE_TRANSACTION(index, transaction);
+}
+
+#undef REPLACE_TRANSACTION
+
+#define ADD_TRANSACTION(transaction)                                                                                   \
+  if (transaction.security != nullptr && !dataFile_->owns(*transaction.security)) {                                    \
+    return TransactionOperationResult::INVALID_SECURITY;                                                               \
+  }                                                                                                                    \
+                                                                                                                       \
+  auto index = transactions_.size();                                                                                   \
+  signal_beforeTransactionAdded(index);                                                                                \
+                                                                                                                       \
+  auto* t = new (decltype(transaction))(std::move(transaction));                                                       \
+                                                                                                                       \
+  try {                                                                                                                \
+    transactions_.push_back(t);                                                                                        \
+  } catch (...) {                                                                                                      \
+    delete t;                                                                                                          \
+    return TransactionOperationResult::OTHER;                                                                          \
+  }                                                                                                                    \
+                                                                                                                       \
+  signal_transactionAdded(index, t);                                                                                   \
+                                                                                                                       \
+  return TransactionOperationResult::SUCCESS;
+// end define
+
+TransactionOperationResult Account::addTransaction(BuyTransaction transaction) { ADD_TRANSACTION(transaction); }
+
+TransactionOperationResult Account::addTransaction(SellTransaction transaction) { ADD_TRANSACTION(transaction); }
+
+TransactionOperationResult Account::addTransaction(DepositTransaction transaction) { ADD_TRANSACTION(transaction); }
+
+TransactionOperationResult Account::addTransaction(WithdrawTransaction transaction) { ADD_TRANSACTION(transaction); }
+
+TransactionOperationResult Account::addTransaction(DividendTransaction transaction) { ADD_TRANSACTION(transaction); }
+
+#undef ADD_TRANSACTION
+
+TransactionOperationResult Account::removeTransaction(std::size_t index) noexcept {
+  if (transactions_.size() <= index) {
+    return TransactionOperationResult::INVALID_TRANSACTION; // Out of bounds
   }
 
-public:
-  Shared(DataFile& dataFile, unsigned int id, std::string name) noexcept : dataFile(&dataFile), id(id), name(name) {}
-  ~Shared() {
-    transactionChangeConnections.clear();
-    auto transactionsCopy = transactions;
-    for (auto& transaction : transactionsCopy) {
-      removeTransactionWithoutValidityCheck(transaction);
-    }
+  auto iter = transactions_.begin() + index;
+  signal_beforeTransactionRemoved(index, *iter);
+  transactions_.erase(iter);
+  signal_transactionRemoved(index);
 
-    invalidate();
-  }
-
-  void removeTransactionWithoutValidityCheck(Transaction& transaction) noexcept {
-    transactionChangeConnections.erase(transaction);
-    transactions.erase(std::find(transactions.cbegin(), transactions.cend(), transaction));
-    transaction.invalidate();
-    signal_transactionRemoved(transaction);
-  }
-};
-
-// Account
-// not Impl
-Account::Account(DataFile& dataFile, unsigned int id, std::string name) noexcept
-    : shared(std::make_shared<Account::Shared>(dataFile, id, name)) {}
-
-bool Account::invalidate() noexcept { return shared->invalidate(); }
-
-const DataFile* Account::dataFile() const noexcept { return shared->dataFile; }
-
-DataFile* Account::dataFile() noexcept { return valid() ? shared->dataFile : nullptr; }
-
-unsigned int Account::id() const noexcept { return shared->id; }
-
-std::string Account::name() const noexcept { return shared->name; }
-
-const std::vector<Transaction>& Account::transactions() const noexcept { return shared->transactions; }
-
-bool Account::valid() const noexcept { return shared->valid; }
-
-bool Account::setName(std::string name) noexcept {
-  std::string oldName = shared->name;
-  shared->name = name;
-  shared->signal_nameChanged(shared->name, oldName);
-  return true;
+  return TransactionOperationResult::SUCCESS;
 }
 
-std::variant<Transaction, TransactionAdditionError>
-Account::addTransaction(Date date, const Action& action, std::optional<const Security> security, Decimal numberOfShares,
-                        Decimal sharePrice, Decimal commission, Decimal totalAmount) noexcept {
-  if (!valid())
-    return TransactionAdditionError::INVALID_ACCOUNT;
-  if (security.has_value()) {
-    // Ensure security is valid
-    if (!security->valid())
-      return TransactionAdditionError::INVALID_SECURITY;
-    if (security->dataFile() != dataFile())
-      return TransactionAdditionError::INVALID_SECURITY;
-  }
-
-  action.processTransactionParamaters(date, security, numberOfShares, sharePrice, commission, totalAmount);
-
-  auto transaction = pv::Transaction(*this, shared->nextTransactionId.fetch_add(1), date, action, security,
-                                     numberOfShares, sharePrice, commission, totalAmount);
-
-  shared->transactions.push_back(transaction);
-
-  shared->transactionChangeConnections.insert(
-      {transaction, transaction.changed().connect([=] { shared->signal_transactionChanged(transaction); })});
-
-  shared->signal_transactionAdded(transaction);
-
-  return transaction;
+Connection Account::listenNameChanged(const NameChangedSignal::slot_type& slot) noexcept {
+  return signal_nameChanged.connect(slot);
 }
 
-bool Account::removeTransaction(Transaction transaction) noexcept {
-  if (!transaction.valid() || *transaction.account() != *this) {
-    return false;
-  }
-  shared->removeTransactionWithoutValidityCheck(transaction);
-  return true;
+Connection Account::listenBeforeTransactionAdded(const BeforeTransactionAddedSignal::slot_type& slot) noexcept {
+  return signal_beforeTransactionAdded.connect(slot);
 }
 
-int Account::requestTransactionChange_(const Transaction& t, const Date& date, const Action& action,
-                                       const std::optional<const Security>& security, const Decimal& numberOfShares,
-                                       const Decimal& sharePrice, const Decimal& commission,
-                                       const Decimal& totalAmount) {
-  // not implemented, todo, Temporarily silence unused var warnings
-  (void)t;
-  (void)date;
-  (void)action;
-  (void)security;
-  (void)numberOfShares;
-  (void)sharePrice;
-  (void)commission;
-  (void)totalAmount;
-
-  return 0;
+Connection Account::listenTransactionAdded(const TransactionAddedSignal::slot_type& slot) noexcept {
+  return signal_transactionAdded.connect(slot);
 }
 
-boost::signals2::signal<void(std::string, std::string)>& Account::nameChanged() const noexcept {
-  return shared->signal_nameChanged;
+Connection Account::listenBeforeTransactionRemoved(const BeforeTransactionRemovedSignal::slot_type& slot) noexcept {
+  return signal_beforeTransactionRemoved.connect(slot);
 }
 
-boost::signals2::signal<void(Transaction&)>& Account::transactionAdded() const noexcept {
-  return shared->signal_transactionAdded;
+Connection Account::listenTransactionRemoved(const TransactionRemovedSignal::slot_type& slot) noexcept {
+  return signal_transactionRemoved.connect(slot);
 }
 
-boost::signals2::signal<void(const Transaction&)>& Account::transactionRemoved() const noexcept {
-  return shared->signal_transactionRemoved;
-}
-
-boost::signals2::signal<void(const Transaction&)>& Account::transactionChanged() const noexcept {
-  return shared->signal_transactionChanged;
-}
-
-boost::signals2::signal<void()>& Account::invalidated() const noexcept { return shared->signal_invalidated; }
-
-bool Account::operator<(const Account& other) const noexcept {
-  return shared->dataFile < other.shared->dataFile ? true : id() < other.id();
-}
-
-bool Account::operator>(const Account& other) const noexcept {
-  return shared->dataFile > other.shared->dataFile ? true : id() > other.id();
+Connection Account::listenTransactionReplaced(const TransactionReplacedSignal::slot_type& slot) noexcept {
+  return signal_transactionReplaced.connect(slot);
 }
 
 } // namespace pv

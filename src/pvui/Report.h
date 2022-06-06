@@ -3,6 +3,10 @@
 
 #include "DataFileManager.h"
 #include "Page.h"
+#include <QList>
+#include <QPalette>
+#include <QwtPlot>
+#include <cstddef>
 
 namespace pvui {
 
@@ -20,11 +24,27 @@ public:
   Report(QString name, const DataFileManager& dataFileManager, QWidget* parent = nullptr)
       : PageWidget(parent), dataFileManager(dataFileManager), name_(name) {
     setTitle(name);
+    QObject::connect(this, &Report::nameChanged, this, &Report::setTitle);
   }
 
   QString name() const noexcept { return name_; }
 
+  void setName(QString name) noexcept {
+    name_ = std::move(name);
+    emit nameChanged(name_);
+  }
+
   virtual void reload() noexcept {}
+
+  /// \brief Creates a QwtPlot with proper styling.
+  ///
+  /// The returned plot will have unspecified cosmetic changes.
+  static QwtPlot* createPlot(QWidget* parent = nullptr) noexcept;
+
+  static const QList<QPalette>& plotPalettes() noexcept;
+  static const QPalette& plotPalette(std::size_t index) noexcept;
+signals:
+  void nameChanged(QString name);
 };
 
 } // namespace pvui

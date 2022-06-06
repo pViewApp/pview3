@@ -11,6 +11,7 @@ namespace util {
 
 QVariant moneyData(pv::Decimal money, int role);
 QVariant percentageData(pv::Decimal percentage, int role);
+QVariant numberData(pv::Decimal number, int role);
 
 } // namespace util
 } // namespace models

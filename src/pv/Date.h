@@ -23,6 +23,8 @@ inline Date today() {
   return Date(YearMonthDay(std::chrono::time_point_cast<date::days>(std::chrono::system_clock::now())));
 }
 
+inline Date unixEpoch() { return Date(YearMonthDay(Year(1970), Month(1), Day(1))); }
+
 } // namespace dates
 
 } // namespace pv

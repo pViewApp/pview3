@@ -12,8 +12,8 @@ constexpr int topLevelRowCount = static_cast<int>(topLevelIndexes.size());
 namespace pvui {
 namespace models {
 
-void NavigationModel::setupAccount(const pv::Account account) noexcept {
-  accountNameChangedConnections.push_back(account.nameChanged().connect([&](const std::string&, const std::string&) {
+void NavigationModel::setupAccount(pv::Account* account) noexcept {
+  accountNameChangedConnections.push_back(account->listenNameChanged([&](std::string, std::string) {
     int accountIndex = std::find(accounts.cbegin(), accounts.cend(), account) - accounts.cbegin();
     QModelIndex modelIndex = index(accountIndex, 0, accountsHeaderIndex);
     emit dataChanged(modelIndex, modelIndex);
@@ -34,9 +34,9 @@ void NavigationModel::setDataFile(pv::DataFile& dataFile) noexcept {
   };
 
   // Listen for new account
-  accountAddedConnection = dataFile.accountAdded().connect([&](pv::Account account) { emit accountAdded(account); });
+  accountAddedConnection = dataFile.listenAccountAdded([&](pv::Account* account) { emit accountAdded(account); });
 
-  QObject::connect(this, &NavigationModel::accountAdded, this, [&](pv::Account account) {
+  QObject::connect(this, &NavigationModel::accountAdded, this, [&](pv::Account* account) {
     auto indexToInsertAt = rowCount(accountsHeaderIndex);
     beginInsertRows(accountsHeaderIndex, indexToInsertAt, indexToInsertAt);
 
@@ -48,9 +48,9 @@ void NavigationModel::setDataFile(pv::DataFile& dataFile) noexcept {
 
   // Listen for account removal
   accountRemovedConnection =
-      dataFile.accountRemoved().connect([&](pv::Account account) { emit accountRemoved(account); });
+      dataFile.listenAccountRemoved([&](const pv::Account* account) { emit accountRemoved(account); });
 
-  QObject::connect(this, &NavigationModel::accountRemoved, this, [&](pv::Account account) {
+  QObject::connect(this, &NavigationModel::accountRemoved, this, [&](const pv::Account* account) {
     auto iter = std::find(accounts.cbegin(), accounts.cend(), account);
     int rowIndex = iter - accounts.cbegin();
 
@@ -121,7 +121,7 @@ QVariant NavigationModel::data(const QModelIndex& index, int role) const {
     // Sub-row
     if (index.parent().row() == accountHeaderRowIndex) {
       // Account row
-      return QString::fromStdString(accounts.at(index.row()).name());
+      return QString::fromStdString(accounts.at(index.row())->name());
     } else if (index.parent().row() == reportHeaderRowIndex) {
       return reportFromIndex(index)->name();
     }
@@ -137,9 +137,9 @@ QModelIndex NavigationModel::index(int row, int column, const QModelIndex& paren
 
   if (parent.isValid()) {
     if (parent == accountsHeaderIndex) {
-      return createIndex(row, column, &accountsHeaderIndex);
+      return createIndex(row, column, const_cast<QModelIndex*>(&accountsHeaderIndex));
     } else if (parent == reportsHeaderIndex) {
-      return createIndex(row, column, &reportsHeaderIndex);
+      return createIndex(row, column, const_cast<QModelIndex*>(&reportsHeaderIndex));
     } else {
       return QModelIndex();
     }
@@ -193,7 +193,8 @@ bool NavigationModel::setData(const QModelIndex& index, const QVariant& value, i
     if (newAccountName.isEmpty())
       return false;
 
-    return accounts.at(index.row()).setName(newAccountName.toStdString());
+    accounts.at(index.row())->setName(newAccountName.toStdString());
+    return true;
   } else
     return false; // Not editable by default
 }
@@ -212,14 +213,14 @@ bool NavigationModel::isReportPage(const QModelIndex& index) const {
 
 bool NavigationModel::isSecuritiesPage(const QModelIndex& index) const { return index == securitiesPageIndex; }
 
-std::optional<pv::Account> NavigationModel::accountFromIndex(const QModelIndex& index) const {
+pv::Account* NavigationModel::accountFromIndex(const QModelIndex& index) const {
   if (!isAccountPage(index))
-    return std::nullopt;
+    return nullptr;
   return accounts.at(index.row());
 }
 
-QModelIndex NavigationModel::accountToIndex(const pv::Account account) const {
-  int rowIndex = std::find(accounts.cbegin(), accounts.cend(), account) - accounts.cbegin();
+QModelIndex NavigationModel::accountToIndex(const pv::Account& account) const {
+  int rowIndex = std::find(accounts.cbegin(), accounts.cend(), &account) - accounts.cbegin();
 
   return index(rowIndex, 0, accountsHeaderIndex);
 }
@@ -237,8 +238,9 @@ void NavigationModel::addReport(const Report* report) {
 }
 
 void NavigationModel::addReports(const std::vector<Report*>& reportVector) {
-  auto last = static_cast<int>(rowCount(reportsHeaderIndex) - 1 + reportVector.size());
-  beginInsertRows(reportsHeaderIndex, last, last);
+  auto first = rowCount(reportsHeaderIndex);
+  auto last = first + static_cast<int>(reportVector.size());
+  beginInsertRows(reportsHeaderIndex, first, last);
   this->reports.insert(this->reports.end(), reportVector.cbegin(), reportVector.cend());
   endInsertRows();
 }

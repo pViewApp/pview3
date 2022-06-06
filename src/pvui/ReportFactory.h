@@ -11,7 +11,7 @@ public:
   ReportFactory() {}
   virtual ~ReportFactory() {}
 
-  virtual std::vector<Report*> createReports(const DataFileManager& dataFileMangager) const noexcept = 0;
+  virtual std::vector<Report*> createReports(DataFileManager& dataFileMangager) const noexcept = 0;
 };
 
 } // namespace pvui

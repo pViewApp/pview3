@@ -2,9 +2,9 @@
 #define PVUI_MODELS_SECURITY_MODEL_H
 
 #include "pv/DataFile.h"
+#include "pv/Signals.h"
 #include <QAbstractTableModel>
 #include <QObject>
-#include <boost/signals2.hpp>
 #include <map>
 #include <vector>
 
@@ -13,14 +13,14 @@ class SecurityModel : public QAbstractTableModel {
   Q_OBJECT
 private:
   pv::DataFile& dataFile_;
-  std::vector<pv::Security> securities;
+  std::vector<pv::Security*> securities;
 
   // Connections
-  boost::signals2::scoped_connection securityAddedConnection;
-  boost::signals2::scoped_connection securityRemovedConnection;
-  std::unordered_multimap<pv::Security, boost::signals2::scoped_connection> securityChangeConnections;
+  pv::ScopedConnection securityAddedConnection;
+  pv::ScopedConnection securityRemovedConnection;
+  std::unordered_multimap<const pv::Security*, boost::signals2::scoped_connection> securityChangeConnections;
 
-  void setupSecurity(pv::Security security);
+  void setupSecurity(pv::Security* security);
 
 public:
   SecurityModel(pv::DataFile& dataFile, QObject* parent = nullptr);
@@ -39,10 +39,11 @@ public:
 
   bool setData(const QModelIndex& index, const QVariant& data, int role) override;
 
-  std::optional<pv::Security> mapFromIndex(const QModelIndex& index) const;
+  const pv::Security* mapFromIndex(const QModelIndex& index) const noexcept;
+  pv::Security* mapFromIndex(const QModelIndex& index) noexcept;
 signals:
-  void securityAdded(pv::Security security);
-  void securityRemoved(pv::Security security);
+  void securityAdded(pv::Security* security);
+  void securityRemoved(const pv::Security* security);
 };
 } // namespace pvui::models
 

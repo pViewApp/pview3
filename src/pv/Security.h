@@ -4,7 +4,10 @@
 #include "Date.h"
 #include "Decimal.h"
 #include "Invalidatable.h"
+#include "Signals.h"
+#include <boost/signals2/dummy_mutex.hpp>
 #include <boost/signals2/signal.hpp>
+#include <boost/signals2/signal_type.hpp>
 #include <functional>
 #include <map>
 #include <memory>
@@ -15,90 +18,61 @@ namespace pv {
 
 class DataFile;
 
-class Security : public Invalidatable {
+struct Security {
+public:
+  using NameChangedSignal = Signal<void(std::string, std::string)>;
+  using AssetClassChangedSignal = Signal<void(std::string, std::string)>;
+  using SectorChangedSignal = Signal<void(std::string, std::string)>;
+  using PriceChangedSignal = Signal<void(pv::Date, std::optional<pv::Decimal>, std::optional<pv::Decimal>)>;
+
 private:
-  class Shared;
-
-  std::shared_ptr<Shared> shared;
-
   friend class DataFile;
-  friend struct std::hash<Security>;
+  Security(DataFile&, std::string symbol, std::string name, std::string assetClass, std::string sector);
 
-  Security(DataFile& dataFile, std::string symbol, std::string name, std::string assetClass, std::string sector);
+  const pv::DataFile* dataFile_;
+  std::string symbol_;
+  std::string name_;
+  std::string assetClass_;
+  std::string sector_;
 
-  bool invalidate() noexcept;
+  NameChangedSignal signal_nameChanged;
+  AssetClassChangedSignal signal_assetClassChanged;
+  SectorChangedSignal signal_sectorChanged;
+  PriceChangedSignal signal_priceChanged;
+
+  std::map<Date, Decimal> prices_;
 
 public:
-  Security(const Security&) = default;
-  Security& operator=(const Security&) = default;
-
-  const pv::DataFile* dataFile() const noexcept;
-  pv::DataFile* dataFile() noexcept;
-
+  // Getters
+  const pv::DataFile& dataFile() const noexcept;
   std::string symbol() const noexcept;
   std::string name() const noexcept;
   std::string assetClass() const noexcept;
   std::string sector() const noexcept;
-
-  bool setName(std::string name) noexcept;
-  bool setAssetClass(std::string assetClass) noexcept;
-  bool setSector(std::string sector) noexcept;
-
-  bool setPrice(Date date, Decimal price) noexcept;
-
-  bool valid() const noexcept;
-
   const std::map<Date, Decimal>& prices() const noexcept;
 
-  bool removePrice(Date date) noexcept;
+  // Mutators
+  void setName(std::string name);
+  void setAssetClass(std::string assetClass);
+  void setSector(std::string sector);
 
-  // Signals
+  bool setPrice(pv::Date date, pv::Decimal price) noexcept;
+  bool removePrice(pv::Date date) noexcept;
 
-  /// \brief Fired whenever the name of this security changes
-  /// # Signal Arguments
-  /// \arg \c 1 the new name
-  /// \arg \c 2 the old name
-  boost::signals2::signal<void(std::string, std::string)>& nameChanged() const noexcept;
+  // Disable move, copy, and default construction
+  Security() = delete;
+  Security(Security&& other) = delete;
+  Security& operator=(Security&& other) = delete;
+  Security& operator=(const Security& other) = delete;
+  Security(const Security& other) = delete;
 
-  /// \brief Fired whenever the asset class of this security changes
-  /// # Signal Arguments
-  /// \arg \c 1 the new asset class
-  /// \arg \c 2 the old asset class
-  boost::signals2::signal<void(std::string, std::string)>& assetClassChanged() const noexcept;
-
-  /// \brief Fired whenever the sector of this security changes
-  /// # Signal Arguments
-  /// \arg \c 1 the new sector
-  /// \arg \c 2 the old sector
-  boost::signals2::signal<void(std::string, std::string)>& sectorChanged() const noexcept;
-
-  /// \brief Fired whenever a price changes, is added, or is removed.
-  /// # Signal Arguments
-  /// \arg \c 1 the date of the price
-  /// \arg \c 2 the new price, or an empty std::optional if none
-  /// \arg \c 3 the old price, or an empty std::optional if none
-  boost::signals2::signal<void(Date, std::optional<Decimal>, std::optional<Decimal>)>& priceChanged() const noexcept;
-
-  boost::signals2::signal<void()>& invalidated() const noexcept override;
-
-  // Operators
-  bool operator==(const Security& other) const noexcept { return shared == other.shared; }
-  bool operator!=(const Security& other) const noexcept { return shared != other.shared; }
-
-  // todo will when invalidated
-  bool operator<(const Security& other) const noexcept;
-
-  bool operator>(const Security& other) const noexcept;
+  // listen functions
+  Connection listenNameChanged(const NameChangedSignal::slot_type& slot) noexcept;
+  Connection listenAssetClassChanged(const AssetClassChangedSignal::slot_type& slot) noexcept;
+  Connection listenSectorChanged(const SectorChangedSignal::slot_type& slot) noexcept;
+  Connection listenPriceChanged(const PriceChangedSignal::slot_type& slot) noexcept;
 };
 
 } // namespace pv
-
-template <> struct std::hash<pv::Security> {
-private:
-  inline static const std::hash<std::shared_ptr<pv::Security::Shared>> sharedHasher;
-
-public:
-  std::size_t operator()(const pv::Security& security) const noexcept { return sharedHasher(security.shared); }
-};
 
 #endif // PV_SECURITY_H

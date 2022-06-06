@@ -1,11 +1,12 @@
 #include "SecurityPriceModel.h"
+#include "ModelUtils.h"
 #include <QDate>
 #include <QThread>
 
-pvui::models::SecurityPriceModel::SecurityPriceModel(pv::Security security, QObject* parent)
+pvui::models::SecurityPriceModel::SecurityPriceModel(pv::Security* security, QObject* parent)
     : QAbstractItemModel(parent), security_(security) {
-  dates.reserve(security_.prices().size());
-  for (const auto& pair : security_.prices()) {
+  dates.reserve(security_->prices().size());
+  for (const auto& pair : security_->prices()) {
     dates.push_back(pair.first);
   }
 
@@ -26,8 +27,8 @@ pvui::models::SecurityPriceModel::SecurityPriceModel(pv::Security security, QObj
     endRemoveRows();
   });
 
-  securityPriceAddedConnection = security_.priceChanged().connect(
-      [&](const pv::Date& date, std::optional<pv::Decimal> after, std::optional<pv::Decimal> before) {
+  securityPriceAddedConnection = security_->listenPriceChanged(
+      [&](pv::Date date, std::optional<pv::Decimal> after, std::optional<pv::Decimal> before) {
         if (!before.has_value() && after.has_value()) {
           // Security Price added
           emit dateAdded(date);
@@ -60,7 +61,7 @@ QVariant pvui::models::SecurityPriceModel::data(const QModelIndex& index, int ro
   if (index.row() >= rowCount())
     return QVariant();
 
-  if (role == Qt::DisplayRole || role == Qt::EditRole) {
+  if (role == Qt::DisplayRole || role == Qt::EditRole || role == Qt::AccessibleTextRole) {
     const pv::Date date = dates.at(index.row());
 
     switch (index.column()) {
@@ -70,7 +71,7 @@ QVariant pvui::models::SecurityPriceModel::data(const QModelIndex& index, int ro
                    static_cast<unsigned int>(ymd.day()));
     }
     case 1: {
-      return double{security_.prices().at(date)};
+      return pvui::models::util::moneyData(security_->prices().at(date), role);
     }
     default: {
       return QVariant();
@@ -108,7 +109,7 @@ bool pvui::models::SecurityPriceModel::setData(const QModelIndex& index, const Q
   if (price < 0)
     return false; // Prices should be positive
 
-  security_.setPrice(dates.at(index.row()), price);
+  security_->setPrice(dates.at(index.row()), price);
   return true; // The dataChanged() signal is emitted via the slot in the
                // constructor
 }

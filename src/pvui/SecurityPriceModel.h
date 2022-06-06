@@ -14,12 +14,12 @@ class SecurityPriceModel : public QAbstractItemModel {
   Q_OBJECT
 private:
   std::vector<pv::Date> dates;
-  pv::Security security_;
+  pv::Security* security_;
 
   boost::signals2::scoped_connection securityPriceAddedConnection;
 
 public:
-  SecurityPriceModel(pv::Security security, QObject* parent = nullptr);
+  SecurityPriceModel(pv::Security* security, QObject* parent = nullptr);
 
   pv::Date mapToDate(const QModelIndex& index) const noexcept { return dates.at(index.row()); }
 

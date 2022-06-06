@@ -2,10 +2,10 @@
 #include "FormatUtils.h"
 #include "pv/Algorithms.h"
 #include "pv/Security.h"
+#include <QApplication>
 #include <QHeaderView>
 #include <QShowEvent>
 #include <QSpacerItem>
-#include <limits>
 
 namespace {
 constexpr char headerStateKey[] = "pv/reports/holdings/tableHeaderState";
@@ -14,9 +14,7 @@ constexpr char headerStateKey[] = "pv/reports/holdings/tableHeaderState";
 namespace pvui {
 namespace reports {
 
-HoldingsReport::HoldingsReport(const DataFileManager& manager, QWidget* parent)
-    : Report(tr("Holdings"), manager, parent) {
-  setContent(layout);
+HoldingsReport::HoldingsReport(DataFileManager& manager, QWidget* parent) : Report(tr("Holdings"), manager, parent) {
   QObject::connect(&manager, &DataFileManager::dataFileChanged, this, &HoldingsReport::setDataFile);
   setDataFile(*manager);
   table->setModel(&proxyModel);
@@ -24,11 +22,11 @@ HoldingsReport::HoldingsReport(const DataFileManager& manager, QWidget* parent)
   table->setSortingEnabled(true);
   table->horizontalHeader()->setSectionsMovable(true);
 
-  layout->addWidget(table);
+  layout()->addWidget(table);
 
   // Setup summary
 
-  layout->addWidget(summaryGroupBox);
+  layout()->addWidget(summaryGroupBox);
   summaryGroupBox->setLayout(summaryLayout);
   summaryGroupBox->setTitle(tr("Subtotal"));
 
@@ -60,7 +58,7 @@ void HoldingsReport::reload() noexcept {
   }
 }
 
-void HoldingsReport::setDataFile(const pv::DataFile& dataFile) {
+void HoldingsReport::setDataFile(pv::DataFile& dataFile) {
   model = std::make_unique<models::HoldingsModel>(dataFile);
   proxyModel.setSourceModel(model.get());
 }
@@ -74,10 +72,10 @@ void HoldingsReport::populateSummary() {
   pv::Decimal marketValue = 0;
   pv::Decimal income = 0;
 
-  for (const pv::Security& security : dataFile().securities()) {
-    costBasis += pv::algorithms::costBasis(security);
-    marketValue += pv::algorithms::marketValue(security).value_or(0);
-    income += pv::algorithms::totalIncome(security);
+  for (const pv::Security* security : dataFile().securities()) {
+    costBasis += pv::algorithms::costBasis(*security);
+    marketValue += pv::algorithms::marketValue(*security).value_or(0);
+    income += pv::algorithms::totalIncome(*security);
   }
 
   summaryCostBasisLabel->setText(summaryCostBasisLabelText.arg(util::formatMoney(costBasis)));

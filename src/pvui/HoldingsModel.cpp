@@ -22,38 +22,39 @@ constexpr int columnCount = 13; // Update whenever new column added
 namespace pvui {
 namespace models {
 
-void HoldingsModel::update(const pv::Security& security, int column) {
-  int rowIndex = std::find(securities.cbegin(), securities.cend(), security) - securities.cbegin();
+void HoldingsModel::update(pv::Security& security, int column) {
+  int rowIndex = std::find(securities.cbegin(), securities.cend(), &security) - securities.cbegin();
   const auto modelIndex = index(rowIndex, column);
 
   emit dataChanged(modelIndex, modelIndex);
 }
 
-void HoldingsModel::createListeners(const pv::Security& security) {
+void HoldingsModel::createListeners(pv::Security& security) {
   // Name
-  securityChangeConnections.insert(
-      {security, security.nameChanged().connect([=](std::string, std::string) { update(security, nameColumn); })});
+  securityChangeConnections.insert({&security, security.listenNameChanged([&security, this](std::string, std::string) {
+                                      update(security, nameColumn);
+                                    })});
 }
 
-void HoldingsModel::removeListeners(const pv::Security& security) { securityChangeConnections.erase(security); }
+void HoldingsModel::removeListeners(pv::Security& security) { securityChangeConnections.erase(&security); }
 
-HoldingsModel::HoldingsModel(const pv::DataFile& dataFile, QObject* parent)
+HoldingsModel::HoldingsModel(pv::DataFile& dataFile, QObject* parent)
     : QAbstractTableModel(parent), dataFile_(dataFile) {
   securityAddedConnection =
-      dataFile.securityAdded().connect([&](const pv::Security& security) { emit securityAdded(security); });
+      dataFile.listenSecurityAdded([&](pv::Security* security) { emit securityAdded(*security); });
 
   securityRemovedConnection =
-      dataFile.securityRemoved().connect([&](const pv::Security& security) { emit securityRemoved(security); });
+      dataFile.listenSecurityRemoved([&](const pv::Security* security) { emit securityRemoved(*security); });
 
-  QObject::connect(this, &HoldingsModel::securityAdded, this, [&](const pv::Security& security) {
+  QObject::connect(this, &HoldingsModel::securityAdded, this, [&](pv::Security& security) {
     beginInsertRows(QModelIndex(), rowCount(), rowCount());
-    securities.push_back(security);
+    securities.push_back(&security);
     endInsertRows();
     createListeners(security);
   });
 
   QObject::connect(this, &HoldingsModel::securityRemoved, this, [&](const pv::Security& security) {
-    auto iter = std::find(securities.cbegin(), securities.cend(), security);
+    auto iter = std::find(securities.cbegin(), securities.cend(), &security);
     auto rowIndex = iter - securities.cbegin();
 
     beginRemoveRows(QModelIndex(), rowIndex, rowIndex);
@@ -70,16 +71,16 @@ QVariant HoldingsModel::data(const QModelIndex& index, int role) const {
   if (role != Qt::DisplayRole && role != Qt::AccessibleTextRole)
     return QVariant();
 
-  pv::Security security = securities.at(index.row());
+  pv::Security* security = securities.at(index.row());
   switch (index.column()) {
   case symbolColumn: {
-    return QString::fromStdString(security.symbol());
+    return QString::fromStdString(security->symbol());
   }
   case nameColumn: {
-    return QString::fromStdString(security.name());
+    return QString::fromStdString(security->name());
   }
   case recentQuoteColumn: {
-    std::optional<pv::Decimal> recentQuote = pv::algorithms::sharePrice(security);
+    std::optional<pv::Decimal> recentQuote = pv::algorithms::sharePrice(*security);
 
     if (recentQuote.has_value()) {
       return QString("$%1").arg(QString::fromStdString(recentQuote->str()));
@@ -88,36 +89,36 @@ QVariant HoldingsModel::data(const QModelIndex& index, int role) const {
     }
   }
   case averageBuyPriceColumn: {
-    std::optional<pv::Decimal> averageBuyPrice = pv::algorithms::averageBuyPrice(security);
+    std::optional<pv::Decimal> averageBuyPrice = pv::algorithms::averageBuyPrice(*security);
     return averageBuyPrice.has_value() ? util::moneyData(*averageBuyPrice, role) : QVariant(tr("N/A"));
   }
   case averageSellPriceColumn: {
-    std::optional<pv::Decimal> averageSellPrice = pv::algorithms::averageSellPrice(security);
+    std::optional<pv::Decimal> averageSellPrice = pv::algorithms::averageSellPrice(*security);
     return averageSellPrice.has_value() ? util::moneyData(*averageSellPrice, role) : QVariant(tr("N/A"));
   }
   case sharesHeldColumn: {
-    return static_cast<double>(pv::algorithms::sharesHeld(security));
+    return static_cast<double>(pv::algorithms::sharesHeld(*security));
   }
   case unrealizedGainColumn: {
-    return util::moneyData(pv::algorithms::unrealizedCashGained(security).value_or(0), role);
+    return util::moneyData(pv::algorithms::unrealizedCashGained(*security).value_or(0), role);
   }
   case unrealizedGainPercentageColumn: {
-    return util::percentageData(pv::algorithms::unrealizedGainRelative(security).value_or(0) * 100, role);
+    return util::percentageData(pv::algorithms::unrealizedGainRelative(*security).value_or(0) * 100, role);
   }
   case realizedGainColumn: {
-    return util::moneyData(pv::algorithms::cashGained(security), role);
+    return util::moneyData(pv::algorithms::cashGained(*security), role);
   }
   case dividendIncomeColumn: {
-    return util::moneyData(pv::algorithms::dividendIncome(security), role);
+    return util::moneyData(pv::algorithms::dividendIncome(*security), role);
   }
   case costBasisColumn: {
-    return util::moneyData(pv::algorithms::costBasis(security), role);
+    return util::moneyData(pv::algorithms::costBasis(*security), role);
   }
   case totalIncomeColumn: {
-    return util::moneyData(pv::algorithms::totalIncome(security), role);
+    return util::moneyData(pv::algorithms::totalIncome(*security), role);
   }
   case marketValueColunm: {
-    std::optional<pv::Decimal> marketValue = pv::algorithms::marketValue(security);
+    std::optional<pv::Decimal> marketValue = pv::algorithms::marketValue(*security);
     if (!marketValue.has_value()) {
       return tr("N/A");
     }

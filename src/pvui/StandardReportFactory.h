@@ -9,7 +9,7 @@ class StandardReportFactory : public pvui::ReportFactory {
 public:
   StandardReportFactory();
 
-  std::vector<Report*> createReports(const DataFileManager& dataFileManager) const noexcept override;
+  std::vector<Report*> createReports(DataFileManager& dataFileManager) const noexcept override;
 };
 
 } // namespace pvui

@@ -4,6 +4,9 @@
 #include "Date.h"
 #include "Decimal.h"
 #include "Invalidatable.h"
+#include "Result.h"
+#include "Signals.h"
+#include "Transaction.h"
 #include <boost/signals2/signal.hpp>
 #include <functional>
 #include <memory>
@@ -14,109 +17,82 @@
 
 namespace pv {
 
-class Action;
 class DataFile;
-class Transaction;
-class Security;
 
-enum class TransactionAdditionError {
-  UNKNOWN = 0,
-  INVALID_ACCOUNT = 1,
+enum class TransactionOperationResult : unsigned short {
+  SUCCESS = 0,
+  OTHER = 1,
   INVALID_SECURITY = 2,
+  INVALID_TRANSACTION = 3,
 };
 
-class Account : public Invalidatable {
+class Account {
+public:
+  using NameChangedSignal = Signal<void(std::string, std::string)>;
+
+  using BeforeTransactionAddedSignal = Signal<void(std::size_t)>;
+  using TransactionAddedSignal = Signal<void(std::size_t, const Transaction*)>;
+
+  using BeforeTransactionRemovedSignal = Signal<void(std::size_t, const Transaction*)>;
+  using TransactionRemovedSignal = Signal<void(std::size_t)>;
+
+  using TransactionReplacedSignal = Signal<void(std::size_t, const Transaction*, const Transaction*)>;
+
 private:
-  class Shared;
-  friend class DataFile;
-  friend struct std::hash<Account>;
+  /// \internal
+  /// This is a pointer instead of a reference to get the compiler-generated move constructor, but
+  /// treat this as if it were a reference.
+  const DataFile* dataFile_;
+  std::string name_;
+  std::vector<const Transaction*> transactions_;
 
-  std::shared_ptr<Shared> shared;
+  NameChangedSignal signal_nameChanged;
 
-  Account(DataFile& dataFile, unsigned int id, std::string name) noexcept;
-  bool invalidate() noexcept;
+  BeforeTransactionAddedSignal signal_beforeTransactionAdded;
+  TransactionAddedSignal signal_transactionAdded;
+
+  BeforeTransactionRemovedSignal signal_beforeTransactionRemoved;
+  TransactionRemovedSignal signal_transactionRemoved;
+  TransactionReplacedSignal signal_transactionReplaced;
 
 public:
-  Account(const pv::Account& other) = default;
-  Account& operator=(const pv::Account&) = default;
+  Account(const DataFile& dataFile, std::string name);
+  Account(Account&& other) = default;
+  Account& operator=(Account&& other) = default;
 
-  // getters
-  const DataFile* dataFile() const noexcept;
-  unsigned int id() const noexcept;
+  ~Account();
+
+  // GETTERS
+  const DataFile& dataFile() const noexcept;
   std::string name() const noexcept;
-  const std::vector<Transaction>& transactions() const noexcept;
+  const std::vector<const Transaction*>& transactions() const noexcept;
 
-  DataFile* dataFile() noexcept;
+  /// \brief Set's the name of this Account.
+  void setName(std::string name) noexcept;
 
-  bool valid() const noexcept;
+  TransactionOperationResult replaceTransaction(std::size_t index, BuyTransaction transaction);
+  TransactionOperationResult replaceTransaction(std::size_t index, SellTransaction transaction);
+  TransactionOperationResult replaceTransaction(std::size_t index, DepositTransaction transaction);
+  TransactionOperationResult replaceTransaction(std::size_t index, WithdrawTransaction transaction);
+  TransactionOperationResult replaceTransaction(std::size_t index, DividendTransaction transaction);
 
-  // mutators
-  bool setName(std::string name) noexcept;
+  TransactionOperationResult addTransaction(BuyTransaction transaction);
+  TransactionOperationResult addTransaction(SellTransaction transaction);
+  TransactionOperationResult addTransaction(DepositTransaction transaction);
+  TransactionOperationResult addTransaction(WithdrawTransaction transaction);
+  TransactionOperationResult addTransaction(DividendTransaction transaction);
 
-  std::variant<Transaction, TransactionAdditionError> addTransaction(Date date, const Action& action,
-                                                                     std::optional<const Security> security,
-                                                                     Decimal numberOfShares, Decimal sharePrice,
-                                                                     Decimal commission, Decimal totalAmount) noexcept;
+  TransactionOperationResult removeTransaction(std::size_t index) noexcept;
 
-  bool removeTransaction(Transaction transaction) noexcept;
+  Connection listenNameChanged(const NameChangedSignal::slot_type& slot) noexcept;
 
-  // Internal
+  Connection listenBeforeTransactionAdded(const BeforeTransactionAddedSignal::slot_type& slot) noexcept;
+  Connection listenTransactionAdded(const TransactionAddedSignal::slot_type& slot) noexcept;
 
-  /// \internal
-  /// Todo, implement in future.
-  int requestTransactionChange_(const Transaction& t, const Date& date, const Action& action,
-                                const std::optional<const pv::Security>& security, const Decimal& numberOfShares,
-                                const Decimal& sharePrice, const Decimal& commission, const Decimal& totalAmount);
-
-  // signals
-
-  /// \brief Fired whenever the name changes
-  ///
-  /// # Signal Arguments
-  /// \arg \c 1 The new name
-  /// \arg \c 2 The old name
-  boost::signals2::signal<void(std::string, std::string)>& nameChanged() const noexcept;
-  /// \brief Fired whenever a transaction is added
-  ///
-  /// # Signal Arguments
-  /// \arg \c 1 The added transaction
-  boost::signals2::signal<void(Transaction&)>& transactionAdded() const noexcept;
-  /// \brief Fired whenever a transaction is removed
-  ///
-  /// #Signal Arguments
-  /// \arg \c 1 The removed transaction
-  boost::signals2::signal<void(const Transaction&)>& transactionRemoved() const noexcept;
-  /// \brief Fired whenever a transaction is changed
-  ///
-  /// Equivalent to pv::Transaction::changed().
-  ///
-  /// #Signal Arguments
-  /// \arg \c 1 The changed transaction
-  boost::signals2::signal<void(const Transaction&)>& transactionChanged() const noexcept;
-  /// \brief Fired when this account becomes invalid.
-  ///
-  /// #Signal Arguments
-  /// \arg \c 1 \c this
-  boost::signals2::signal<void()>& invalidated() const noexcept override;
-
-  // operators
-
-  bool operator==(const Account& other) const noexcept { return shared == other.shared; }
-  bool operator!=(const Account& other) const noexcept { return shared != other.shared; }
-
-  bool operator<(const Account& other) const noexcept;
-
-  bool operator>(const Account& other) const noexcept;
+  Connection listenBeforeTransactionRemoved(const BeforeTransactionRemovedSignal::slot_type& slot) noexcept;
+  Connection listenTransactionRemoved(const TransactionRemovedSignal::slot_type& slot) noexcept;
+  Connection listenTransactionReplaced(const TransactionReplacedSignal::slot_type& slot) noexcept;
 };
 
 } // namespace pv
-
-template <> struct std::hash<pv::Account> {
-public:
-  std::size_t operator()(const pv::Account& account) const noexcept { return sharedHasher(account.shared); }
-
-private:
-  inline static const std::hash<std::shared_ptr<pv::Account::Shared>> sharedHasher;
-};
-
 #endif // PV_ACCOUNT_H

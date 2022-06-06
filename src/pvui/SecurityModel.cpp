@@ -2,10 +2,9 @@
 
 pvui::models::SecurityModel::SecurityModel(pv::DataFile& dataFile, QObject* parent)
     : QAbstractTableModel(parent), dataFile_(dataFile), securities(dataFile.securities()) {
-  securityAddedConnection =
-      dataFile.securityAdded().connect([&](pv::Security security) { emit securityAdded(security); });
+  securityAddedConnection = dataFile.listenSecurityAdded([&](pv::Security* security) { emit securityAdded(security); });
 
-  QObject::connect(this, &SecurityModel::securityAdded, this, [&](pv::Security security) {
+  QObject::connect(this, &SecurityModel::securityAdded, this, [&](pv::Security* security) {
     beginInsertRows(QModelIndex(), rowCount(), rowCount());
     securities.push_back(security);
     endInsertRows();
@@ -14,9 +13,9 @@ pvui::models::SecurityModel::SecurityModel(pv::DataFile& dataFile, QObject* pare
   });
 
   securityRemovedConnection =
-      dataFile.securityRemoved().connect([&](pv::Security security) { emit securityRemoved(security); });
+      dataFile.listenSecurityRemoved([&](const pv::Security* security) { emit securityRemoved(security); });
 
-  QObject::connect(this, &SecurityModel::securityRemoved, this, [&](pv::Security security) {
+  QObject::connect(this, &SecurityModel::securityRemoved, this, [&](const pv::Security* security) {
     auto iter = std::find(securities.cbegin(), securities.cend(), security);
     if (iter == securities.end())
       return;
@@ -31,7 +30,7 @@ pvui::models::SecurityModel::SecurityModel(pv::DataFile& dataFile, QObject* pare
   });
 }
 
-void pvui::models::SecurityModel::setupSecurity(pv::Security security) {
+void pvui::models::SecurityModel::setupSecurity(pv::Security* security) {
   auto slot = [&](std::string, std::string) {
     int rowIndex = std::find(securities.cbegin(), securities.cend(), security) - securities.cbegin();
     QModelIndex firstModelIndex = index(rowIndex, 0);
@@ -39,25 +38,25 @@ void pvui::models::SecurityModel::setupSecurity(pv::Security security) {
     emit dataChanged(firstModelIndex, lastModelIndex);
   };
 
-  securityChangeConnections.insert({security, security.nameChanged().connect(slot)});
-  securityChangeConnections.insert({security, security.assetClassChanged().connect(slot)});
-  securityChangeConnections.insert({security, security.sectorChanged().connect(slot)});
+  securityChangeConnections.insert({security, security->listenNameChanged(slot)});
+  securityChangeConnections.insert({security, security->listenAssetClassChanged(slot)});
+  securityChangeConnections.insert({security, security->listenSectorChanged(slot)});
 }
 
 QVariant pvui::models::SecurityModel::data(const QModelIndex& index, int role) const {
   if ((role != Qt::DisplayRole && role != Qt::AccessibleTextRole && role != Qt::EditRole) || !index.isValid())
     return QVariant();
 
-  const pv::Security& security = securities.at(index.row());
+  const pv::Security* security = securities.at(index.row());
   switch (index.column()) {
   case 0:
-    return QString::fromStdString(security.symbol());
+    return QString::fromStdString(security->symbol());
   case 1:
-    return QString::fromStdString(security.name());
+    return QString::fromStdString(security->name());
   case 2:
-    return QString::fromStdString(security.assetClass());
+    return QString::fromStdString(security->assetClass());
   case 3:
-    return QString::fromStdString(security.sector());
+    return QString::fromStdString(security->sector());
   default:
     return QVariant();
   }
@@ -102,26 +101,37 @@ bool pvui::models::SecurityModel::setData(const QModelIndex& index, const QVaria
   if (newData.length() == 0)
     return false; // Must not be empty
 
-  pv::Security security = securities.at(index.row());
+  pv::Security* security = securities.at(index.row());
 
   switch (index.column()) {
   case 0:
     return false; // Symbol not editable
   case 1:
-    return security.setName(newData);
+    security->setName(newData);
+    return true;
   case 2:
-    return security.setAssetClass(newData);
+    security->setAssetClass(newData);
+    return true;
   case 3:
-    return security.setSector(newData);
+    security->setSector(newData);
+    return true;
   default:
     return false;
   }
 }
 
-std::optional<pv::Security> pvui::models::SecurityModel::mapFromIndex(const QModelIndex& index) const {
+const pv::Security* pvui::models::SecurityModel::mapFromIndex(const QModelIndex& index) const noexcept {
   auto iter = securities.cbegin() + index.row();
 
   if (iter == securities.end())
-    return std::nullopt;
+    return nullptr;
+  return *iter;
+}
+
+pv::Security* pvui::models::SecurityModel::mapFromIndex(const QModelIndex& index) noexcept {
+  auto iter = securities.cbegin() + index.row();
+
+  if (iter == securities.end())
+    return nullptr;
   return *iter;
 }

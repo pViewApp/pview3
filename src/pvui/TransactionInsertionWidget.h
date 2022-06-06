@@ -16,7 +16,8 @@ namespace controls {
 class TransactionInsertionWidget : public QWidget {
   Q_OBJECT
 private:
-  std::optional<pv::Account> account_;
+  pv::DataFile* dataFile_;
+  pv::Account* account_;
 
   QHBoxLayout* layout = new QHBoxLayout(this);
   QDateEdit* dateEditor = new QDateEdit;
@@ -33,13 +34,17 @@ private:
   void reset();
 
 public:
-  TransactionInsertionWidget(std::optional<pv::Account> account = std::nullopt, QWidget* parent = nullptr);
+  TransactionInsertionWidget(pv::DataFile* dataFile = nullptr, pv::Account* account = nullptr,
+                             QWidget* parent = nullptr);
 protected slots:
   void setupActionList();
   void setupSecurityList();
 public slots:
   bool submit();
-  void setAccount(std::optional<pv::Account> account);
+
+  /// \note Set \c dataFile and \c account to nullptr to disable.
+  /// \note Undefined behaviour if (\c dataFile does not own \c account) AND \c account != \c nullptr
+  void setAccount(pv::DataFile* dataFile, pv::Account* account);
 };
 } // namespace controls
 } // namespace pvui
