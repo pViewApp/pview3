@@ -45,8 +45,6 @@ add_executable(pview
 	pvui/MarketValueReport.cpp
 	pvui/Page.cpp
 	pvui/Page.h
-	pvui/PiePlot.h
-	pvui/PiePlot.cpp
 	pvui/Report.h
 	pvui/Report.cpp
 	pvui/ReportFactory.h
