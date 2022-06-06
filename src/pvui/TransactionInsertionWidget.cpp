@@ -54,6 +54,8 @@ TransactionInsertionWidget::TransactionInsertionWidget(pv::DataFile* dataFile, p
 
   setAccount(dataFile, account);
   setupActionList();
+
+  setFocusProxy(dateEditor);
 }
 
 void TransactionInsertionWidget::setupSecurityList() {
@@ -151,12 +153,14 @@ bool TransactionInsertionWidget::submit() {
   }
 
   reset();
+  dateEditor->setFocus();
 
   return success;
 }
 
 void TransactionInsertionWidget::reset() {
   dateEditor->setDate(QDate::currentDate());
+  dateEditor->clear();
   actionEditor->setCurrentIndex(-1);
   securityEditor->setCurrentIndex(-1);
   numberOfSharesEditor->setBlank();
@@ -164,8 +168,6 @@ void TransactionInsertionWidget::reset() {
   numberOfSharesEditor->setBlank();
   commissionEditor->setBlank();
   totalAmountEditor->setBlank();
-
-  dateEditor->setFocus();
 }
 
 void TransactionInsertionWidget::setupActionList() {

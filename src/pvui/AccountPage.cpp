@@ -64,6 +64,7 @@ pvui::AccountPageWidget::AccountPageWidget(pv::DataFile* dataFile, pv::Account* 
   QObject::connect(this, &AccountPageWidget::accountTransactionsChanged, this, &AccountPageWidget::updateCashBalance);
   QObject::connect(this, &AccountPageWidget::accountNameChanged, this, &AccountPageWidget::updateTitle);
 
+  setFocusProxy(insertWidget);
   setAccount(dataFile, account);
 }
 

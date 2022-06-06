@@ -71,8 +71,6 @@ void SecurityInsertionWidget::reset() {
   nameEditor->setText("");
   assetClassEditor->setCurrentIndex(-1);
   sectorEditor->setCurrentIndex(-1);
-
-  symbolEditor->setFocus();
 }
 
 bool SecurityInsertionWidget::submit() {
@@ -89,6 +87,7 @@ bool SecurityInsertionWidget::submit() {
                                                sector.toStdString()))
     return false; // Failed
   reset();
+  symbolEditor->setFocus();
 
   return true;
 }
