@@ -47,15 +47,15 @@ MarketValueReport::MarketValueReport(QString name, const DataFileManager& dataFi
   chart.setLegendIconSize(QSize(16, 16));
 
   auto* scaleDraw = new QwtDateScaleDraw;
-  // ^ Workaround for charts with only a single data point, this is needed to properly render the chart
-
+  plot->setAxisScaleDraw(QwtAxis::XBottom, scaleDraw);
   scaleDraw->setLabelRotation(90);
   scaleDraw->setSpacing(10);
   scaleDraw->setLabelAlignment(Qt::AlignRight);
-  plot->setAxisScaleDraw(QwtAxis::XBottom, scaleDraw);
+
   plot->setAxisTitle(QwtAxis::XBottom, tr("Date"));
   plot->setAxisTitle(QwtAxis::YLeft, tr("Market Value ($)"));
   plot->setTitle(this->name());
+
   QObject::connect(this, &MarketValueReport::nameChanged, this, [&](QString newName) { plot->setTitle(newName); });
 
   setupGroupBySelection();
