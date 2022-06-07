@@ -61,7 +61,10 @@ MarketValueReport::MarketValueReport(QString name, const DataFileManager& dataFi
 }
 
 void MarketValueReport::setupGroupBySelection() {
-  groupBySelectorLayout->addWidget(new QLabel(tr("Group By:")));
+  groupBySelectorLayout->addStretch(1);
+  auto* groupByLabel = new QLabel(tr("&Group By:"));
+  groupByLabel->setBuddy(groupBySelector);
+  groupBySelectorLayout->addWidget(groupByLabel);
   groupBySelectorLayout->addWidget(groupBySelector);
   groupBySelector->addItems({tr("Security"), tr("Asset Class"), tr("Sector")});
   groupBySelector->setEditable(false);
