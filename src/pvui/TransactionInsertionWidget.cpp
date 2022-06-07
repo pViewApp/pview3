@@ -160,7 +160,6 @@ bool TransactionInsertionWidget::submit() {
 
 void TransactionInsertionWidget::reset() {
   dateEditor->setDate(QDate::currentDate());
-  dateEditor->clear();
   actionEditor->setCurrentIndex(-1);
   securityEditor->setCurrentIndex(-1);
   numberOfSharesEditor->setBlank();
