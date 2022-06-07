@@ -7,10 +7,6 @@
 #include <list>
 #include <string>
 
-// Forward declare SQLite
-struct sqlite3;
-struct sqlite3_stmt;
-
 namespace pv {
 
 enum class AccountRemovalResult : unsigned char {
