@@ -39,7 +39,7 @@ MarketValueReport::MarketValueReport(QString name, const DataFileManager& dataFi
   symbol->setSize(QSize(12, 12));
   costBasisCurve.setSymbol(symbol);
   costBasisCurve.setLegendAttributes(QwtPlotCurve::LegendShowLine | QwtPlotCurve::LegendShowSymbol);
-  costBasisCurve.setLegendIconSize(QSize(12, 12));
+  costBasisCurve.setLegendIconSize(QSize(16, 16));
   costBasisCurve.setTitle(tr("Cost Basis"));
   costBasisCurve.setPen(QPen(Qt::PenStyle::SolidLine));
 
