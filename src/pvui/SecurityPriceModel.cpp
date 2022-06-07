@@ -104,12 +104,12 @@ bool pvui::models::SecurityPriceModel::setData(const QModelIndex& index, const Q
     return false; // The price column is editable, the date is not
   if (!value.canConvert<double>())
     return false; // The new value must be a number
-  auto price = value.toDouble();
+  auto price = value.toString();
 
   if (price < 0)
     return false; // Prices should be positive
 
-  security_->setPrice(dates.at(index.row()), price);
+  security_->setPrice(dates.at(index.row()), pv::Decimal(price.toStdString()));
   return true; // The dataChanged() signal is emitted via the slot in the
                // constructor
 }

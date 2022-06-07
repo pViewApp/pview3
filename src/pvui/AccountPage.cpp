@@ -1,4 +1,5 @@
 #include "AccountPage.h"
+#include "FormatUtils.h"
 #include "SecurityPage.h"
 #include "TransactionInsertionWidget.h"
 #include "pv/Algorithms.h"
@@ -9,14 +10,13 @@
 #include <algorithm>
 #include <cassert>
 #include <date/date.h>
-#include <fmt/format.h>
 #include <string>
 
 void pvui::AccountPageWidget::updateCashBalance() noexcept {
   if (account_ == nullptr) {
     setSubtitle("");
   } else {
-    setSubtitle(tr("Cash Balance: %1").arg("$" + QString::fromStdString(pv::algorithms::cashBalance(*account_).str())));
+    setSubtitle(tr("Cash Balance: %1").arg(util::formatMoney(pv::algorithms::cashBalance(*account_))));
   }
 }
 

@@ -1,8 +1,7 @@
 #include "MainWindow.h"
 #include <QApplication>
 #include <QCoreApplication>
-#include <QObject>
-#include <QStyle>
+#include <QLocale>
 
 int main(int argc, char* argv[]) {
   QApplication::setAttribute(Qt::AA_DisableWindowContextHelpButton);

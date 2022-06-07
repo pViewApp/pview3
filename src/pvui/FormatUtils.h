@@ -2,12 +2,13 @@
 #define PVUI_FORMATUTILS_H
 
 #include "pv/Decimal.h"
+#include <QLocale>
 #include <QString>
 
 namespace pvui {
 namespace util {
 
-QString formatMoney(const pv::Decimal& money);
+QString formatMoney(const pv::Decimal& money, const QLocale& locale = QLocale());
 QString formatPercentage(const pv::Decimal& percentage);
 
 } // namespace util

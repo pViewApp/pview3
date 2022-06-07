@@ -3,15 +3,8 @@
 namespace pvui {
 namespace util {
 
-QString formatMoney(const pv::Decimal& money) {
-  if (money < 0) {
-    // Format negative number
-
-    pv::Decimal positive = -money;
-    return QString("$-%1").arg(QString::fromStdString(positive.str()));
-  } else {
-    return QString("$%1").arg(QString::fromStdString(money.str()));
-  }
+QString formatMoney(const pv::Decimal& money, const QLocale& locale) {
+  return locale.toCurrencyString(static_cast<double>(money), "$"); // Always use dollars
 }
 
 QString formatPercentage(const pv::Decimal& percentage) {
