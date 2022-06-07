@@ -54,6 +54,7 @@ MarketValueReport::MarketValueReport(QString name, const DataFileManager& dataFi
   scaleDraw->setLabelAlignment(Qt::AlignRight);
   plot->setAxisScaleDraw(QwtAxis::XBottom, scaleDraw);
   plot->setAxisTitle(QwtAxis::XBottom, tr("Date"));
+  plot->setAxisTitle(QwtAxis::YLeft, tr("Market Value ($)"));
   plot->setTitle(this->name());
   QObject::connect(this, &MarketValueReport::nameChanged, this, [&](QString newName) { plot->setTitle(newName); });
 
