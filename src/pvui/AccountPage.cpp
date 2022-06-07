@@ -45,7 +45,9 @@ pvui::AccountPageWidget::AccountPageWidget(pv::DataFile* dataFile, pv::Account* 
   QObject::connect(&deleteTransactionAction, &QAction::triggered, this, [&]() {
     std::vector<std::size_t> transactionsToDelete;
     transactionsToDelete.reserve(table->selectionModel()->selectedRows().length());
-    for (const auto& index : table->selectionModel()->selectedRows()) {
+
+    const auto& selectedRows = table->selectionModel()->selectedRows();
+    for (const auto& index : selectedRows) {
 
       assert(account_->transactions().size() > static_cast<std::size_t>(index.row()) &&
              "Model row doesn't match with transaction indexes.");
