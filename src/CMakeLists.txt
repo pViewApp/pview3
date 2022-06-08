@@ -1,6 +1,6 @@
 set(QT_VERSION "5" CACHE STRING "The Qt Version")
 find_package(Boost REQUIRED)
-find_package(Qt${QT_VERSION} COMPONENTS Core Gui Widgets REQUIRED)
+find_package(Qt${QT_VERSION} COMPONENTS Core Gui Widgets Network REQUIRED)
 find_package(Qwt REQUIRED)
 
 add_executable(pview
@@ -55,6 +55,8 @@ add_executable(pview
 	pvui/SecurityPage.h
 	pvui/SecurityPriceDialog.cpp
 	pvui/SecurityPriceDialog.h
+	pvui/SecurityPriceDownloader.h
+	pvui/SecurityPriceDownloader.cpp
 	pvui/SecurityPriceInsertionWidget.cpp
 	pvui/SecurityPriceInsertionWidget.h
 	pvui/SecurityPriceModel.cpp
@@ -74,7 +76,7 @@ add_executable(pview
 target_include_directories(pview PRIVATE ${Boost_INCLUDE_DIRS})
 target_include_directories(pview PRIVATE ${QWT_INCLUDE_DIR})
 target_compile_features(pview PRIVATE cxx_std_17)
-target_link_libraries(pview PRIVATE ${Boost_LIBRARIES} Qt${QT_VERSION}::Core Qt${QT_VERSION}::Gui Qt${QT_VERSION}::Gui Qt${QT_VERSION}::Widgets date::date ${QWT_LIBRARIES})
+target_link_libraries(pview PRIVATE ${Boost_LIBRARIES} Qt${QT_VERSION}::Core Qt${QT_VERSION}::Gui Qt${QT_VERSION}::Gui Qt${QT_VERSION}::Widgets Qt${QT_VERSION}::Network date::date ${QWT_LIBRARIES})
 
 if(MSVC)
 	target_compile_options(pview PRIVATE /W4 /WX)
