@@ -39,7 +39,6 @@ SecurityPriceDialog::SecurityPriceDialog(pv::Security& security, QWidget* parent
   table->setSortingEnabled(true);
   table->sortByColumn(0, Qt::SortOrder::AscendingOrder);
   table->setSelectionBehavior(QTableView::SelectionBehavior::SelectRows);
-  table->setAlternatingRowColors(true);
   setupTableContextMenu();
 
   table->setWhatsThis(
