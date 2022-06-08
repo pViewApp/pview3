@@ -5,6 +5,7 @@
 #include "pv/Security.h"
 #include <QAbstractItemModel>
 #include <boost/signals2.hpp>
+#include <optional>
 #include <set>
 #include <vector>
 
@@ -22,6 +23,7 @@ public:
   SecurityPriceModel(pv::Security* security, QObject* parent = nullptr);
 
   pv::Date mapToDate(const QModelIndex& index) const noexcept { return dates.at(index.row()); }
+  std::optional<QModelIndex> mapFromDate(pv::Date date);
 
   // Overrides
 

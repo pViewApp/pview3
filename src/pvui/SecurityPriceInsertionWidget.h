@@ -28,6 +28,9 @@ public slots:
   bool submit();
 
   void setSecurity(pv::Security& security);
+
+signals:
+  void submitted(QDate date);
 };
 } // namespace pvui::controls
 #endif // PVUI_SECURITY_PRICE_INSERTION_WIDGET_H

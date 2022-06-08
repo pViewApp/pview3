@@ -48,6 +48,7 @@ bool pvui::controls::SecurityPriceInsertionWidget::submit() {
 
   reset();
   dateEditor->setFocus();
+  emit submitted(qDate);
 
   return true;
 }

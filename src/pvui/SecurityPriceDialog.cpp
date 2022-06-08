@@ -57,6 +57,16 @@ SecurityPriceDialog::SecurityPriceDialog(pv::Security& security, QWidget* parent
   QObject::connect(this, &SecurityPriceDialog::securityNameChanged, this,
                    [&]() { updateTitle(); }); // Update the title when name changed
   setSecurity(security);
+  QObject::connect(insertionWidget, &controls::SecurityPriceInsertionWidget::submitted, this,
+                   &SecurityPriceDialog::onSubmit);
+}
+
+void SecurityPriceDialog::onSubmit(QDate date) {
+  std::optional<QModelIndex> sourceIndex = model->mapFromDate(
+      pv::Date(pv::YearMonthDay(pv::Year(date.year()), pv::Month(date.month()), pv::Day(date.day()))));
+  if (sourceIndex.has_value()) {
+    table->selectRow(proxyModel->mapFromSource(*sourceIndex).row());
+  }
 }
 
 void SecurityPriceDialog::setupTableContextMenu() {

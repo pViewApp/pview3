@@ -45,6 +45,15 @@ pvui::models::SecurityPriceModel::SecurityPriceModel(pv::Security* security, QOb
       });
 }
 
+std::optional<QModelIndex> pvui::models::SecurityPriceModel::mapFromDate(pv::Date date) {
+  auto iter = std::find(dates.cbegin(), dates.cend(), date);
+  if (iter == dates.cend()) {
+    return std::nullopt;
+  } else {
+    return index(static_cast<int>(iter - dates.cbegin()), 0);
+  }
+}
+
 Qt::ItemFlags pvui::models::SecurityPriceModel::flags(const QModelIndex& index) const {
 
   if (index.column() == 0)

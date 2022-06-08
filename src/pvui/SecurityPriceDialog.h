@@ -40,6 +40,8 @@ private:
 public:
   SecurityPriceDialog(pv::Security& security, QWidget* parent = nullptr);
   void showEvent(QShowEvent*) override { insertionWidget->setFocus(); }
+private slots:
+  void onSubmit(QDate date);
 public slots:
   void setSecurity(pv::Security& security);
 
