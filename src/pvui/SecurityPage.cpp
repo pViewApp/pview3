@@ -182,7 +182,8 @@ void pvui::SecurityPageWidget::updateSecurityPricesError(QNetworkReply::NetworkE
   } else if (err == QNetworkReply::HostNotFoundError || err == QNetworkReply::UnknownNetworkError) {
     securityPriceUpdateDialog.setText(tr("pView could not connect to the internet."));
   } else {
-    securityPriceUpdateDialog.setText(tr("Please try again later. (Error Code 0x%1)").arg(err, 0, 16));
+    securityPriceUpdateDialog.setText(tr("Sorry, a network error occured."));
+    securityPriceUpdateDialog.setDetailedText(tr("Error Code: 0x%1").arg(err, 0, 16));
   }
   securityPriceUpdateDialog.show();
 }
@@ -201,7 +202,7 @@ void pvui::SecurityPageWidget::endUpdateSecurityPrices() {
     const auto& failedDownloads = failedSecurityDownloadsSymbols; // const reference to avoid clazy complaining
     for (const auto& symbol : failedDownloads) {
       base.append("<li>");
-      base.append(symbol);
+      base.append(symbol.toHtmlEscaped());
       base.append("</li>");
     }
     base.append("</ul></html>");

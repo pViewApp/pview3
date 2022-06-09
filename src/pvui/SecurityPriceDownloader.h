@@ -24,7 +24,6 @@ public:
 
 private:
   std::unordered_set<QNetworkReply*> replies;
-  std::size_t remainingDownloadCounter;
 
 public:
   SecurityPriceDownload(Download download);
