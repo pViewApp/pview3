@@ -68,7 +68,7 @@ int HoldingsModel::rowCount(const QModelIndex&) const { return static_cast<int>(
 int HoldingsModel::columnCount(const QModelIndex&) const { return ::columnCount; }
 
 QVariant HoldingsModel::data(const QModelIndex& index, int role) const {
-  if (role != Qt::DisplayRole && role != Qt::AccessibleTextRole)
+  if (role != Qt::DisplayRole && role != Qt::AccessibleTextRole && role != Qt::ForegroundRole)
     return QVariant();
 
   pv::Security* security = securities.at(index.row());
@@ -100,13 +100,15 @@ QVariant HoldingsModel::data(const QModelIndex& index, int role) const {
     return static_cast<double>(pv::algorithms::sharesHeld(*security));
   }
   case unrealizedGainColumn: {
-    return util::moneyData(pv::algorithms::unrealizedCashGained(*security).value_or(0), role);
+    return util::moneyData(pv::algorithms::unrealizedCashGained(*security).value_or(0), role,
+                           util::FormatFlag::COLOR_NEGATIVE);
   }
   case unrealizedGainPercentageColumn: {
-    return util::percentageData(pv::algorithms::unrealizedGainRelative(*security).value_or(0) * 100, role);
+    return util::percentageData(pv::algorithms::unrealizedGainRelative(*security).value_or(0) * 100, role,
+                                util::FormatFlag::COLOR_NEGATIVE);
   }
   case realizedGainColumn: {
-    return util::moneyData(pv::algorithms::cashGained(*security), role);
+    return util::moneyData(pv::algorithms::cashGained(*security), role, util::FormatFlag::COLOR_NEGATIVE);
   }
   case dividendIncomeColumn: {
     return util::moneyData(pv::algorithms::dividendIncome(*security), role);
@@ -115,7 +117,7 @@ QVariant HoldingsModel::data(const QModelIndex& index, int role) const {
     return util::moneyData(pv::algorithms::costBasis(*security), role);
   }
   case totalIncomeColumn: {
-    return util::moneyData(pv::algorithms::totalIncome(*security), role);
+    return util::moneyData(pv::algorithms::totalIncome(*security), role, util::FormatFlag::COLOR_NEGATIVE);
   }
   case marketValueColunm: {
     std::optional<pv::Decimal> marketValue = pv::algorithms::marketValue(*security);
