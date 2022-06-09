@@ -30,6 +30,10 @@ std::map<QDate, pv::Decimal> parse(QIODevice& data) {
 
   while (data.canReadLine()) {
     currentLine = QString::fromUtf8(data.readLine()).split(',');
+    if (priceColumn >= currentLine.size()) {
+      assert(false && "Could not parse security prices, not enough commas!");
+      continue;
+    }
 
     QDate date = QDate::fromString(currentLine.at(dateColumn), Qt::ISODate); // Make sure to use ISO format (yyyy-MM-dd)
     pv::Decimal price;
