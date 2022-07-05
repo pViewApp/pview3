@@ -1,11 +1,16 @@
 #include "HoldingsReport.h"
 #include "FormatUtils.h"
 #include "pv/Algorithms.h"
+#include "DateUtils.h"
+#include <sqlite3.h>
+#include "pv/Integer64.h"
 #include "pv/Security.h"
+#include "pvui/DataFileManager.h"
 #include <QApplication>
 #include <QHeaderView>
 #include <QShowEvent>
 #include <QSpacerItem>
+#include <cassert>
 
 namespace {
 constexpr char headerStateKey[] = "pv/reports/holdings/tableHeaderState";
@@ -15,8 +20,7 @@ namespace pvui {
 namespace reports {
 
 HoldingsReport::HoldingsReport(DataFileManager& manager, QWidget* parent) : Report(tr("Holdings"), manager, parent) {
-  QObject::connect(&manager, &DataFileManager::dataFileChanged, this, &HoldingsReport::setDataFile);
-  setDataFile(*manager);
+  QObject::connect(&manager, &DataFileManager::dataFileChanged, this, &HoldingsReport::handleDataFileChanged);
   table->setModel(&proxyModel);
   table->verticalHeader()->hide();
   table->setSortingEnabled(true);
@@ -48,6 +52,8 @@ HoldingsReport::HoldingsReport(DataFileManager& manager, QWidget* parent) : Repo
                    [&] {
     settings.setValue(QString::fromUtf8(headerStateKey), table->horizontalHeader()->saveState());
   });
+
+    handleDataFileChanged();
 }
 
 void HoldingsReport::reload() noexcept {
@@ -58,24 +64,27 @@ void HoldingsReport::reload() noexcept {
   }
 }
 
-void HoldingsReport::setDataFile(pv::DataFile& dataFile) {
-  model = std::make_unique<models::HoldingsModel>(dataFile);
+void HoldingsReport::handleDataFileChanged() {
+  model = dataFileManager.has() ? std::make_unique<models::HoldingsModel>(*dataFileManager) : nullptr;
   proxyModel.setSourceModel(model.get());
 }
 
 void HoldingsReport::populateSummary() {
+  assert(dataFileManager.has());
   static QString summaryCostBasisLabelText = QString::fromUtf8("<strong>%1</strong> %2").arg(tr("Cost Basis:"));
   static QString summaryMarketValueLabelText = QString::fromUtf8("<strong>%1</strong> %2").arg(tr("Market Value:"));
   static QString summaryIncomeLabelText = QString::fromUtf8("<strong>%1</strong> %2").arg(tr("Income (All Time):"));
 
-  pv::Decimal costBasis = 0;
-  pv::Decimal marketValue = 0;
-  pv::Decimal income = 0;
+  pv::i64 costBasis = 0;
+  pv::i64 marketValue = 0;
+  pv::i64 income = 0;
 
-  for (const pv::Security* security : dataFile().securities()) {
-    costBasis += pv::algorithms::costBasis(*security);
-    marketValue += pv::algorithms::marketValue(*security).value_or(0);
-    income += pv::algorithms::totalIncome(*security);
+  auto query = dataFileManager->query("SELECT Id FROM Securities");
+  while (sqlite3_step(&*query) == SQLITE_ROW) {
+    pv::i64 security = sqlite3_column_int64(&*query, 0);
+    costBasis += pv::algorithms::costBasis(*dataFileManager, security, currentEpochDate());
+    marketValue += pv::algorithms::marketValue(*dataFileManager, security, currentEpochDate()).value_or(0);
+    income += pv::algorithms::totalIncome(*dataFileManager, security, currentEpochDate());
   }
 
   summaryCostBasisLabel->setText(summaryCostBasisLabelText.arg(util::formatMoney(costBasis)));

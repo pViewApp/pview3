@@ -1,85 +1,70 @@
 #include "Security.h"
+#include "pv/DataFile.h"
 #include <atomic>
+#include <sqlite3.h>
 
 namespace pv {
+namespace security {
 
-Security::Security(DataFile& dataFile, std::string symbol, std::string name, std::string assetClass, std::string sector)
-    : dataFile_(&dataFile), symbol_(symbol), name_(name), assetClass_(assetClass), sector_(sector) {}
+namespace {
 
-const DataFile& Security::dataFile() const noexcept { return *dataFile_; }
+constexpr char query[] = "SELECT Symbol, Name, AssetClass, Sector FROM Securities WHERE Id = ?";
 
-Connection Security::listenNameChanged(const NameChangedSignal::slot_type& slot) noexcept {
-  return signal_nameChanged.connect(slot);
+// Index of the columns within the above query
+constexpr int symbolIndex = 0;
+constexpr int nameIndex = 1;
+constexpr int assetClassIndex = 2;
+constexpr int sectorIndex = 3;
+
+template<int Index>
+std::string getSecurityField(const DataFile& dataFile, i64 security) {
+  auto stmt = dataFile.query(query);
+  sqlite3_bind_int64(stmt.get(), 1, static_cast<sqlite3_int64>(security));
+  sqlite3_step(stmt.get());
+  const auto* cStr = sqlite3_column_text(stmt.get(), Index);
+  auto value = std::string(cStr, cStr + sqlite3_column_bytes(stmt.get(), Index));
+  return value;
 }
 
-Connection Security::listenAssetClassChanged(const AssetClassChangedSignal::slot_type& slot) noexcept {
-  return signal_assetClassChanged.connect(slot);
 }
 
-Connection Security::listenSectorChanged(const SectorChangedSignal::slot_type& slot) noexcept {
-  return signal_sectorChanged.connect(slot);
+std::string symbol(const DataFile& dataFile, i64 security) noexcept {
+  return getSecurityField<symbolIndex>(dataFile, security);
 }
 
-Connection Security::listenPriceChanged(const PriceChangedSignal::slot_type& slot) noexcept {
-  return signal_priceChanged.connect(slot);
+std::string name(const DataFile& dataFile, i64 security) noexcept {
+  return getSecurityField<nameIndex>(dataFile, security);
 }
 
-std::string Security::symbol() const noexcept { return symbol_; }
-
-std::string Security::name() const noexcept { return name_; }
-
-std::string Security::assetClass() const noexcept { return assetClass_; }
-std::string Security::sector() const noexcept { return sector_; }
-
-const std::map<Date, Decimal>& Security::prices() const noexcept { return prices_; }
-
-void Security::setName(std::string name) {
-  std::string oldName = std::move(name_);
-  name_ = name;
-  signal_nameChanged(std::move(name), std::move(oldName));
+std::string assetClass(const DataFile& dataFile, i64 security) noexcept {
+  return getSecurityField<assetClassIndex>(dataFile, security);
 }
 
-void Security::setAssetClass(std::string assetClass) {
-  std::string oldAssetClass = std::move(assetClass_);
-  assetClass_ = assetClass;
-  signal_assetClassChanged(std::move(assetClass), std::move(oldAssetClass));
+std::string sector(const DataFile& dataFile, i64 security) noexcept {
+  return getSecurityField<sectorIndex>(dataFile, security);
 }
 
-void Security::setSector(std::string sector) {
-  std::string oldSector = std::move(sector_);
-  sector_ = sector;
-  signal_sectorChanged(std::move(sector), std::move(oldSector));
-}
-
-bool Security::setPrice(Date date, Decimal price) noexcept {
-  const auto oldPriceIter = prices_.find(date);
-  std::optional<Decimal> oldPrice = std::nullopt;
-
-  if (oldPriceIter != prices_.cend()) {
-    oldPrice = oldPriceIter->second;
+std::optional<pv::i64> price(const DataFile& dataFile, i64 security, i64 date) {
+  auto stmt = dataFile.query("SELECT Price FROM SecurityPrices WHERE SecurityId = ? AND Date = ?");
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  if (sqlite3_step(&*stmt) == SQLITE_ROW) {
+    return sqlite3_column_int64(&*stmt, 0);
+  } else {
+    return std::nullopt;
   }
-
-  prices_.insert_or_assign(date, price);
-
-  signal_priceChanged(std::move(date), std::move(price), std::move(oldPrice));
-
-  return true;
 }
 
-bool Security::removePrice(Date date) noexcept {
-  const auto oldPriceIter = prices_.find(date);
-  std::optional<Decimal> oldPrice = std::nullopt;
+std::optional<pv::i64> securityForSymbol(const DataFile& dataFile, std::string symbol) {
+  auto stmt = dataFile.query("SELECT Id FROM Securities WHERE Symbol = ?");
 
-  if (oldPriceIter == prices_.cend()) {
-    return false;
+  sqlite3_bind_text(&*stmt, 1, symbol.c_str(), static_cast<int>(symbol.length()), SQLITE_STATIC);
+  if (sqlite3_step(&*stmt) != SQLITE_ROW) {
+    return std::nullopt;
+  } else {
+    return sqlite3_column_int64(&*stmt, 0);
   }
-
-  oldPrice = oldPriceIter->second;
-  prices_.erase(oldPriceIter);
-
-  signal_priceChanged(std::move(date), std::nullopt, std::move(oldPrice));
-
-  return true;
 }
 
+} // namespace security
 } // namespace pv

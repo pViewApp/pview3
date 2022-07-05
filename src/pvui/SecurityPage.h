@@ -6,6 +6,7 @@
 #include "SecurityInsertionWidget.h"
 #include "SecurityModel.h"
 #include "SecurityPriceDownloader.h"
+#include "pv/Integer64.h"
 #include "pv/Security.h"
 #include <QAction>
 #include <QComboBox>
@@ -54,15 +55,17 @@ private:
   QSettings settings;
 
   void setupActions();
-  void setDataFile(pv::DataFile& dataFile);
 
-  pv::Security* currentSelectedSecurity();
+  std::optional<pv::i64> currentSelectedSecurity();
 
-  void setToolBarLabel(pv::Security* security);
-
+  void setToolBarLabel(std::optional<pv::i64> security);
 private slots:
+  void handleDataFileChanged();
+
+  void handleSecuritySubmitted(pv::i64 security);
+
   void beginUpdateSecurityPrices();
-  void updateSecurityPrices(std::map<QDate, pv::Decimal> data, QString symbol);
+  void updateSecurityPrices(std::map<QDate, pv::i64> data, QString symbol);
   void updateSecurityPricesError(QNetworkReply::NetworkError err, QString symbol);
   void endUpdateSecurityPrices();
 

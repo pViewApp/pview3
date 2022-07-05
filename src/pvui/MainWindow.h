@@ -4,6 +4,7 @@
 #include <QEvent>
 #include <QItemDelegate>
 #include <QLabel>
+#include <QSettings>
 #include <QMainWindow>
 #include <QSplitter>
 #include <QStackedLayout>
@@ -12,6 +13,7 @@
 #include <QTreeView>
 #include <QWidget>
 #include <unordered_map>
+#include <QMenu>
 
 #include "AccountPage.h"
 #include "DataFileManager.h"
@@ -24,6 +26,7 @@ namespace pvui {
 class MainWindow : public QMainWindow {
   Q_OBJECT
 private:
+  QSettings settings;
   QToolBar* mainToolBar = new QToolBar(this);
   QToolBar* currentToolBar = nullptr;
   DataFileManager dataFileManager;
@@ -36,27 +39,39 @@ private:
   QLabel* noPageOpen = new QLabel(tr("No Page Open"), content);
 
   QStackedLayout* contentLayout = new QStackedLayout(content);
-  AccountPageWidget* accountPage = new AccountPageWidget;
+  AccountPageWidget* accountPage = new AccountPageWidget(dataFileManager);
   SecurityPageWidget* securityPage = new SecurityPageWidget(dataFileManager);
 
-  // General actions
-  QAction newAccountAction = QAction(tr("New Account..."));
-  // navigationWidget context menu actions
-  QAction deleteAccountAction = QAction(tr("&Delete Account"));
+  //// MENU BAR
+  
+  QMenu fileMenu;
+  QAction fileNewAction;
+  QAction fileOpenAction;
+  QAction fileQuitAction;
+
+  QMenu accountsMenu;
+  QAction accountsNewAction;
+  QAction accountsDeleteAction;
 
   void setupToolBars();
   void hideToolBars();
 private slots:
+  void handleDataFileChanged();
   void pageChanged();
 
-protected:
-  pv::DataFile& dataFile() noexcept { return dataFileManager.dataFile(); }
-  void closeEvent(QCloseEvent* event) override;
-protected slots:
-  // Dialogs
-  void showDeleteAccountDialog();
-  void showAddAccountDialog();
+  void updateTitle();
 
+  // Action handlers
+  void fileNew();
+  void fileOpen();
+  void fileQuit();
+
+  void accountsNew();
+  void accountsDelete();
+
+  void fileOpen_(std::string location); // Actual implementation of file-opening logic
+protected:
+  void closeEvent(QCloseEvent* event) override;
 public:
   MainWindow(QWidget* parent = nullptr);
 

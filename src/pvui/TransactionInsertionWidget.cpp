@@ -2,14 +2,19 @@
 #include "ActionData.h"
 #include "SecurityUtils.h"
 #include "pv/DataFile.h"
+#include <sqlite3.h>
+#include "pv/Integer64.h"
 #include "pv/Security.h"
+#include "pvui/DataFileManager.h"
+#include <cmath>
 #include <QShortcut>
-#include <pv/Account.h>
+#include <optional>
+#include "DateUtils.h"
 
 namespace pvui {
 namespace controls {
-TransactionInsertionWidget::TransactionInsertionWidget(pv::DataFile* dataFile, pv::Account* account, QWidget* parent)
-    : QWidget(parent) {
+TransactionInsertionWidget::TransactionInsertionWidget(DataFileManager& dataFileManager, QWidget* parent)
+    : QWidget(parent), dataFileManager(dataFileManager) {
   dateEditor->setCalendarPopup(true);
   actionEditor->setEditable(true);
   securityEditor->setEditable(true);
@@ -52,63 +57,88 @@ TransactionInsertionWidget::TransactionInsertionWidget(pv::DataFile* dataFile, p
   QObject::connect(returnShortcut, &QShortcut::activated, this, &TransactionInsertionWidget::submit);
   QObject::connect(enterShortcut, &QShortcut::activated, this, &TransactionInsertionWidget::submit);
 
-  setAccount(dataFile, account);
-  setupActionList();
-
   setFocusProxy(dateEditor);
+
+  setupActionList();
+  handleDataFileChanged(); // Initialize in consistent state
+  //
+  // Handle dataFile
+  QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this, &TransactionInsertionWidget::handleDataFileChanged);
+}
+
+void TransactionInsertionWidget::handleDataFileChanged() {
+  setAccount(std::nullopt);
+  setupSecurityList();
+  reset();
+}
+
+void TransactionInsertionWidget::repopulateSecurityList() {
+  securityEditor->clear();
+  auto query = dataFileManager->query("SELECT Id FROM Securities");
+  if (!query) {
+    return;
+  }
+  while (sqlite3_step(&*query) == SQLITE_ROW) {
+    securityEditor->addItem(
+        QString::fromStdString(pv::security::symbol(*dataFileManager, sqlite3_column_int64(&*query, 0))));
+  }
 }
 
 void TransactionInsertionWidget::setupSecurityList() {
-  if (dataFileSecurityConnection.has_value()) {
-    dataFileSecurityConnection->disconnect();
-  }
+  securityAddedConnection.disconnect();
+  securityRemovedConnection.disconnect();
+  securityUpdatedConnection.disconnect();
+  resetConnection.disconnect();
 
-  if (dataFile_ == nullptr || account_ == nullptr) {
-    dataFileSecurityConnection = std::nullopt;
-    securityEditor->clear();
+  securityEditor->clear();
+if (!dataFileManager.has()) {
     return;
   }
 
-  dataFileSecurityConnection = dataFile_->listenSecurityAdded([this](pv::Security* security) {
+  securityAddedConnection = dataFileManager->onSecurityAdded([this](pv::i64 security) {
     QString text = securityEditor->currentText();
-    securityEditor->addItem(QString::fromStdString(security->symbol()));
+    securityEditor->addItem(QString::fromStdString(pv::security::symbol(*dataFileManager, security)), security);
     securityEditor->model()->sort(0);
     securityEditor->setCurrentText(text);
   });
 
-  securityEditor->clear();
+  securityRemovedConnection = dataFileManager->onSecurityRemoved(
+      [this](pv::i64 security) { securityEditor->removeItem(securityEditor->findData(security)); });
 
-  for (const auto* security : dataFile_->securities()) {
-    securityEditor->addItem(QString::fromStdString(security->symbol()));
-  }
+  resetConnection = dataFileManager->onRollback([this] { repopulateSecurityList(); });
+
+  repopulateSecurityList();
 
   securityEditor->model()->sort(0);
 }
 
 bool TransactionInsertionWidget::submit() {
+  if (!account_.has_value()) {
+    return false;
+  }
   std::string securitySymbol = securityEditor->currentText().trimmed().toStdString();
 
-  pv::Security* security = nullptr;
-
   QDate qDate = dateEditor->date();
-  auto date = pv::Date(pv::YearMonthDay(pv::Year(qDate.year()), pv::Month(qDate.month()), pv::Day(qDate.day())));
+  pv::i64 date = toEpochDate(qDate);
+  std::optional<pv::i64> security = std::nullopt;
+  pv::i64 numberOfShares = numberOfSharesEditor->value();
+  pv::i64 sharePrice = static_cast<pv::i64>(std::llround(sharePriceEditor->value() * 100));
+  pv::i64 commission = static_cast<pv::i64>(std::llround(commissionEditor->value() * 100));
+  pv::i64 amount = static_cast<pv::i64>(std::llround(totalAmountEditor->value() * 100));
 
   if (!securitySymbol.empty()) {
     // User requested this transaction to have a security
-    security = dataFile_->securityForSymbol(securitySymbol);
+    security = pv::security::securityForSymbol(*dataFileManager, securitySymbol);
 
-    if (security == nullptr) {
+    if (!security.has_value()) {
       // Security doesn't exist, create one
       static const std::string defaultSecurityAssetClass = "Equities";
       static const std::string defaultSecuritySector = "Other";
 
-      security =
-          dataFile_->addSecurity(securitySymbol, securitySymbol, defaultSecurityAssetClass, defaultSecuritySector);
+      dataFileManager->addSecurity(securitySymbol, securitySymbol, defaultSecurityAssetClass, defaultSecuritySector);
+      security = dataFileManager->lastInsertedId();
     }
   }
-
-  if (account_ == nullptr || dataFile_ == nullptr)
-    return false;
 
   const pvui::ActionData* actionData = pvui::actionData(actionEditor->currentText());
   if (actionData == nullptr) {
@@ -117,45 +147,50 @@ bool TransactionInsertionWidget::submit() {
 
   pv::Action action = actionData->action;
 
-  bool success = false;
+  pv::ResultCode result = pv::ResultCode::SQL_ERROR; // Use some error by default, overrwrite later if needed
 
   switch (action) {
   case pv::Action::BUY: {
-    success = account_->addTransaction(pv::BuyTransaction(
-               date, security, numberOfSharesEditor->decimalValue(), sharePriceEditor->decimalValue(),
-               commissionEditor->decimalValue())) == pv::TransactionOperationResult::SUCCESS;
+    if (!security.has_value()) {
+      return false;
+    }
+    result = dataFileManager->addBuyTransaction(*account_, date, *security, numberOfShares, sharePrice, commission);
     break;
   }
   case pv::Action::SELL: {
-    success = account_->addTransaction(pv::SellTransaction(
-               date, security, numberOfSharesEditor->decimalValue(), sharePriceEditor->decimalValue(),
-               commissionEditor->decimalValue())) == pv::TransactionOperationResult::SUCCESS;
+    if (!security.has_value()) {
+      return false;
+    }
+    result = dataFileManager->addSellTransaction(*account_, date, *security, numberOfShares, sharePrice, commission);
     break;
   }
   case pv::Action::DEPOSIT: {
-    success = account_->addTransaction(pv::DepositTransaction(
-                 date, security, totalAmountEditor->decimalValue()
-               )) == pv::TransactionOperationResult::SUCCESS;
+    result = dataFileManager->addDepositTransaction(*account_, date, security, amount);
     break;
   }
   case pv::Action::WITHDRAW: {
-    success = account_->addTransaction(pv::WithdrawTransaction(
-                 date, security, totalAmountEditor->decimalValue()
-               )) == pv::TransactionOperationResult::SUCCESS;
+    result = dataFileManager->addWithdrawTransaction(*account_, date, security, amount);
     break;
   }
   case pv::Action::DIVIDEND: {
-    success = account_->addTransaction(pv::DividendTransaction(
-                 date, security, totalAmountEditor->decimalValue()
-               )) == pv::TransactionOperationResult::SUCCESS;
+    if (!security.has_value()) {
+      return false;
+    }
+    result = dataFileManager->addDividendTransaction(*account_, date, *security, amount);
     break;
   }
+  }
+
+  if (result != pv::ResultCode::OK) {
+    return false;
   }
 
   reset();
   dateEditor->setFocus();
 
-  return success;
+  emit submitted(dataFileManager->lastInsertedId());
+
+  return true;
 }
 
 void TransactionInsertionWidget::reset() {
@@ -175,13 +210,12 @@ void TransactionInsertionWidget::setupActionList() {
   }
 }
 
-void TransactionInsertionWidget::setAccount(pv::DataFile* dataFile, pv::Account* account) {
+void TransactionInsertionWidget::setAccount(std::optional<pv::i64> account) {
   if (account_ == account)
     return;
 
   account_ = account;
-  dataFile_ = dataFile;
-  bool enabled = account != nullptr;
+  bool enabled = account_.has_value();
 
   setupSecurityList();
   reset();

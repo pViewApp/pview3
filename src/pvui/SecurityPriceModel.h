@@ -1,51 +1,42 @@
 #ifndef PVUI_MODELS_SECURITYPRICEMODEL_H
 #define PVUI_MODELS_SECURITYPRICEMODEL_H
 
-#include "pv/Decimal.h"
+#include "pv/DataFile.h"
 #include "pv/Security.h"
-#include <QAbstractItemModel>
-#include <boost/signals2.hpp>
+#include <QDate>
+#include "pv/Integer64.h"
+#include <QAbstractTableModel>
+#include "pv/Signals.h"
 #include <optional>
+#include <QAbstractTableModel>
 #include <set>
 #include <vector>
 
 namespace pvui::models {
 
-class SecurityPriceModel : public QAbstractItemModel {
+class SecurityPriceModel : public QAbstractTableModel {
   Q_OBJECT
 private:
-  std::vector<pv::Date> dates;
-  pv::Security* security_;
+  pv::DataFile& dataFile;
+  std::vector<pv::i64> dates;
+  pv::i64 security;
 
-  boost::signals2::scoped_connection securityPriceAddedConnection;
+  pv::ScopedConnection securityPriceUpdatedConnection;
+  pv::ScopedConnection securityPriceRemovedConnection;
+  pv::ScopedConnection resetConnection;
 
+  void repopulate();
 public:
-  SecurityPriceModel(pv::Security* security, QObject* parent = nullptr);
+  SecurityPriceModel(pv::DataFile& dataFile, pv::i64 security, QObject* parent = nullptr);
 
-  pv::Date mapToDate(const QModelIndex& index) const noexcept { return dates.at(index.row()); }
-  std::optional<QModelIndex> mapFromDate(pv::Date date);
+  QDate mapToDate(const QModelIndex& index) const noexcept;
+  std::optional<QModelIndex> mapFromDate(QDate date);
 
   // Overrides
 
-  QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override {
-    if (parent.isValid())
-      return QModelIndex(); // No children
-    return createIndex(row, column, nullptr);
-  }
+  int rowCount(const QModelIndex& parent = QModelIndex()) const override;
 
-  int rowCount(const QModelIndex& parent = QModelIndex()) const override {
-    if (parent.isValid())
-      return 0; // No children
-    return static_cast<int>(dates.size());
-  }
-
-  int columnCount(const QModelIndex& parent = QModelIndex()) const override {
-    if (parent.isValid())
-      return 0;
-    return 2;
-  }
-
-  QModelIndex parent(const QModelIndex&) const override { return QModelIndex(); }
+  int columnCount(const QModelIndex& parent = QModelIndex()) const override;
 
   Qt::ItemFlags flags(const QModelIndex& index) const override;
 
@@ -55,8 +46,9 @@ public:
 
   bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole) override;
 signals:
-  void dateAdded(pv::Date date);
-  void dateRemoved(pv::Date date);
+  void dateUpdated(pv::i64 date);
+  void dateRemoved(pv::i64 date);
+  void reset();
 };
 
 } // namespace pvui::models

@@ -1,10 +1,18 @@
 #include "SecurityPage.h"
 #include "SecurityModel.h"
+#include <Qt>
 #include "SecurityPriceDialog.h"
+#include "DateUtils.h"
+#include <cassert>
+#include <sqlite3.h>
+#include <QMetaObject>
 #include "SecurityUtils.h"
+#include "pv/Security.h"
+#include "pvui/SecurityInsertionWidget.h"
 #include <QCheckBox>
 #include <QHeaderView>
 #include <QMessageBox>
+#include <optional>
 
 pvui::SecurityPageWidget::SecurityPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent)
     : PageWidget(parent), dataFileManager_(dataFileManager) {
@@ -18,11 +26,19 @@ pvui::SecurityPageWidget::SecurityPageWidget(pvui::DataFileManager& dataFileMana
   setupActions();
 
   // Setup table
-  QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this,
-                   [this](pv::DataFile& dataFile) { setDataFile(dataFile); });
+  QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this, &SecurityPageWidget::handleDataFileChanged);
   if (currentPriceDownload != nullptr) {
     currentPriceDownload->abort();
   }
+  QObject::connect(insertionWidget, &controls::SecurityInsertionWidget::submitted, this, &SecurityPageWidget::handleSecuritySubmitted);
+  QObject::connect(&proxyModel, &QSortFilterProxyModel::sourceModelChanged, this, [this]{
+                     auto rc = table->model()->rowCount();
+                     (void) rc;
+                     table->update();
+                     table->updateGeometry();
+                     table->scrollToTop();
+                     table->scrollToBottom();
+                   }, Qt::QueuedConnection);
 
   proxyModel.sort(0, Qt::AscendingOrder);
   table->setSortingEnabled(true);
@@ -31,14 +47,14 @@ pvui::SecurityPageWidget::SecurityPageWidget(pvui::DataFileManager& dataFileMana
   table->verticalHeader()->hide();
   table->setSelectionBehavior(QTableView::SelectionBehavior::SelectRows);
   QObject::connect(table->selectionModel(), &QItemSelectionModel::selectionChanged, this, [&] {
-    pv::Security* security = currentSelectedSecurity();
-    bool enabled = security != nullptr;
+    std::optional<pv::i64> security = currentSelectedSecurity();
+    bool enabled = security.has_value();
     securityInfoAction.setEnabled(enabled);
     deleteSecurityAction.setEnabled(enabled);
     setToolBarLabel(security);
   });
 
-  setDataFile(*dataFileManager);
+  handleDataFileChanged();
 }
 
 void pvui::SecurityPageWidget::resetSecurityPriceUpdateDialog() {
@@ -52,7 +68,7 @@ void pvui::SecurityPageWidget::setupActions() {
 
   toolBar_->addWidget(toolBarTitleLabel);
   toolBarTitleLabel->setTextFormat(Qt::TextFormat::PlainText); // Disable HTML
-  setToolBarLabel(nullptr);
+  setToolBarLabel(std::nullopt);
 
   toolBar_->addAction(&securityInfoAction);
   toolBar_->addAction(&deleteSecurityAction);
@@ -63,17 +79,19 @@ void pvui::SecurityPageWidget::setupActions() {
   deleteSecurityAction.setShortcut(QKeySequence::Delete);
 
   QObject::connect(&securityInfoAction, &QAction::triggered, this, [&]() {
-    pv::Security* security = currentSelectedSecurity();
-    if (security == nullptr)
+    assert(dataFileManager_.has());
+    std::optional<pv::i64> security = currentSelectedSecurity();
+    if (!security.has_value())
       return;
 
-    dialogs::SecurityPriceDialog* dialog = new dialogs::SecurityPriceDialog(*security, this);
+    dialogs::SecurityPriceDialog* dialog = new dialogs::SecurityPriceDialog(dataFileManager_, *security);
     dialog->exec();
   });
 
   QObject::connect(&deleteSecurityAction, &QAction::triggered, this, [&]() {
-    pv::Security* security = currentSelectedSecurity();
-    if (security == nullptr)
+    assert(dataFileManager_.has());
+    std::optional<pv::i64> security = currentSelectedSecurity();
+    if (!security.has_value())
       return;
 
     dataFileManager_->removeSecurity(*security);
@@ -88,30 +106,41 @@ void pvui::SecurityPageWidget::setupActions() {
   table->setContextMenuPolicy(Qt::ActionsContextMenu);
 }
 
-void pvui::SecurityPageWidget::setDataFile(pv::DataFile& dataFile) {
-  model = std::make_unique<models::SecurityModel>(dataFile);
+void pvui::SecurityPageWidget::handleDataFileChanged() {
+  model = dataFileManager_.has() ? std::make_unique<models::SecurityModel>(*dataFileManager_) : nullptr;
   proxyModel.setSourceModel(model.get());
-  table->scrollToBottom();
+  securityInfoAction.setEnabled(dataFileManager_.has());
+  deleteSecurityAction.setEnabled(dataFileManager_.has());
+  updateSecurityPriceAction.setEnabled(dataFileManager_.has());
+
+  setToolBarLabel(std::nullopt);
 }
 
-pv::Security* pvui::SecurityPageWidget::currentSelectedSecurity() {
+void pvui::SecurityPageWidget::handleSecuritySubmitted(pv::i64 security) {
+  // Select the new security in the table
+  QModelIndex index = proxyModel.mapFromSource(model->index(model->rowOfSecurity(security), 0));
+  table->selectionModel()->select(index, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+  table->scrollTo(index);
+}
+
+std::optional<pv::i64> pvui::SecurityPageWidget::currentSelectedSecurity() {
   QItemSelection selection = table->selectionModel()->selection();
   if (selection.isEmpty())
-    return nullptr;
+    return std::nullopt;
 
   QItemSelectionRange range = selection.first();
 
   if (range.isEmpty())
-    return nullptr;
+    return std::nullopt;
 
   QModelIndex index = range.topLeft();
-  return model->mapFromIndex(proxyModel.mapToSource(index));
+  return model->securityOfRow(proxyModel.mapToSource(index).row());
 }
 
-void pvui::SecurityPageWidget::setToolBarLabel(pv::Security* security) {
+void pvui::SecurityPageWidget::setToolBarLabel(std::optional<pv::i64> security) {
   static QString format = QString::fromUtf8("%1: ");
-  if (security != nullptr) {
-    toolBarTitleLabel->setText(format.arg(QString::fromStdString(security->name())));
+  if (security.has_value()) {
+    toolBarTitleLabel->setText(format.arg(QString::fromStdString(pv::security::name(*dataFileManager_, *security))));
     toolBarTitleLabel->setEnabled(true);
     QFont bold = font();
     bold.setBold(true);
@@ -128,19 +157,20 @@ void pvui::SecurityPageWidget::beginUpdateSecurityPrices() {
     return; // Only 1 download at a time
   }
 
-  auto* currentSecurity = currentSelectedSecurity();
+  std::optional<pv::i64> currentSecurity = currentSelectedSecurity();
 
   auto endDate = QDate::currentDate().addDays(1);
   auto beginDate = endDate.addDays(-(3 * 31)); // 3 months
 
   QStringList symbols;
 
-  if (currentSecurity != nullptr) {
-    symbols.append(QString::fromStdString(currentSecurity->symbol()));
+  if (currentSecurity.has_value()) {
+    symbols.append(QString::fromStdString(pv::security::symbol(*dataFileManager_, *currentSecurity)));
   } else {
-    symbols.reserve(static_cast<int>(dataFileManager_->securities().size()));
-    for (const auto* security : dataFileManager_->securities()) {
-      symbols.append(QString::fromStdString(security->symbol()));
+    auto listSecuritiesQuery = dataFileManager_->query("SELECT Id From Securities");
+    while (sqlite3_step(&*listSecuritiesQuery) == SQLITE_ROW) {
+      std::string symbol = pv::security::symbol(*dataFileManager_, sqlite3_column_int64(&*listSecuritiesQuery, 0));
+      symbols += QString::fromStdString(symbol);
     }
   }
 
@@ -155,15 +185,23 @@ void pvui::SecurityPageWidget::beginUpdateSecurityPrices() {
                    &SecurityPageWidget::endUpdateSecurityPrices);
 }
 
-void pvui::SecurityPageWidget::updateSecurityPrices(std::map<QDate, pv::Decimal> prices, QString symbol) {
-  auto* security = dataFileManager_->securityForSymbol(symbol.toStdString());
+void pvui::SecurityPageWidget::updateSecurityPrices(std::map<QDate, pv::i64> prices, QString symbol) {
+  if (!dataFileManager_.has()) {
+    return;
+  }
+
+  pv::i64 security = *pv::security::securityForSymbol(*dataFileManager_, symbol.toStdString());
+
+  bool transactionCreated = dataFileManager_->beginTransaction() == pv::ResultCode::OK;
   for (const auto& pair : prices) {
-    auto pvDate = pv::Date(
-        pv::YearMonthDay(pv::Year(pair.first.year()), pv::Month(pair.first.month()), pv::Day(pair.first.day())));
-    if (security->prices().find(pvDate) == security->prices().cend()) {
+    pv::i64 date = toEpochDate(pair.first);
+    if (!pv::security::price(*dataFileManager_, security, date).has_value()) {
       // Only do it if no existing price on pvDate
-      security->setPrice(pvDate, pair.second);
+      dataFileManager_->setSecurityPrice(security, date, pair.second);
     }
+  }
+  if (transactionCreated) {
+    dataFileManager_->commitTransaction();
   }
 }
 

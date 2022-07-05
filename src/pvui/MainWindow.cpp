@@ -1,15 +1,21 @@
 #include "MainWindow.h"
 #include "DataFileManager.h"
+#include "pv/DataFile.h"
+#include <QStandardPaths>
 #include <QApplication>
+#include <sqlite3.h>
+#include <QFileDialog>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLayout>
 #include <QMenuBar>
 #include <QMessageBox>
-#include <QSettings>
 #include <QShortcut>
 #include <QString>
+#include <filesystem>
 #include <functional>
+#include <QAction>
+#include <QStringLiteral>
 
 constexpr int windowWidth = 800;
 constexpr int windowHeight = 600;
@@ -22,6 +28,63 @@ void hideToolBar(QToolBar* toolBar) {
 }
 } // namespace
 
+pvui::MainWindow::MainWindow(QWidget* parent)
+    : QMainWindow(parent), fileMenu(tr("&File")), fileNewAction(tr("&New")), fileOpenAction(tr("&Open")),
+      fileQuitAction(tr("&Quit")), accountsMenu(tr("&Accounts")), accountsNewAction(tr("&New Account")),
+      accountsDeleteAction(tr("&Delete Account")) {
+  settings.beginGroup(QStringLiteral("pvui/MainWindow"));
+
+  QWidget* centralWidget = new QWidget;
+  QVBoxLayout* layout = new QVBoxLayout;
+
+  auto* splitter = new QSplitter(Qt::Orientation::Horizontal);
+
+  centralWidget->setLayout(layout);
+
+  layout->addWidget(splitter);
+  splitter->addWidget(navigationWidget);
+  splitter->addWidget(content);
+
+  setCentralWidget(centralWidget);
+  resize(windowWidth, windowHeight);
+
+  // Setup title
+  updateTitle();
+  QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this, &MainWindow::handleDataFileChanged);
+
+  setupToolBars();
+  setupNavigation();
+  setupMenuBar();
+
+  // Restore state
+  if (settings.contains("state")) {
+    restoreState(settings.value("state").toByteArray());
+  }
+  if (settings.contains("geometry")) {
+    restoreGeometry(settings.value("geometry").toByteArray());
+  }
+
+  hideToolBars();
+  handleDataFileChanged();
+
+  if (settings.contains(QStringLiteral("lastOpenedFile"))) {
+    fileOpen_(settings.value(QStringLiteral("lastOpenedFile")).toString().toStdString());
+  }
+}
+
+void pvui::MainWindow::handleDataFileChanged() {
+  updateTitle();
+
+  navigationWidget->selectionModel()->clearSelection();
+
+  navigationWidget->setEnabled(dataFileManager.has());
+  accountsNewAction.setEnabled(dataFileManager.has());
+  accountsDeleteAction.setEnabled(dataFileManager.has());
+  accountsMenu.setEnabled(dataFileManager.has());
+
+  noPageOpen->setText(dataFileManager.has() ? tr("No Page Open") : tr("Create a new file with <b>File>New</b>."));
+}
+
 void pvui::MainWindow::setupToolBars() {
   // Disable the hide toolbar context menu
   setContextMenuPolicy(Qt::NoContextMenu);
@@ -30,7 +93,7 @@ void pvui::MainWindow::setupToolBars() {
   mainToolBar->setObjectName(QString::fromUtf8("mainPageToolBar"));
   addToolBar(mainToolBar);
   mainToolBar->setWindowTitle(tr("Accounts"));
-  mainToolBar->addAction(&newAccountAction);
+  mainToolBar->addAction(&accountsNewAction);
 
   // Setup toolbars for each of the pages
   setupToolBar(accountPage->toolBar());
@@ -61,15 +124,15 @@ void pvui::MainWindow::pageChanged() {
   PageWidget* newPage = nullptr;
   // Create context menu
   if (navigationModel.isAccountsHeader(indexOfNewPage)) {
-    navigationWidget->addAction(&newAccountAction);
+    navigationWidget->addAction(&accountsNewAction);
   } else if (navigationModel.isAccountPage(indexOfNewPage)) {
-    navigationWidget->addAction(&newAccountAction);
-    navigationWidget->addAction(&deleteAccountAction);
+    navigationWidget->addAction(&accountsNewAction);
+    navigationWidget->addAction(&accountsDeleteAction);
   }
 
   if (navigationModel.isAccountPage(indexOfNewPage)) {
     newPage = accountPage;
-    accountPage->setAccount(&*dataFileManager, navigationModel.accountFromIndex(indexOfNewPage));
+    accountPage->setAccount(navigationModel.accountFromIndex(indexOfNewPage));
 
   } else if (navigationModel.isSecuritiesPage(indexOfNewPage)) {
     newPage = securityPage;
@@ -95,42 +158,9 @@ void pvui::MainWindow::pageChanged() {
 }
 
 void pvui::MainWindow::closeEvent(QCloseEvent* event) {
-  QSettings settings;
-  settings.setValue("window/state", saveState());
-  settings.setValue("window/geometry", saveGeometry());
+  settings.setValue("state", saveState());
+  settings.setValue("geometry", saveGeometry());
   QMainWindow::closeEvent(event);
-}
-
-pvui::MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
-  QWidget* centralWidget = new QWidget;
-  QVBoxLayout* layout = new QVBoxLayout;
-
-  auto* splitter = new QSplitter(Qt::Orientation::Horizontal);
-
-  centralWidget->setLayout(layout);
-
-  layout->addWidget(splitter);
-  splitter->addWidget(navigationWidget);
-  splitter->addWidget(content);
-
-  setCentralWidget(centralWidget);
-  resize(windowWidth, windowHeight);
-  setWindowTitle(QApplication::translate("windowTitle", "pView"));
-
-  setupToolBars();
-  setupNavigation();
-  setupMenuBar();
-
-  // Restore state
-  QSettings settings;
-  if (settings.contains("window/state")) {
-    restoreState(settings.value("window/state").toByteArray());
-  }
-  if (settings.contains("window/geometry")) {
-    restoreGeometry(settings.value("window/geometry").toByteArray());
-  }
-
-  hideToolBars();
 }
 
 void pvui::MainWindow::setupToolBar(QToolBar* toolBar) {
@@ -141,23 +171,113 @@ void pvui::MainWindow::setupToolBar(QToolBar* toolBar) {
 }
 
 void pvui::MainWindow::setupMenuBar() {
-  auto* fileMenu = menuBar()->addMenu("&File");
-  {
-    auto* openItem = new QAction("&Open");
-    openItem->setShortcut(QKeySequence::Open);
+  menuBar()->addMenu(&fileMenu);
+  menuBar()->addMenu(&accountsMenu);
 
-    auto* newItem = new QAction("&New");
-    newItem->setShortcut(QKeySequence::New);
+  fileMenu.addActions({&fileNewAction, &fileOpenAction});
+  fileMenu.addSeparator();
+  fileMenu.addAction(&fileQuitAction);
 
-    fileMenu->addActions({openItem, newItem});
+  accountsMenu.addAction(&accountsNewAction);
+
+  QObject::connect(&fileNewAction, &QAction::triggered, this, &MainWindow::fileNew);
+  QObject::connect(&fileOpenAction, &QAction::triggered, this, &MainWindow::fileOpen);
+  QObject::connect(&fileQuitAction, &QAction::triggered, this, &MainWindow::fileQuit);
+
+  QObject::connect(&accountsNewAction, &QAction::triggered, this, &MainWindow::accountsNew);
+  QObject::connect(&accountsDeleteAction, &QAction::triggered, this, &MainWindow::accountsDelete);
+
+  fileNewAction.setShortcut(QKeySequence::New);
+  fileOpenAction.setShortcut(QKeySequence::Open);
+  fileQuitAction.setShortcut(QKeySequence::Quit);
+
+  fileQuitAction.setMenuRole(QAction::MenuRole::QuitRole);
+}
+
+void pvui::MainWindow::fileNew() {
+  QString dir = settings
+                    .value(QStringLiteral("pvui/mainWindow/newDirectory"),
+                           QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
+                    .toString();
+  QString fileQStr = QFileDialog::getSaveFileName(this, tr("Open File"), dir, tr("pView Files (*.pvf);;All Files (*.*)"));
+  if (fileQStr.isNull()) {
+    return;
+  };
+  std::string file = fileQStr.toStdString();
+  try {
+    // delete the file if it exists already, since we want to replace it
+    std::filesystem::remove(std::filesystem::path(file));
+  } catch (...) {
+    // failure is ok, we can still open the file
   }
 
-  auto* accountMenu = menuBar()->addMenu("&Accounts");
-  {
-    auto* newItem = new QAction("&New");
-    QObject::connect(newItem, &QAction::triggered, this, &MainWindow::showAddAccountDialog);
+  try {
+    dataFileManager.setDataFile(pv::DataFile(file));
+    settings.setValue(QStringLiteral("lastOpenedFile"), fileQStr);
+  } catch (...) {
+    QMessageBox::critical(this, tr("Failed to Create File"),
+                          tr("pView couldn't create the file. Please try again later."));
+  }
 
-    accountMenu->addActions({newItem});
+  updateTitle();
+}
+
+void pvui::MainWindow::fileOpen() {
+  QString dir = settings
+                    .value(QStringLiteral("pvui/mainWindow/openDirectory"),
+                           QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
+                    .toString();
+  QString file_ = QFileDialog::getOpenFileName(this, tr("Open File"), dir, tr("pView Files (*.pvf);;All Files (*.*)"));
+  if (file_.isNull()) {
+    return;
+  }
+  std::string file = file_.toStdString();
+
+  fileOpen_(std::move(file));
+}
+
+void pvui::MainWindow::fileOpen_(std::string location) {
+  try {
+    dataFileManager.setDataFile(
+        pv::DataFile(location, SQLITE_OPEN_READWRITE)); // unset SQLITE_OPEN_CREATE, because we don't want to create a new file if it doesn't already exist
+    settings.setValue(QStringLiteral("lastOpenedFile"), QString::fromStdString(location));
+  } catch (...) {
+    QString fileName = QString::fromStdString(std::filesystem::path(location).filename().string());
+    QMessageBox::critical(this, tr("Failed to Open File"),
+                          tr("pView couldn't open %1. Please check that the file exists and is a valid pView file.").arg(fileName));
+  }
+  updateTitle();
+}
+
+void pvui::MainWindow::fileQuit() { close(); }
+
+void pvui::MainWindow::accountsDelete() {
+  pv::i64 account = navigationModel.accountFromIndex(navigationWidget->selectionModel()->currentIndex());
+  QMessageBox::Button userResponse = QMessageBox::warning(
+      this, tr("Deleting Account %1").arg(QString::fromStdString(pv::account::name(*dataFileManager, account))),
+      tr("Are you sure you want to delete this account and it's transactions? This cannot be undone."),
+      QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+  if (userResponse == QMessageBox::Yes) {
+    dataFileManager->removeAccount(account);
+  }
+}
+
+void pvui::MainWindow::accountsNew() {
+  bool ok = false;
+  QString text = QInputDialog::getText(this, tr("Create an Account"), tr("Account Name:"), QLineEdit::Normal, "", &ok);
+  if (ok) {
+    auto trimmedText = text.trimmed();
+    if (!trimmedText.isEmpty()) {
+      if (dataFileManager->addAccount(trimmedText.toStdString()) != pv::ResultCode::OK) {
+        return;
+      }
+      pv::i64 account = dataFileManager->lastInsertedId();
+      navigationWidget->expand(navigationModel.accountsHeader());
+      navigationWidget->selectionModel()->setCurrentIndex(navigationModel.accountToIndex(account),
+                                                          QItemSelectionModel::ClearAndSelect);
+    } else {
+      QMessageBox::warning(this, tr("Invalid Account Name"), tr("The account name must not be empty"));
+    }
   }
 }
 
@@ -195,42 +315,19 @@ void pvui::MainWindow::setupNavigation() {
 
   // Setup context menu
 
-  deleteAccountAction.setShortcut(QKeySequence::StandardKey::Delete);
-  deleteAccountAction.setShortcutContext(Qt::WidgetShortcut);
-
-  QObject::connect(&newAccountAction, &QAction::triggered, this, &MainWindow::showAddAccountDialog);
-  QObject::connect(&deleteAccountAction, &QAction::triggered, this, &MainWindow::showDeleteAccountDialog);
+  accountsDeleteAction.setShortcut(QKeySequence::StandardKey::Delete);
+  accountsDeleteAction.setShortcutContext(Qt::WidgetShortcut);
 
   navigationWidget->setContextMenuPolicy(Qt::ActionsContextMenu);
 }
 
-void pvui::MainWindow::showDeleteAccountDialog() {
-  pv::Account* account = navigationModel.accountFromIndex(navigationWidget->selectionModel()->currentIndex());
-
-  QMessageBox::Button userResponse = QMessageBox::warning(
-      this, tr("Deleting Account %1").arg(QString::fromStdString(account->name())),
-      tr("Are you sure you want to delete this account and it's transactions? This cannot be undone."),
-      QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
-
-  if (userResponse == QMessageBox::Yes) {
-    dataFileManager->removeAccount(*account);
+void pvui::MainWindow::updateTitle() {
+  if (dataFileManager.has()) {
+    std::filesystem::path filePath =
+        dataFileManager->filePath().value_or(tr("Temporary File (Changes Will Not Be Saved)").toStdString());
+    setWindowTitle(tr("%1 - pView").arg(QString::fromStdString(filePath.filename().string())));
+  } else {
+    setWindowTitle(tr("No File Open - pView"));
   }
 }
 
-void pvui::MainWindow::showAddAccountDialog() {
-  bool ok = false;
-  QString text = QInputDialog::getText(this, tr("Create an Account"), tr("Account Name:"), QLineEdit::Normal, "", &ok);
-
-  if (ok) {
-    auto trimmedText = text.trimmed();
-    if (!trimmedText.isEmpty()) {
-      pv::Account* account = dataFile().addAccount(trimmedText.toStdString());
-
-      navigationWidget->expand(navigationModel.accountsHeader());
-      navigationWidget->selectionModel()->setCurrentIndex(navigationModel.accountToIndex(*account),
-                                                          QItemSelectionModel::ClearAndSelect);
-    } else {
-      QMessageBox::warning(this, tr("Invalid Account Name"), tr("The account name must not be empty"));
-    }
-  }
-}

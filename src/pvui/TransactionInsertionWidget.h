@@ -2,8 +2,9 @@
 #define PVUI_CONTROLS_TRANSACTIONINSERTIONWIDGET_H
 
 #include "ExtendedSpinBox.h"
-#include "pv/Account.h"
-#include "pv/Transaction.h"
+#include "pv/Integer64.h"
+#include "pv/Signals.h"
+#include "pvui/DataFileManager.h"
 #include <QComboBox>
 #include <QDateEdit>
 #include <QHBoxLayout>
@@ -16,35 +17,38 @@ namespace controls {
 class TransactionInsertionWidget : public QWidget {
   Q_OBJECT
 private:
-  pv::DataFile* dataFile_;
-  pv::Account* account_;
+  DataFileManager& dataFileManager;
+  std::optional<pv::i64> account_;
 
   QHBoxLayout* layout = new QHBoxLayout(this);
   QDateEdit* dateEditor = new QDateEdit;
   QComboBox* actionEditor = new QComboBox;
   QComboBox* securityEditor = new QComboBox;
-  controls::ExtendedDoubleSpinBox* numberOfSharesEditor = new controls::ExtendedDoubleSpinBox;
+  controls::ExtendedSpinBox* numberOfSharesEditor = new controls::ExtendedSpinBox;
   controls::ExtendedDoubleSpinBox* sharePriceEditor = new controls::ExtendedDoubleSpinBox;
   controls::ExtendedDoubleSpinBox* commissionEditor = new controls::ExtendedDoubleSpinBox;
   controls::ExtendedDoubleSpinBox* totalAmountEditor = new controls::ExtendedDoubleSpinBox;
 
-  std::optional<boost::signals2::connection> dataFileSecurityConnection =
-      std::nullopt; // Connection to the current DataFile's securityAdded()
-                    // signal
-  void reset();
+  pv::ScopedConnection securityAddedConnection;
+  pv::ScopedConnection securityUpdatedConnection;
+  pv::ScopedConnection securityRemovedConnection;
+  pv::ScopedConnection resetConnection;
 
-public:
-  TransactionInsertionWidget(pv::DataFile* dataFile = nullptr, pv::Account* account = nullptr,
-                             QWidget* parent = nullptr);
-protected slots:
+  void reset();
+  void repopulateSecurityList();
+private slots:
+  void handleDataFileChanged();
   void setupActionList();
   void setupSecurityList();
+public:
+  TransactionInsertionWidget(DataFileManager& dataFile,
+                             QWidget* parent = nullptr);
 public slots:
   bool submit();
 
-  /// \note Set \c dataFile and \c account to nullptr to disable.
-  /// \note Undefined behaviour if (\c dataFile does not own \c account) AND \c account != \c nullptr
-  void setAccount(pv::DataFile* dataFile, pv::Account* account);
+  void setAccount(std::optional<pv::i64> account);
+signals:
+  void submitted(pv::i64 transaction);
 };
 } // namespace controls
 } // namespace pvui

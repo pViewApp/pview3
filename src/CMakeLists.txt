@@ -1,7 +1,8 @@
-set(QT_VERSION "5" CACHE STRING "The Qt Version")
+set(QT_VERSION "5" CACHE STRING "The Qt Version (5 or 6)")
 find_package(Boost REQUIRED)
 find_package(Qt${QT_VERSION} COMPONENTS Core Gui Widgets Network REQUIRED)
 find_package(Qwt REQUIRED)
+find_package(SQLite3 REQUIRED)
 
 add_executable(pview
 	pv/Account.h
@@ -10,8 +11,6 @@ add_executable(pview
 	pv/Algorithms.cpp
 	pv/Transaction.h
 	pv/Transaction.cpp
-	pv/Date.h
-	pv/Decimal.h
 	pv/Security.h
 	pv/Security.cpp
 	pv/DataFile.h
@@ -23,6 +22,9 @@ add_executable(pview
 	pvui/ActionData.h
 	pvui/ActionData.cpp
 	pvui/DataFileManager.h
+	pvui/DataFileManager.cpp
+  pvui/DateUtils.h
+  pvui/DateUtils.cpp
 	pvui/ExtendedSpinBox.h
 	pvui/ExtendedSpinbox.cpp
 	pvui/FormatUtils.h
@@ -33,9 +35,6 @@ add_executable(pview
 	pvui/HoldingsReport.h
 	pvui/HoldingsModel.cpp
 	pvui/HoldingsModel.h
-	pvui/ReportGrouper.h
-	pvui/ReportGroupers.h
-	pvui/ReportGroupers.cpp
 	pvui/MainWindow.cpp
 	pvui/MainWindow.h
 	pvui/NavigationModel.h
@@ -73,10 +72,11 @@ add_executable(pview
 	pvui/main.cpp
 )
 
-target_include_directories(pview PRIVATE ${Boost_INCLUDE_DIRS})
-target_include_directories(pview PRIVATE ${QWT_INCLUDE_DIR})
-target_compile_features(pview PRIVATE cxx_std_17)
-target_link_libraries(pview PRIVATE ${Boost_LIBRARIES} Qt${QT_VERSION}::Core Qt${QT_VERSION}::Gui Qt${QT_VERSION}::Gui Qt${QT_VERSION}::Widgets Qt${QT_VERSION}::Network date::date ${QWT_LIBRARIES})
+target_include_directories(pview SYSTEM PRIVATE ${SQLite3_INCLUDE_DIRS})
+target_include_directories(pview SYSTEM PRIVATE ${Boost_INCLUDE_DIRS})
+target_include_directories(pview SYSTEM PRIVATE ${QWT_INCLUDE_DIR})
+target_compile_features(pview PUBLIC cxx_std_17)
+target_link_libraries(pview PRIVATE ${SQLite3_LIBRARIES} ${Boost_LIBRARIES} Qt${QT_VERSION}::Core Qt${QT_VERSION}::Gui Qt${QT_VERSION}::Gui Qt${QT_VERSION}::Widgets Qt${QT_VERSION}::Network ${QWT_LIBRARIES})
 
 if(MSVC)
 	target_compile_options(pview PRIVATE /W4 /WX)
@@ -85,7 +85,7 @@ else()
 endif()
 
 set_target_properties(pview PROPERTIES
-		 MACOSX_BUNDLE_GUI_IDENTIFIER io.github.pviewapp.pview
+   MACOSX_BUNDLE_GUI_IDENTIFIER io.github.pviewapp.pview
 	 MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
 	 MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
 	 MACOSX_BUNDLE TRUE

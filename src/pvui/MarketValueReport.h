@@ -2,7 +2,6 @@
 #define PVUI_REPORTS_MARKETVALUEREPORT_H
 
 #include "Report.h"
-#include "ReportGrouper.h"
 #include <QComboBox>
 #include <QDate>
 #include <QHBoxLayout>
@@ -25,8 +24,6 @@ private:
 
   QHBoxLayout* groupBySelectorLayout = new QHBoxLayout;
 
-  static pv::Date convertDate(QDate date) noexcept;
-
   QwtPlot* const plot = createPlot();
   QwtPlotMultiBarChart chart;
   QwtPlotCurve costBasisCurve;
@@ -36,14 +33,14 @@ private:
 
   QwtScaleDiv* div;
 
-  void drawPlot(std::function<QString(const pv::Security*)> grouper) noexcept;
+  void drawPlot(std::function<QString(pv::i64)> grouper) noexcept;
 
   QwtScaleDiv createScaleDiv() const noexcept;
 
 public:
   using DateSupplier = std::function<QDate()>;
   using IntervalSupplier = std::function<int /* days */ ()>;
-  MarketValueReport(QString name, const DataFileManager& dataFileManager, QWidget* parent = nullptr);
+  MarketValueReport(QString name, DataFileManager& dataFileManager, QWidget* parent = nullptr);
 
   DateSupplier start = []() { return QDate::currentDate(); };
   DateSupplier end = []() { return QDate::currentDate(); };

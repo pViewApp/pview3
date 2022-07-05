@@ -6,6 +6,9 @@
 #include "TransactionInsertionWidget.h"
 #include "TransactionModel.h"
 #include "pv/Account.h"
+#include "pv/Integer64.h"
+#include "pv/Signals.h"
+#include "pvui/DataFileManager.h"
 #include <QAction>
 #include <QComboBox>
 #include <QDate>
@@ -15,39 +18,48 @@
 #include <QTableView>
 #include <QVariant>
 #include <QWidget>
-#include <boost/signals2.hpp>
-#include <boost/signals2/connection.hpp>
-#include <memory>
-#include <optional>
 
 namespace pvui {
 
 class AccountPageWidget : public PageWidget {
   Q_OBJECT
 private:
-  pv::Account* account_ = nullptr;
+  DataFileManager& dataFileManager;
+  std::optional<pv::i64> account_;
+
+  pv::ScopedConnection accountUpdatedConnection;
+  pv::ScopedConnection transactionAddedConnection;
+  pv::ScopedConnection transactionRemovedConnection;
+  pv::ScopedConnection transactionUpdatedConnection;
+  pv::ScopedConnection resetConnection;
+
   QTableView* table = new QTableView;
-  controls::TransactionInsertionWidget* insertWidget = new controls::TransactionInsertionWidget();
+  controls::TransactionInsertionWidget* insertWidget;
   QSortFilterProxyModel* proxyModel = new QSortFilterProxyModel(table);
   std::unique_ptr<models::TransactionModel> model = nullptr;
 
-  boost::signals2::scoped_connection accountNameChangedConnection;
-  boost::signals2::scoped_connection transactionAddedConnection;
-  boost::signals2::scoped_connection transactionRemovedConnection;
-  boost::signals2::scoped_connection transactionChangedConnection;
-
   QAction deleteTransactionAction = QAction(tr("Delete Selected Transactions"));
 
-public:
-  AccountPageWidget(pv::DataFile* dataFile = nullptr, pv::Account* account = nullptr, QWidget* parent = nullptr);
-private slots:
   void updateCashBalance() noexcept;
   void updateTitle();
+private slots:
+  void handleAccountUpdated(pv::i64 account);
+  void handleTransactionsUpdated(pv::i64 transaction, bool removed);
+  void handleReset();
+
+  void handleTransactionSubmitted(pv::i64 transaction);
+
+  void deleteSelectedTransactions();
+
+  void handleDataFileChanged();
+public:
+  AccountPageWidget(DataFileManager& dataFileManager, QWidget* parent = nullptr);
 public slots:
-  void setAccount(pv::DataFile* dataFile, pv::Account* account);
+  void setAccount(std::optional<pv::i64> account);
 signals:
-  void accountTransactionsChanged();
-  void accountNameChanged();
+  void accountUpdated(pv::i64 account);
+  void transactionUpdated(pv::i64 transaction, bool removed = false);
+  void reset();
 };
 
 } // namespace pvui

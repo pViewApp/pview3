@@ -1,9 +1,20 @@
 #include "TransactionModel.h"
 #include "ActionData.h"
 #include "ModelUtils.h"
+#include <Qt>
 #include "pv/DataFile.h"
+#include <sqlite3.h>
+#include "pv/Integer64.h"
+#include "pv/Security.h"
+#include "pv/Transaction.h"
 #include <QDate>
 #include <cassert>
+#include <cmath>
+#include <optional>
+#include <QStringLiteral>
+#include "DateUtils.h"
+#include <QAbstractTableModel>
+
 
 namespace {
 
@@ -16,150 +27,243 @@ constexpr int commissionColumn = 5;
 constexpr int totalAmountColumn = 6;
 constexpr int columnCount = 7;
 
-QDate qDateFromPvDate(pv::Date date) {
-  pv::YearMonthDay ymd(date);
-  return QDate(static_cast<int>(ymd.year()), static_cast<unsigned int>(ymd.month()),
-               static_cast<unsigned int>(ymd.day()));
+std::optional<pv::i64> getSecurity(const pv::DataFile& dataFile, pv::i64 transaction) {
+  switch (pv::transaction::action(dataFile, transaction)) {
+  case pv::Action::BUY:
+    return pv::transaction::buySecurity(dataFile, transaction);
+  case pv::Action::SELL:
+    return pv::transaction::sellSecurity(dataFile, transaction);
+  case pv::Action::DEPOSIT:
+    return pv::transaction::depositSecurity(dataFile, transaction);
+  case pv::Action::WITHDRAW:
+    return pv::transaction::withdrawSecurity(dataFile, transaction);
+  case pv::Action::DIVIDEND:
+    return pv::transaction::dividendSecurity(dataFile, transaction);
+  default:
+    return std::nullopt;
+  }
 }
 
-pv::Date pvDateFromQDate(QDate date) {
-  return pv::Date(pv::YearMonthDay(pv::Year(date.year()), pv::Month(date.month()), pv::Day(date.day())));
+std::optional<pv::i64> getNumberOfShares(const pv::DataFile& dataFile, pv::i64 transaction) {
+  switch (pv::transaction::action(dataFile, transaction)) {
+  case pv::Action::BUY:
+    return pv::transaction::buyNumberOfShares(dataFile, transaction);
+  case pv::Action::SELL:
+    return pv::transaction::sellNumberOfShares(dataFile, transaction);
+  default:
+    return std::nullopt;
+  }
 }
 
-pv::Decimal nanDec() { return pv::Decimal(0) / 0; }
+std::optional<pv::i64> getSharePrice(const pv::DataFile& dataFile, pv::i64 transaction) {
+  switch (pv::transaction::action(dataFile, transaction)) {
+  case pv::Action::BUY:
+    return pv::transaction::buySharePrice(dataFile, transaction);
+  case pv::Action::SELL:
+    return pv::transaction::sellSharePrice(dataFile, transaction);
+  default:
+    return std::nullopt;
+  }
+}
+
+std::optional<pv::i64> getCommission(const pv::DataFile& dataFile, pv::i64 transaction) {
+  switch (pv::transaction::action(dataFile, transaction)) {
+  case pv::Action::BUY:
+    return pv::transaction::buyCommission(dataFile, transaction);
+  case pv::Action::SELL:
+    return pv::transaction::sellCommission(dataFile, transaction);
+  default:
+    return std::nullopt;
+  }
+}
+
+std::optional<pv::i64> getTotalAmount(const pv::DataFile& dataFile, pv::i64 transaction) {
+  switch (pv::transaction::action(dataFile, transaction)) {
+  case pv::Action::BUY:
+    return pv::transaction::buyAmount(dataFile, transaction);
+  case pv::Action::SELL:
+    return pv::transaction::sellAmount(dataFile, transaction);
+  case pv::Action::DEPOSIT:
+    return pv::transaction::depositAmount(dataFile, transaction);
+  case pv::Action::WITHDRAW:
+    return pv::transaction::withdrawAmount(dataFile, transaction);
+  case pv::Action::DIVIDEND:
+    return pv::transaction::dividendAmount(dataFile, transaction);
+  default:
+    return std::nullopt;
+  }
+}
+
+bool setNumberOfShares(pv::DataFile& dataFile, pv::i64 transaction, pv::i64 numberOfShares) {
+  switch (pv::transaction::action(dataFile, transaction)) {
+  case pv::Action::BUY:
+    return dataFile.setBuyNumberOfShares(transaction, numberOfShares) == pv::ResultCode::OK;
+  case pv::Action::SELL:
+    return dataFile.setSellNumberOfShares(transaction, numberOfShares) == pv::ResultCode::OK;
+  default:
+    return false;
+  }
+}
+
+bool setSharePrice(pv::DataFile& dataFile, pv::i64 transaction, pv::i64 sharePrice) {
+  switch (pv::transaction::action(dataFile, transaction)) {
+  case pv::Action::BUY:
+    return dataFile.setBuySharePrice(transaction, sharePrice) == pv::ResultCode::OK;
+  case pv::Action::SELL:
+    return dataFile.setSellSharePrice(transaction, sharePrice) == pv::ResultCode::OK;
+  default:
+    return false;
+  }
+}
+
+bool setCommission(pv::DataFile& dataFile, pv::i64 transaction, pv::i64 commission) {
+  switch (pv::transaction::action(dataFile, transaction)) {
+  case pv::Action::BUY:
+    return dataFile.setBuyCommission(transaction, commission) == pv::ResultCode::OK;
+  case pv::Action::SELL:
+    return dataFile.setSellCommission(transaction, commission) == pv::ResultCode::OK;
+  default:
+    return false;
+  }
+}
+
+bool setAmount(pv::DataFile& dataFile, pv::i64 transaction, pv::i64 commission) {
+  switch (pv::transaction::action(dataFile, transaction)) {
+  case pv::Action::DEPOSIT:
+    return dataFile.setDepositAmount(transaction, commission) == pv::ResultCode::OK;
+  case pv::Action::WITHDRAW:
+    return dataFile.setWithdrawAmount(transaction, commission) == pv::ResultCode::OK;
+  case pv::Action::DIVIDEND:
+    return dataFile.setDividendAmount(transaction, commission) == pv::ResultCode::OK;
+  default:
+    return false;
+  }
+}
 
 } // namespace
 
-pvui::models::TransactionModel::DisplayData
-pvui::models::TransactionModel::createDisplayData(const pv::Transaction& transaction) noexcept {
-  const auto* action = pvui::actionData(transaction.action());
+pvui::models::TransactionModel::TransactionModel(pv::DataFile& dataFile, pv::i64 account, QObject* parent)
+    : QAbstractTableModel(parent), dataFile(dataFile), account(account) {
+  repopulate();
 
-  switch (transaction.action()) {
-  case pv::Action::BUY: {
-    const auto& t = static_cast<const pv::BuyTransaction&>(transaction);
-    return {t.date,
-            action,
-            t.security,
-            t.numberOfShares,
-            t.sharePrice,
-            t.commission,
-            (t.numberOfShares * t.sharePrice) + t.commission};
-  }
-  case pv::Action::SELL: {
-    const auto& t = static_cast<const pv::SellTransaction&>(transaction);
-    return {t.date,
-            action,
-            t.security,
-            t.numberOfShares,
-            t.sharePrice,
-            t.commission,
-            (t.numberOfShares * t.sharePrice) - t.commission};
-  }
-  case pv::Action::DEPOSIT: {
-    const auto& t = static_cast<const pv::DepositTransaction&>(transaction);
-    return {t.date, action, t.security, nanDec(), nanDec(), nanDec(), t.amount};
-  }
-  case pv::Action::WITHDRAW: {
-    const auto& t = static_cast<const pv::WithdrawTransaction&>(transaction);
-    return {t.date, action, t.security, nanDec(), nanDec(), nanDec(), t.amount};
-  }
-  case pv::Action::DIVIDEND: {
-    const auto& t = static_cast<const pv::DividendTransaction&>(transaction);
-    return {t.date, action, t.security, nanDec(), nanDec(), nanDec(), t.amount};
-  }
-  default: {
-    return {transaction.date, action, nullptr, nanDec(), nanDec(), nanDec(), nanDec()};
-  }
-  }
-}
+  transactionAddedConnection = dataFile.onTransactionAdded([this](pv::i64 transaction) {
+    if (pv::transaction::account(this->dataFile, transaction) == this->account) {
+      emit transactionAdded(transaction);
+    }
+  });
 
-pvui::models::TransactionModel::TransactionModel(pv::DataFile& dataFile, pv::Account& account, QObject* parent)
-    : QAbstractTableModel(parent), account_(account), dataFile_(dataFile) {
-  assert(dataFile_.owns(account) && "TransactionModel DataFile and account mismatch");
-  transactions.reserve(account.transactions().size());
-  for (const auto* transaction : account.transactions()) {
-    transactions.push_back(createDisplayData(*transaction));
-  }
-
-  // Listen for added transactions
-  QObject::connect(this, &TransactionModel::transactionAdded, this,
-                   [&](std::size_t index, const pv::Transaction& transaction) {
-                     beginInsertRows(QModelIndex(), int(index), int(index));
-                     transactions.push_back(createDisplayData(transaction));
-                     endInsertRows();
-                   });
-
-  transactionAddedConnection = account.listenTransactionAdded(
-      [&](std::size_t index, const pv::Transaction* transaction) { emit transactionAdded(index, *transaction); });
-
-  // Listen for changed transactions
-  QObject::connect(this, &TransactionModel::transactionChanged, this,
-                   [&](std::size_t rowIndexSizeT, const pv::Transaction& transaction) {
-                     transactions[rowIndexSizeT] = createDisplayData(transaction);
-
-                     auto rowIndex = static_cast<int>(rowIndexSizeT);
-                     QModelIndex topLeft = index(rowIndex, 0);
-                     QModelIndex bottomRight = index(rowIndex, columnCount(QModelIndex()));
-
-                     emit dataChanged(topLeft, bottomRight);
-                   });
-
-  transactionChangedConnection =
-      account.listenTransactionReplaced([&](std::size_t index, const pv::Transaction* transaction,
-                                            const pv::Transaction*) { emit transactionChanged(index, *transaction); });
-
-  // Listen for removed transactions
-  QObject::connect(this, &TransactionModel::transactionRemoved, this, [&](std::size_t rowIndexSizeT) {
-    auto rowIndex = static_cast<int>(rowIndexSizeT);
-    beginRemoveRows(QModelIndex(), rowIndex, rowIndex);
-    transactions.erase(transactions.begin() + rowIndexSizeT);
-    endRemoveRows();
+  transactionUpdatedConnection = dataFile.onTransactionUpdated([this](pv::i64 transaction) {
+    if (pv::transaction::account(this->dataFile, transaction) == this->account) {
+      emit transactionUpdated(transaction);
+    }
   });
 
   transactionRemovedConnection =
-      account.listenTransactionRemoved([&](std::size_t index) { emit transactionRemoved(index); });
+      dataFile.onTransactionRemoved([this](pv::i64 transaction) { emit transactionRemoved(transaction); });
+
+  resetConnection = dataFile.onRollback([this] { emit reset(); });
+
+  QObject::connect(this, &TransactionModel::transactionAdded, this, &TransactionModel::handleTransactionAdded);
+  QObject::connect(this, &TransactionModel::transactionUpdated, this, &TransactionModel::handleTransactionUpdated);
+  QObject::connect(this, &TransactionModel::transactionRemoved, this, &TransactionModel::handleTransactionRemoved);
+  QObject::connect(this, &TransactionModel::reset, this, &TransactionModel::handleReset);
+}
+
+int pvui::models::TransactionModel::indexOfTransaction(pv::i64 transaction) {
+  auto iter = std::find(transactions.begin(), transactions.end(), transaction);
+  if (iter == transactions.end()) {
+    return -1;
+  }
+  else {
+    return static_cast<int>(iter - transactions.begin());
+  }
+}
+
+pv::i64 pvui::models::TransactionModel::transactionOfIndex(int rowIndex) {
+  if (static_cast<std::size_t>(rowIndex) < transactions.size()) {
+    return transactions[rowIndex];
+  } else {
+    return -1;
+  }
+}
+
+void pvui::models::TransactionModel::repopulate() {
+  transactions.clear();
+  auto query = dataFile.query("SELECT Id FROM Transactions WHERE AccountId = ?");
+  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(account));
+  while (sqlite3_step(&*query) == SQLITE_ROW) {
+    transactions.push_back(sqlite3_column_int64(&*query, 0));
+  }
+}
+
+void pvui::models::TransactionModel::handleTransactionAdded(pv::i64 id) {
+  beginInsertRows(QModelIndex(), rowCount(), rowCount());
+  transactions.push_back(id);
+  endInsertRows();
+}
+
+void pvui::models::TransactionModel::handleTransactionUpdated(pv::i64 id) {
+  int rowIndex = static_cast<int>(std::find(transactions.cbegin(), transactions.cend(), id) - transactions.cbegin());
+  emit dataChanged(index(rowIndex, 0), index(rowIndex, columnCount(QModelIndex()) - 1));
+}
+
+void pvui::models::TransactionModel::handleTransactionRemoved(pv::i64 id) {
+  auto iter = std::find(transactions.cbegin(), transactions.cend(), id);
+  int rowIndex = static_cast<int>(iter - transactions.cbegin());
+  beginRemoveRows(QModelIndex(), rowIndex, rowIndex);
+  transactions.erase(iter);
+  endRemoveRows();
+}
+
+void pvui::models::TransactionModel::handleReset() {
+  beginResetModel();
+  repopulate();
+  endResetModel();
 }
 
 int pvui::models::TransactionModel::columnCount(const QModelIndex&) const { return ::columnCount; }
 
 QVariant pvui::models::TransactionModel::data(const QModelIndex& index, int role) const {
+  if (role == Qt::TextAlignmentRole) {
+    auto col = index.column();
+    if(col == dateColumn || col == actionColumn || col == securityColumn) {
+      return QVariant(); // Use default alignment for non-numeric column
+    } else {
+      return QVariant(Qt::AlignRight | Qt::AlignVCenter); // Right align
+    }
+  }
   if (role != Qt::DisplayRole && role != Qt::EditRole && role != Qt::AccessibleTextRole) {
     return QVariant();
   }
-
-  assert(static_cast<std::size_t>(index.row()) < transactions.size() && "TransactionModel data() index out of range");
-  const DisplayData& d = transactions[index.row()];
+  pv::i64 transaction = transactions.at(index.row());
 
   switch (index.column()) {
   case dateColumn:
-    return qDateFromPvDate(d.date);
-  case actionColumn:
-    return d.action == nullptr ? QString("") : d.action->name;
-  case securityColumn:
-    return d.security == nullptr ? QString::fromUtf8("") : QString::fromStdString(d.security->symbol());
-  case numberOfSharesColumn: {
-    if (d.numberOfShares != d.numberOfShares) { // if NaN
-      return QString::fromStdString("");
+    return toQDate(pv::transaction::date(dataFile, transaction));
+  case actionColumn: {
+    auto* actionData = pvui::actionData(pv::transaction::action(dataFile, transaction));
+    return actionData != nullptr ? actionData->name : QVariant();
+  }
+  case securityColumn: {
+      std::optional<pv::i64> securityId = getSecurity(dataFile, transaction);
+      return securityId ? QString::fromStdString(pv::security::symbol(dataFile, *securityId)) : QVariant();
     }
-    return models::util::numberData(d.numberOfShares, role);
+  case numberOfSharesColumn: {
+    std::optional<pv::i64> numberOfShares = getNumberOfShares(dataFile, transaction);
+    return numberOfShares ? modelutils::numberData(*numberOfShares, role) : QVariant();
   }
   case sharePriceColumn: {
-    if (d.sharePrice != d.sharePrice) { // if NaN
-      return QString::fromStdString("");
-    }
-    return models::util::moneyData(d.sharePrice, role);
+    std::optional<pv::i64> sharePrice = getSharePrice(dataFile, transaction);
+    return sharePrice ? modelutils::moneyData(*sharePrice, role) : QVariant();
+
   }
   case commissionColumn: {
-    if (d.commission != d.commission) { // if NaN
-      return QString::fromStdString("");
-    }
-    return models::util::moneyData(d.commission, role);
+    std::optional<pv::i64> commission = getCommission(dataFile, transaction);
+    return commission ? modelutils::moneyData(*commission, role) : QVariant();
   }
   case totalAmountColumn: {
-    if (d.totalAmount != d.totalAmount) { // if NaN
-      return QString::fromStdString("");
-    }
-    return models::util::moneyData(d.totalAmount, role);
+    std::optional<pv::i64> totalAmount = getTotalAmount(dataFile, transaction);
+    return totalAmount ? modelutils::moneyData(*totalAmount, role) : QVariant();
   }
   default:
     return QVariant();
@@ -170,19 +274,11 @@ Qt::ItemFlags pvui::models::TransactionModel::flags(const QModelIndex& index) co
   static const Qt::ItemFlags NonEditable = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
   static const Qt::ItemFlags Editable = NonEditable | Qt::ItemIsEditable;
 
-  assert(static_cast<std::size_t>(index.row()) < transactions.size() && "TransactionModel flags() index out of range");
-
-  auto* actionData = transactions[index.row()].action;
-  if (actionData == nullptr) {
-    return NonEditable;
-  }
-
-  switch (actionData->action) {
+  switch (pv::transaction::action(dataFile, transactions.at(index.row()))) {
   case pv::Action::BUY: // Fall through
   case pv::Action::SELL: {
     if (index.column() == securityColumn || index.column() == numberOfSharesColumn ||
-        index.column() == sharePriceColumn || index.column() == commissionColumn ||
-        index.column() == totalAmountColumn) {
+        index.column() == sharePriceColumn || index.column() == commissionColumn) {
       return Editable;
     } else {
       return NonEditable;
@@ -206,64 +302,26 @@ bool pvui::models::TransactionModel::setData(const QModelIndex& index, const QVa
   if (role != Qt::EditRole)
     return false;
 
-  auto transaction = transactions.at(index.row());
   if (!value.canConvert<double>())
     return false;
 
-  std::size_t rowIndex = index.row();
-
-  DisplayData d = transactions[rowIndex]; // Local copy to make changes to
+  pv::i64 transaction = transactionOfIndex(index.row());
 
   switch (index.column()) {
-  case dateColumn:
-    d.date = pvDateFromQDate(value.toDate());
-    break;
-  case securityColumn:
-    d.security = dataFile_.securityForSymbol(value.toString().toStdString());
-    break;
-  case numberOfSharesColumn:
-    d.numberOfShares = pv::Decimal(value.toString().toStdString());
-    break;
-  case sharePriceColumn:
-    d.sharePrice = pv::Decimal(value.toString().toStdString());
-    break;
-  case commissionColumn:
-    d.commission = pv::Decimal(value.toString().toStdString());
-    break;
-  case totalAmountColumn:
-    d.totalAmount = pv::Decimal(value.toString().toStdString());
-    break;
+    case numberOfSharesColumn:
+    return setNumberOfShares(dataFile, transaction, value.toLongLong());
+    case sharePriceColumn:
+    return setSharePrice(dataFile, transaction, std::llround(value.toDouble() * 100));
+    case commissionColumn:
+    return setCommission(dataFile, transaction, std::llround(value.toDouble() * 100));
+    case totalAmountColumn:
+    return setAmount(dataFile, transaction, std::llround(value.toDouble() * 100));
+    default: return false;
   }
-
-  switch (d.action->action) {
-  case pv::Action::BUY: {
-    return account_.replaceTransaction(
-               rowIndex, pv::BuyTransaction(d.date, d.security, d.numberOfShares, d.sharePrice, d.commission)) ==
-           pv::TransactionOperationResult::SUCCESS;
-  }
-  case pv::Action::SELL: {
-    return account_.replaceTransaction(
-               rowIndex, pv::SellTransaction(d.date, d.security, d.numberOfShares, d.sharePrice, d.commission)) ==
-           pv::TransactionOperationResult::SUCCESS;
-  }
-  case pv::Action::DEPOSIT: {
-    return account_.replaceTransaction(rowIndex, pv::DepositTransaction(d.date, d.security, d.totalAmount)) ==
-           pv::TransactionOperationResult::SUCCESS;
-  }
-  case pv::Action::WITHDRAW: {
-    return account_.replaceTransaction(rowIndex, pv::WithdrawTransaction(d.date, d.security, d.totalAmount)) ==
-           pv::TransactionOperationResult::SUCCESS;
-  }
-  case pv::Action::DIVIDEND: {
-    return account_.replaceTransaction(rowIndex, pv::DividendTransaction(d.date, d.security, d.totalAmount)) ==
-           pv::TransactionOperationResult::SUCCESS;
-  }
-  }
-  return false;
 }
 
 QVariant pvui::models::TransactionModel::headerData(int section, Qt::Orientation orientation, int role) const {
-  if (orientation == Qt::Orientation::Vertical || role != Qt::DisplayRole)
+  if (orientation == Qt::Orientation::Vertical || (role != Qt::DisplayRole && role != Qt::AccessibleTextRole))
     return QVariant();
   switch (section) {
   case 0:

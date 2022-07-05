@@ -2,101 +2,155 @@
 #include "FormatUtils.h"
 #include "SecurityPage.h"
 #include "TransactionInsertionWidget.h"
+#include "pv/Account.h"
 #include "pv/Algorithms.h"
+#include "DateUtils.h"
+#include "pv/DataFile.h"
+#include "pv/Integer64.h"
+#include "pv/Transaction.h"
+#include <QAbstractProxyModel>
+#include "pvui/DataFileManager.h"
 #include <QDate>
 #include <QHeaderView>
 #include <QLineEdit>
 #include <QTreeView>
-#include <algorithm>
 #include <cassert>
-#include <date/date.h>
-#include <string>
+#include <optional>
 
-void pvui::AccountPageWidget::updateCashBalance() noexcept {
-  if (account_ == nullptr) {
-    setSubtitle("");
-  } else {
-    setSubtitle(tr("Cash Balance: %1").arg(util::formatMoney(pv::algorithms::cashBalance(*account_))));
-  }
-}
-
-void pvui::AccountPageWidget::updateTitle() {
-  setTitle(account_ != nullptr ? QString::fromStdString(account_->name()) : tr("No Account Open"));
-}
-
-pvui::AccountPageWidget::AccountPageWidget(pv::DataFile* dataFile, pv::Account* account, QWidget* parent)
-    : PageWidget(parent) {
+pvui::AccountPageWidget::AccountPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent)
+    : PageWidget(parent), dataFileManager(dataFileManager), insertWidget(new controls::TransactionInsertionWidget(dataFileManager)) {
+  // UI Init
   layout()->addWidget(table, 1);
   layout()->addWidget(insertWidget);
-
+  setFocusProxy(insertWidget);
   table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
   table->verticalHeader()->hide();
-
   table->setSortingEnabled(true);
   table->sortByColumn(0, Qt::AscendingOrder);
-
   table->setSelectionBehavior(QTableView::SelectRows);
-
   table->setModel(proxyModel);
   table->scrollToBottom();
 
   // Setup delete transaction
   deleteTransactionAction.setShortcut(QKeySequence::Delete);
-  QObject::connect(&deleteTransactionAction, &QAction::triggered, this, [&]() {
-    std::vector<std::size_t> transactionsToDelete;
-    transactionsToDelete.reserve(table->selectionModel()->selectedRows().length());
-
-    const auto& selectedRows = table->selectionModel()->selectedRows();
-    for (const auto& index : selectedRows) {
-
-      assert(account_->transactions().size() > static_cast<std::size_t>(index.row()) &&
-             "Model row doesn't match with transaction indexes.");
-      transactionsToDelete.push_back(index.row());
-    }
-
-    for (const auto& transaction : transactionsToDelete) {
-      account_->removeTransaction(transaction);
-    }
-  });
-
+  QObject::connect(&deleteTransactionAction, &QAction::triggered, this, &AccountPageWidget::deleteSelectedTransactions);
   table->addAction(&deleteTransactionAction);
   table->setContextMenuPolicy(Qt::ActionsContextMenu);
 
   // Setup listeners
-  QObject::connect(this, &AccountPageWidget::accountTransactionsChanged, this, &AccountPageWidget::updateCashBalance);
-  QObject::connect(this, &AccountPageWidget::accountNameChanged, this, &AccountPageWidget::updateTitle);
 
-  setFocusProxy(insertWidget);
-  setAccount(dataFile, account);
+  QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this,
+                   &AccountPageWidget::handleDataFileChanged);
+  QObject::connect(this, &AccountPageWidget::accountUpdated, this, &AccountPageWidget::handleAccountUpdated);
+  QObject::connect(this, &AccountPageWidget::transactionUpdated, this,
+                   &AccountPageWidget::handleTransactionsUpdated);
+  QObject::connect(this, &AccountPageWidget::reset, this, &AccountPageWidget::handleReset);
+
+  QObject::connect(insertWidget, &controls::TransactionInsertionWidget::submitted, this, &AccountPageWidget::handleTransactionSubmitted);
+  QObject::connect(proxyModel, &QAbstractProxyModel::sourceModelChanged, this, [this] { table->scrollToBottom(); }, Qt::ConnectionType::QueuedConnection); // scroll to bottom when the table is changed,
+  // For the previous line, we force a queued connection because we need to give it a delay, otherwise scrollToBottom will not work
+
+  handleDataFileChanged(); // Call in constructor to initialize state
 }
 
-void pvui::AccountPageWidget::setAccount(pv::DataFile* dataFile, pv::Account* account) {
-  account_ = account;
+void pvui::AccountPageWidget::deleteSelectedTransactions() {
+  if (!dataFileManager.has()) {
+    return;
+  }
 
-  setEnabled(account_ != nullptr);
-  transactionAddedConnection.disconnect();
-  transactionRemovedConnection.disconnect();
-  transactionChangedConnection.disconnect();
+  std::vector<pv::i64> transactionsToDelete;
+
+  const auto& selectedRows = table->selectionModel()->selectedRows();
+  for (const auto& index : selectedRows) {
+    transactionsToDelete.push_back(model->transactionOfIndex(index.row()));
+  }
+
+  // Use transaction for improved bulk-update performance
+  bool sqlTransaction = dataFileManager->beginTransaction() == pv::ResultCode::OK;
+  for (const auto& transaction : transactionsToDelete) {
+    dataFileManager->removeTransaction(transaction);
+  }
+  if (sqlTransaction) {
+    dataFileManager->commitTransaction();
+  }
+}
+
+void pvui::AccountPageWidget::handleDataFileChanged() {
+  setAccount(std::nullopt);
+
+  if (dataFileManager.has()) {
+    accountUpdatedConnection =
+        dataFileManager->onAccountUpdated([this](pv::i64 changedAccount) { emit accountUpdated(changedAccount); });
+    transactionAddedConnection =
+        dataFileManager->onTransactionAdded([this](pv::i64 transaction) { emit transactionUpdated(transaction); });
+    transactionUpdatedConnection =
+        dataFileManager->onTransactionUpdated([this](pv::i64 transaction) { emit transactionUpdated(transaction); });
+    transactionRemovedConnection = dataFileManager->onTransactionRemoved(
+        [this](pv::i64 transaction) { emit transactionUpdated(transaction, true); });
+    resetConnection = dataFileManager->onRollback([this] { emit reset(); });
+  } else {
+    accountUpdatedConnection.disconnect();
+    transactionAddedConnection.disconnect();
+    transactionUpdatedConnection.disconnect();
+    transactionRemovedConnection.disconnect();
+  }
+}
+
+void pvui::AccountPageWidget::updateCashBalance() noexcept {
+  if (!account_) {
+    setSubtitle("");
+  } else {
+    setSubtitle(
+        tr("Cash Balance: %1")
+            .arg(util::formatMoney(pv::algorithms::cashBalance(*dataFileManager, *account_, currentEpochDate()))));
+  }
+}
+
+void pvui::AccountPageWidget::handleAccountUpdated(pv::i64 account) {
+  if (this->account_ != account) {
+    return;
+  }
+  updateTitle();
+}
+
+void pvui::AccountPageWidget::handleTransactionsUpdated(pv::i64 transaction, bool removed) {
+  if (removed || pv::transaction::account(*dataFileManager, transaction) == this->account_) {
+    // Only updated if the account matches, but if the transaction was removed update anyway
+    // since there is no way to tell which account it belonged to
+    updateCashBalance();
+  }
+}
+
+void pvui::AccountPageWidget::handleReset() {
+  updateTitle();
+  updateCashBalance();
+}
+
+void pvui::AccountPageWidget::handleTransactionSubmitted(pv::i64 transaction) {
+  assert(dataFileManager.has());
+  assert(pv::transaction::account(*dataFileManager, transaction) == account_);
+  assert(model != nullptr);
+
+  QModelIndex index = proxyModel->mapFromSource(model->index(model->indexOfTransaction(transaction), 0));
+  table->selectRow(index.row());
+  table->scrollTo(index);
+}
+
+void pvui::AccountPageWidget::updateTitle() {
+  setTitle(account_.has_value() ? QString::fromStdString(pv::account::name(*dataFileManager, *account_))
+                               : tr("No Account Open"));
+}
+
+void pvui::AccountPageWidget::setAccount(std::optional<pv::i64> account) {
+  this->account_ = std::move(account);
+
+  setEnabled(this->account_.has_value());
 
   updateTitle();
-
-  model = account_ != nullptr ? std::make_unique<models::TransactionModel>(*dataFile, *account_) : nullptr;
-  proxyModel->setSourceModel(model.get());
-  insertWidget->setAccount(dataFile, account_);
-
-  if (!isEnabled())
-    return;
   updateCashBalance();
-  setTitle(QString::fromStdString(account_->name()));
-  transactionAddedConnection =
-      account_->listenTransactionAdded([&](std::size_t, const pv::Transaction*) { emit accountTransactionsChanged(); });
-  transactionRemovedConnection =
-      account_->listenTransactionRemoved([&](std::size_t) { emit accountTransactionsChanged(); });
-  transactionChangedConnection = account_->listenTransactionReplaced(
-      [&](std::size_t, const pv::Transaction*, const pv::Transaction*) { emit accountTransactionsChanged(); });
 
-  table->scrollToBottom();
-
-  accountNameChangedConnection =
-      account->listenNameChanged([&](std::string, std::string) { emit accountNameChanged(); });
+  model = this->account_.has_value() ? std::make_unique<models::TransactionModel>(*dataFileManager, *this->account_)
+                                    : nullptr;
+  proxyModel->setSourceModel(model.get());
+  insertWidget->setAccount(this->account_);
 }

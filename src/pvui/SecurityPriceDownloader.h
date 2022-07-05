@@ -32,7 +32,7 @@ public:
 public slots:
   void abort();
 signals:
-  void success(std::map<QDate, pv::Decimal> data, QString symbol);
+  void success(std::map<QDate, pv::i64> data, QString symbol);
   void error(QNetworkReply::NetworkError error, QString symbol);
   void complete();
 };

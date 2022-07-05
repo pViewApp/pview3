@@ -14,7 +14,4 @@ set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)  
 set(Boost_USE_STATIC_RUNTIME OFF) 
 
-# Date Library
-add_subdirectory(thirdparty/date)
-
 add_subdirectory(src)

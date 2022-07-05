@@ -2,30 +2,50 @@
 #define PVUI_DATA_FILE_MANAGER_H
 
 #include "pv/DataFile.h"
+#include "pv/Signals.h"
 #include <QObject>
+#include <filesystem>
+#include <utility>
+#include <string>
+#include <optional>
 
 namespace pvui {
 class DataFileManager : public QObject {
   Q_OBJECT
 private:
-  pv::DataFile dataFile_;
-
+  std::optional<pv::DataFile> dataFile_ = std::nullopt;
 public:
-  DataFileManager() = default;
+  explicit DataFileManager(std::optional<pv::DataFile> file = std::nullopt);
 
-  pv::DataFile& dataFile() noexcept { return dataFile_; }
+  DataFileManager& operator=(pv::DataFile&& dataFile) noexcept {
+    setDataFile(std::move(dataFile));
+    return *this;
+  }
 
-  const pv::DataFile& constDataFile() const noexcept { return dataFile_; }
+  DataFileManager& operator=(std::optional<pv::DataFile> dataFile) noexcept {
+    setDataFile(std::move(dataFile));
+    return *this;
+  } 
 
-  const pv::DataFile& operator*() const noexcept { return dataFile_; }
+  pv::DataFile& get() noexcept { return *dataFile_; }
 
-  pv::DataFile& operator*() noexcept { return dataFile_; }
+  const pv::DataFile& cget() const noexcept { return *dataFile_; }
 
-  const pv::DataFile* operator->() const noexcept { return &dataFile_; }
+  pv::DataFile& operator*() noexcept { return *dataFile_; }
 
-  pv::DataFile* operator->() noexcept { return &dataFile_; }
+  const pv::DataFile& operator*() const noexcept { return *dataFile_; }
+
+  const pv::DataFile* operator->() const noexcept { return &*dataFile_; }
+
+  pv::DataFile* operator->() noexcept { return &*dataFile_; }
+
+  operator bool() const noexcept { return dataFile_.has_value(); }
+  
+  bool has() { return dataFile_.has_value(); }
+
+  void setDataFile(std::optional<pv::DataFile> dataFile) noexcept;
 signals:
-  void dataFileChanged(pv::DataFile& newDataFile);
+  void dataFileChanged();
 };
 } // namespace pvui
 

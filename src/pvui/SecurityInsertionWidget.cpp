@@ -1,5 +1,7 @@
 #include "SecurityInsertionWidget.h"
 #include "SecurityUtils.h"
+#include "pv/DataFile.h"
+#include "pvui/DataFileManager.h"
 #include <QShortcut>
 
 namespace pvui {
@@ -63,7 +65,14 @@ SecurityInsertionWidget::SecurityInsertionWidget(DataFileManager& dataFileManage
   QObject::connect(returnShortcut, &QShortcut::activated, this, &SecurityInsertionWidget::submit);
   QObject::connect(enterShortcut, &QShortcut::activated, this, &SecurityInsertionWidget::submit);
 
+  QObject::connect(&dataFileManager_, &DataFileManager::dataFileChanged, this, &SecurityInsertionWidget::handleDataFileChanged);
+
+  handleDataFileChanged();
+}
+
+void SecurityInsertionWidget::handleDataFileChanged() {
   reset();
+  setEnabled(dataFileManager_.has());
 }
 
 void SecurityInsertionWidget::reset() {
@@ -83,11 +92,13 @@ bool SecurityInsertionWidget::submit() {
     return false;
   }
 
-  if (!dataFileManager_.dataFile().addSecurity(symbol.toStdString(), name.toStdString(), assetClass.toStdString(),
-                                               sector.toStdString()))
+  if (dataFileManager_->addSecurity(symbol.toStdString(), name.toStdString(), assetClass.toStdString(),
+                                               sector.toStdString()) != pv::ResultCode::OK)
     return false; // Failed
   reset();
   symbolEditor->setFocus();
+
+  emit submitted(dataFileManager_->lastInsertedId());
 
   return true;
 }

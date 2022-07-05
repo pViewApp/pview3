@@ -2,46 +2,37 @@
 #define PVUI_MODELS_TRANSACTIONMODEL_H
 
 #include "ActionData.h"
-#include "pv/Account.h"
+#include "pv/DataFile.h"
+#include "pv/Integer64.h"
 #include "pv/Signals.h"
 #include "pv/Transaction.h"
 #include <QAbstractTableModel>
 #include <QDate>
 #include <QObject>
 #include <optional>
+#include <qabstractitemmodel.h>
 #include <vector>
 
 namespace pvui::models {
 class TransactionModel : public QAbstractTableModel {
   Q_OBJECT
 private:
-  /// \internal
-  /// \brief A structure containing the displayable traits of a transaction.
-  struct DisplayData {
-    pv::Date date;
-    const pvui::ActionData* action;
-    pv::Security* security;
-    pv::Decimal numberOfShares; // can be NaN
-    pv::Decimal sharePrice;     // can be NaN
-    pv::Decimal commission;     // can be NaN
-    pv::Decimal totalAmount;    // can be NaN
-  };
+  pv::DataFile& dataFile;
+  pv::i64 account;
 
-  pv::Account& account_;
-  pv::DataFile& dataFile_;
+  std::vector<pv::i64> transactions;
+
   pv::ScopedConnection transactionAddedConnection;
-  pv::ScopedConnection transactionChangedConnection;
   pv::ScopedConnection transactionRemovedConnection;
+  pv::ScopedConnection transactionUpdatedConnection;
+  pv::ScopedConnection resetConnection;
 
-  /// \internal
-  /// \note The indexes in here should match with those of account_.transactions(). That is, for any number *n*
-  /// \c transactions[n] should represent \c account_.transactions[n].
-  std::vector<DisplayData> transactions;
-
-  DisplayData createDisplayData(const pv::Transaction& transaction) noexcept;
-
+  void repopulate();
 public:
-  TransactionModel(pv::DataFile& dataFile, pv::Account& account, QObject* parent = nullptr);
+  TransactionModel(pv::DataFile& dataFile, pv::i64 account, QObject* parent = nullptr);
+
+  int indexOfTransaction(pv::i64 transaction);
+  pv::i64 transactionOfIndex(int rowIndex);
 
   int rowCount(const QModelIndex& = QModelIndex()) const override { return static_cast<int>(transactions.size()); }
 
@@ -54,10 +45,16 @@ public:
   Qt::ItemFlags flags(const QModelIndex& index) const override;
 
   bool setData(const QModelIndex& index, const QVariant& value, int role) override;
+private slots:
+  void handleTransactionAdded(pv::i64 id);
+  void handleTransactionUpdated(pv::i64 id);
+  void handleTransactionRemoved(pv::i64 id);
+  void handleReset();
 signals:
-  void transactionAdded(std::size_t index, const pv::Transaction& transaction);
-  void transactionChanged(std::size_t index, const pv::Transaction& newTransaction);
-  void transactionRemoved(std::size_t index);
+  void transactionAdded(pv::i64 id);
+  void transactionUpdated(pv::i64 id);
+  void transactionRemoved(pv::i64 id);
+  void reset();
 };
 } // namespace pvui::models
 

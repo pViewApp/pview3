@@ -1,356 +1,335 @@
 #include "Algorithms.h"
-#include "pv/Transaction.h"
-#include <algorithm>
-#include <execution>
-#include <valarray>
-#include <vector>
+#include <optional>
+#include <sqlite3.h>
+#include <cmath>
 
 namespace {
 
-template <typename FwdIt> std::optional<pv::Decimal> weightedAverage(FwdIt begin, FwdIt end) {
-  // https://stackoverflow.com/a/57769088
-  using Value = std::tuple<pv::Decimal, pv::Decimal>; // First decimal is the value, second is the weight
-  auto [values, weights] =
-      std::accumulate(begin, end, std::make_tuple<pv::Decimal, pv::Decimal>(0, 0), [](const Value& a, const Value& b) {
-        auto [valueA, weightA] = a;
-        auto [valueB, weightB] = b;
-        return std::make_tuple<pv::Decimal, pv::Decimal>(valueB * weightB + valueA, weightB + weightA);
-      });
+constexpr char cashBalanceQuery[] = R"(
+SELECT -COALESCE(SUM(BuyTransactions.Amount), 0) + COALESCE(SUM(SellTransactions.Amount), 0)
+  + COALESCE(SUM(DepositTransactions.Amount), 0) - COALESCE(SUM(WithdrawTransactions.Amount), 0)
+  + COALESCE(SUM(DividendTransactions.Amount), 0)
+FROM Transactions
+  LEFT JOIN BuyTransactions ON Transactions.Id = BuyTransactions.TransactionId
+  LEFT JOIN SellTransactions ON Transactions.Id = SellTransactions.TransactionId
+  LEFT JOIN DepositTransactions ON Transactions.Id = DepositTransactions.TransactionId
+  LEFT JOIN WithdrawTransactions ON Transactions.Id = WithdrawTransactions.TransactionId
+  LEFT JOIN DividendTransactions ON Transactions.Id = DividendTransactions.TransactionId
+WHERE Transactions.AccountId = ? AND Transactions.Date <= ?
+)";
 
-  if (weights == 0) {
-    return std::nullopt;
-  }
-  return values / weights;
-}
+constexpr char sharesHeldQuery[] = R"(
+SELECT COALESCE(SUM(BuySell.NumberOfShares), 0) FROM Transactions
+  INNER JOIN
+    (SELECT TransactionId, SecurityId, NumberOfShares FROM BuyTransactions UNION ALL SELECT TransactionId, SecurityId, -NumberOfShares FROM SellTransactions) BuySell
+    ON Transactions.Id = BuySell.TransactionId  AND BuySell.SecurityId = :SecurityId
+WHERE Transactions.Date <= :Date
+)";
+
+constexpr char sharesHeldByAccountQuery[] = R"(
+SELECT COALESCE(SUM(BuySell.NumberOfShares), 0) FROM Transactions
+  INNER JOIN
+    (SELECT TransactionId, SecurityId, NumberOfShares FROM BuyTransactions UNION ALL SELECT TransactionId, SecurityId, -NumberOfShares FROM SellTransactions) BuySell
+    ON Transactions.Id = BuySell.TransactionId  AND BuySell.SecurityId = :SecurityId
+WHERE Transactions.Date <= :Date AND Transaction.AccountId = :AccountId
+)";
+
+constexpr char sharesSoldQuery[] = R"(
+SELECT COALESCE(SUM(SellTransactions.NumberOfShares), 0) FROM Transactions
+  INNER JOIN SellTransactions
+    ON Transactions.Id = SellTransactions.TransactionId  AND SellTransactions.SecurityId = :SecurityId
+WHERE Transactions.Date <= :Date
+)";
+
+constexpr char sharesSoldByAccountQuery[] = R"(
+SELECT COALESCE(SUM(SellTransactions.NumberOfShares), 0) FROM Transactions
+  INNER JOIN SellTransactions
+    ON Transactions.Id = SellTransactions.TransactionId  AND SellTransactions.SecurityId = :SecurityId
+WHERE Transactions.Date <= :Date AND Transaction.AccountId = :AccountId
+)";
+
+constexpr char dividendIncomeQuery[] = R"(
+SELECT COALESCE(SUM(DividendTransactions.Amount), 0) FROM Transactions
+  INNER JOIN DividendTransactions ON Transactions.Id = DividendTransactions.Id
+    AND DividendTransactions.SecurityId = :SecurityId
+WHERE Transactions.Date = :Date AND Transactions.AccountId = :AccountId
+)";
+
+constexpr char dividendIncomeByAccountQuery[] = R"(
+SELECT COALESCE(SUM(DividendTransactions.Amount), 0) FROM Transactions
+  INNER JOIN DividendTransactions ON Transactions.Id = DividendTransactions.Id
+    AND DividendTransactions.SecurityId = :SecurityId
+WHERE Transactions.Date = :Date AND Transactions.AccountId = :AccountId
+)";
+
+constexpr char averageBuyPriceQuery[] = R"(
+SELECT SUM(BuyTransactions.SharePrice * BuyTransactions.NumberOfShares) / SUM(BuyTransactions.NumberOfShares) FROM Transactions
+  INNER JOIN BuyTransactions ON Transactions.Id = BuyTransactions.TransactionId
+    AND BuyTransactions.SecurityId = :SecurityId
+WHERE Transactions.Date <= :Date
+)";
+
+constexpr char averageBuyPriceByAccountQuery[] = R"(
+SELECT SUM(BuyTransactions.SharePrice * BuyTransactions.NumberOfShares) / SUM(BuyTransactions.NumberOfShares) FROM Transactions
+  INNER JOIN BuyTransactions ON Transactions.Id = BuyTransactions.TransactionId
+    AND BuyTransactions.SecurityId = :SecurityId
+WHERE Transactions.Date <= :Date AND Transactions.AccountId = :AccountId
+)";
+
+constexpr char averageSellPriceQuery[] = R"(
+SELECT SUM(SellTransactions.SharePrice * SellTransactions.NumberOfShares) / SUM(SellTransactions.NumberOfShares) FROM Transactions
+  INNER JOIN SellTransactions ON Transactions.Id = SellTransactions.TransactionId
+    AND SellTransactions.SecurityId = :SecurityId
+WHERE Transactions.Date <= :Date
+)";
+
+constexpr char averageSellPriceByAccountQuery[] = R"(
+SELECT SUM(SellTransactions.SharePrice * SellTransactions.NumberOfShares) / SUM(SellTransactions.NumberOfShares) FROM Transactions
+  INNER JOIN SellTransactions ON Transactions.Id = SellTransactions.TransactionId
+    AND SellTransactions.SecurityId = :SecurityId
+WHERE Transactions.Date <= :Date AND Transactions.AccountId = :AccountId
+)";
+
+constexpr char sharePriceQuery[] =
+  "SELECT Price FROM SecurityPrices WHERE SecurityId = ? AND Date <= ? ORDER BY Date DESC LIMIT 1";
+
 } // namespace
 
 namespace pv {
 namespace algorithms {
 
-Decimal cashBalance(const Account& account, Date date) {
-  std::vector<const Transaction*> transactions;
-  std::copy_if(account.transactions().cbegin(), account.transactions().cend(), std::back_inserter(transactions),
-               [&date](const Transaction* t) { return t->date <= date; });
-
-  if (transactions.size() == 0)
-    return 0;
-
-  std::valarray<Decimal> cashBalances(transactions.size());
-  std::transform(transactions.cbegin(), transactions.cend(), std::begin(cashBalances),
-                 [](const Transaction* transaction) { return cashBalance(transaction); });
-
-  return cashBalances.sum();
-}
-
-Decimal sharesHeld(const Security& security, const Account& account, Date date) {
-  std::vector<pv::Decimal> numberOfSharesPerTransaction;
-  for (const auto* t : account.transactions()) {
-
-    if (t->date > date || algorithms::security(t) != &security)
-      continue;
-
-    const auto action = t->action();
-    if (action == Action::BUY) {
-      numberOfSharesPerTransaction.push_back(static_cast<const BuyTransaction*>(t)->numberOfShares);
-    } else if (action == Action::SELL) {
-      numberOfSharesPerTransaction.push_back(static_cast<const SellTransaction*>(t)->numberOfShares);
-    }
-  }
-
-  return std::reduce(numberOfSharesPerTransaction.cbegin(), numberOfSharesPerTransaction.cend());
-}
-
-Decimal sharesHeld(const Security& security, Date date) {
-  if (security.dataFile().accounts().size() == 0) {
+i64 cashBalance(const DataFile& dataFile, i64 account, i64 date) {
+  auto stmt = dataFile.query(cashBalanceQuery);
+  if (!stmt) {
     return 0;
   }
-
-  std::valarray<Decimal> perAccount(security.dataFile().accounts().size());
-  std::transform(security.dataFile().accounts().cbegin(), security.dataFile().accounts().cend(), std::begin(perAccount),
-                 [&security, &date](const Account* account) { return sharesHeld(security, *account, date); });
-
-  return perAccount.sum();
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(account));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  sqlite3_step(&*stmt);
+  auto result = sqlite3_column_int64(&*stmt, 0);
+  return result;
 }
 
-std::optional<Decimal> sharePrice(const Security& security, Date date) {
-  const std::map<Date, Decimal>& prices = security.prices();
-  // Get the price after date
-  auto iter = prices.upper_bound(date);
-
-  // If iter is equal to the beginning, there are no prices less than or equal to date
-  if (iter == prices.cbegin()) {
-    return std::nullopt;
-  }
-
-  --iter;
-
-  return iter->second;
-}
-
-std::optional<Decimal> marketValue(const Security& security, Date date) {
-  const auto sharePrice_ = sharePrice(security, date);
-  if (!sharePrice_.has_value())
-    return std::nullopt;
-  return sharesHeld(security, date) * sharePrice_.value();
-}
-
-Decimal cashSpent(const Security& security, Date date) {
-  if (security.dataFile().accounts().size() == 0) {
+i64 sharesHeld(const DataFile& dataFile, i64 security, i64 date) {
+  auto stmt = dataFile.query(sharesHeldQuery);
+  if (!stmt) {
     return 0;
   }
-
-  std::valarray<Decimal> perAccount(security.dataFile().accounts().size());
-  std::transform(security.dataFile().accounts().cbegin(), security.dataFile().accounts().cend(), std::begin(perAccount),
-                 [&security, &date](const Account* account) { return cashSpent(security, *account, date); });
-
-  return perAccount.sum();
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  sqlite3_step(&*stmt);
+  auto result = sqlite3_column_int64(&*stmt, 0);
+  return result;
 }
 
-Decimal cashSpent(const Security& security, const Account& account, Date date) {
-  std::vector<pv::Decimal> cashSpentPerTransaction;
-  for (const auto& t : account.transactions()) {
-    Decimal cashBalance = algorithms::cashBalance(t);
-    if (algorithms::security(t) == &security && cashBalance < 0 && t->date <= date) {
-      cashSpentPerTransaction.push_back(cashBalance);
-    }
-  }
-
-  return std::reduce(cashSpentPerTransaction.cbegin(), cashSpentPerTransaction.cend());
-}
-
-Decimal cashEarned(const Security& security, const Account& account, Date date) {
-  std::vector<pv::Decimal> cashEarnedPerTransaction;
-  for (const auto& t : account.transactions()) {
-    Decimal cashBalance = algorithms::cashBalance(t);
-    if (algorithms::security(t) == &security && cashBalance < 0 && t->date <= date) {
-      cashEarnedPerTransaction.push_back(cashBalance);
-    }
-  }
-
-  return std::reduce(cashEarnedPerTransaction.cbegin(), cashEarnedPerTransaction.cend());
-}
-
-Decimal cashEarned(const Security& security, Date date) {
-  if (security.dataFile().accounts().size() == 0) {
+i64 sharesHeld(const DataFile& dataFile, i64 security, i64 account, i64 date) {
+  auto stmt = dataFile.query(sharesHeldByAccountQuery);
+  if (!stmt) {
     return 0;
   }
-
-  std::valarray<Decimal> perAccount(security.dataFile().accounts().size());
-  std::transform(security.dataFile().accounts().cbegin(), security.dataFile().accounts().cend(), std::begin(perAccount),
-                 [&security, &date](const Account* account) { return cashEarned(security, *account, date); });
-
-  return perAccount.sum();
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  sqlite3_bind_int64(&*stmt, 3, static_cast<sqlite3_int64>(account));
+  sqlite3_step(&*stmt);
+  auto result = sqlite3_column_int64(&*stmt, 0);
+  return result;
 }
 
-Decimal cashGained(const Security& security, const Account& account, Date date) {
-  return cashEarned(security, account, date) - cashSpent(security, account, date);
+i64 sharesSold(const DataFile& dataFile, i64 security, i64 date) {
+  auto stmt = dataFile.query(sharesSoldQuery);
+  if (!stmt) {
+    return 0;
+  }
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  sqlite3_step(&*stmt);
+  auto result = sqlite3_column_int64(&*stmt, 0);
+  return result;
 }
 
-Decimal cashGained(const Security& security, Date date) {
-  return cashEarned(security, date) - cashSpent(security, date);
+i64 sharesSold(const DataFile& dataFile, i64 security, i64 account, i64 date) {
+  auto stmt = dataFile.query(sharesSoldByAccountQuery);
+  if (!stmt) {
+    return 0;
+  }
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  sqlite3_bind_int64(&*stmt, 3, static_cast<sqlite3_int64>(account));
+  sqlite3_step(&*stmt);
+  auto result = sqlite3_column_int64(&*stmt, 0);
+  return result;
 }
 
-std::optional<Decimal> averageBuyPrice(const Security& security, Date date) {
-  using Buy = std::tuple<Decimal, Decimal>; // tuple with the first being the share price and the second being the
-                                            // number of shares
-  std::vector<Buy> buys;
-  for (const auto& account : security.dataFile().accounts()) {
-      for (const auto* transaction : account->transactions()) {
-      if (transaction->action() != Action::BUY)
-        continue;
+i64 cashGained(const DataFile& dataFile, i64 security, i64 date) {
+  return sharesSold(dataFile, security, date) * (averageSellPrice(dataFile, security, date).value_or(0) - averageBuyPrice(dataFile, security, date).value_or(0));
+} 
 
-      auto t = static_cast<const BuyTransaction*>(transaction);
-      if (t->date <= date && t->security == &security) {
-        buys.push_back({t->sharePrice, t->numberOfShares});
-      }
-    }
+i64 cashGained(const DataFile& dataFile, i64 security, i64 account, i64 date) {
+  return sharesSold(dataFile, security, date) * (averageSellPrice(dataFile, security, account, date).value_or(0) - averageBuyPrice(dataFile, security, account, date).value_or(0));
+}
+
+i64 dividendIncome(const DataFile& dataFile, i64 security, i64 date) {
+  auto stmt = dataFile.query(dividendIncomeQuery);
+  if (!stmt) {
+    return 0;
+  }
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  sqlite3_step(&*stmt);
+  auto result = sqlite3_column_int64(&*stmt, 0);
+  return result;
+}
+
+i64 dividendIncome(const DataFile& dataFile, i64 security, i64 account, i64 date) {
+  auto stmt = dataFile.query(dividendIncomeByAccountQuery);
+  if (!stmt) {
+    return 0;
+  }
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  sqlite3_bind_int64(&*stmt, 3, static_cast<sqlite3_int64>(account));
+  sqlite3_step(&*stmt);
+  auto result = sqlite3_column_int64(&*stmt, 0);
+  return result;
+}
+
+i64 costBasis(const DataFile& dataFile, i64 security, i64 date) {
+  return sharesHeld(dataFile, security, date) * averageBuyPrice(dataFile, security, date).value_or(0);
+}
+
+i64 costBasis(const DataFile& dataFile, i64 security, i64 account, i64 date) {
+  return sharesHeld(dataFile, security, account, date) * averageBuyPrice(dataFile, security, account, date).value_or(0);
+}
+
+i64 totalIncome(const DataFile& dataFile, i64 security, i64 date) {
+  return unrealizedCashGained(dataFile, security, date).value_or(0) + cashGained(dataFile, security, date) + dividendIncome(dataFile, security, date);
+}
+
+i64 totalIncome(const DataFile& dataFile, i64 security, i64 account, i64 date) {
+  return unrealizedCashGained(dataFile, security, account, date).value_or(0) + cashGained(dataFile, security, account, date) + dividendIncome(dataFile, security, account, date);
+}
+
+std::optional<i64> sharePrice(const DataFile& dataFile, i64 security, i64 date) {
+  auto stmt = dataFile.query(sharePriceQuery);
+  if (!stmt) {
+    return 0;
+  }
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  sqlite3_step(&*stmt);
+  std::optional<i64> result = std::nullopt;
+  
+  if (sqlite3_column_type(&*stmt, 0) != SQLITE_NULL) {
+    result = sqlite3_column_int64(&*stmt, 0);
   }
 
-  return weightedAverage(buys.begin(), buys.end());
+  return result;
 }
 
-std::optional<Decimal> averageSellPrice(const Security& security, Date date) {
-  using Sell = std::tuple<Decimal, Decimal>; // tuple with the first being the share price and the second being the
-                                             // number of shares
-  std::vector<Sell> sells;
-  for (const auto& account : security.dataFile().accounts()) {
-      for (const auto* transaction : account->transactions()) {
-      if (transaction->action() != Action::SELL)
-        continue;
 
-      auto t = static_cast<const BuyTransaction*>(transaction);
-      if (t->date <= date && t->security == &security) {
-        sells.push_back({t->sharePrice, t->numberOfShares});
-      }
-    }
-  }
-
-  return weightedAverage(sells.begin(), sells.end());
-}
-
-std::optional<Decimal> averageBuyPrice(const Security& security, const Account& account, Date date) {
-  using Buy = std::tuple<Decimal, Decimal>; // tuple with the first being the share price and the second being the
-                                            // number of shares
-  std::vector<Buy> buys;
-  for (const auto* transaction : account.transactions()) {
-    if (transaction->action() != Action::BUY)
-      continue;
-
-    auto t = static_cast<const BuyTransaction*>(transaction);
-    if (t->date <= date && t->security == &security) {
-      buys.push_back({t->sharePrice, t->numberOfShares});
-    }
-  }
-
-  return weightedAverage(buys.begin(), buys.end());
-}
-
-std::optional<Decimal> averageSellPrice(const Security& security, const Account& account, Date date) {
-  using Sell = std::tuple<Decimal, Decimal>; // tuple with the first being the share price and the second being the
-                                             // number of shares
-  std::vector<Sell> sells;
-  for (const auto* transaction : account.transactions()) {
-    if (transaction->action() != Action::SELL)
-      continue;
-
-    auto t = static_cast<const BuyTransaction*>(transaction);
-    if (t->date <= date && t->security == &security) {
-      sells.push_back({t->sharePrice, t->numberOfShares});
-    }
-  }
-
-  return weightedAverage(sells.begin(), sells.end());
-}
-
-std::optional<Decimal> unrealizedGainRelative(const Security& security, const Account& account, Date date) {
-  const std::optional<Decimal> averageBuyPrice_ = averageBuyPrice(security, date);
-  const std::optional<Decimal> sharesHeld_ = sharesHeld(security, account, date);
-  const std::optional<Decimal> unrealizedCashGained_ = unrealizedCashGained(security, account, date);
-  if (!averageBuyPrice_.has_value() || !sharesHeld_.has_value() || !unrealizedCashGained_.has_value()) {
-    return std::nullopt;
-  }
-
-  return unrealizedCashGained_.value() / (averageBuyPrice_.value() * sharesHeld_.value());
-}
-
-std::optional<Decimal> marketValue(const Security& security, const Account& account, Date date) {
-  const auto sharePrice_ = sharePrice(security, date);
-  if (!sharePrice_.has_value())
-    return std::nullopt;
-  return sharesHeld(security, account, date) * sharePrice_.value();
-}
-
-std::optional<Decimal> unrealizedGainRelative(const Security& security, Date date) {
-  const std::optional<Decimal> averageBuyPrice_ = averageBuyPrice(security, date);
-  const std::optional<Decimal> sharesHeld_ = sharesHeld(security, date);
-  const std::optional<Decimal> unrealizedCashGained_ = unrealizedCashGained(security, date);
-  if (!averageBuyPrice_.has_value() || !sharesHeld_.has_value() || !unrealizedCashGained_.has_value()) {
-    return std::nullopt;
-  }
-
-  return unrealizedCashGained_.value() / (averageBuyPrice_.value() * sharesHeld_.value());
-}
-
-std::optional<Decimal> unrealizedCashGained(const Security& security, const Account& account, Date date) {
-  const std::optional<Decimal> sharePrice_ = sharePrice(security, date);
-  const std::optional<Decimal> averageBuyPrice_ = averageBuyPrice(security, account, date);
+std::optional<i64> unrealizedCashGained(const DataFile& dataFile, i64 security, i64 date) {
+  auto sharePrice_ = sharePrice(dataFile, security, date);
+  auto averageBuyPrice_ = averageBuyPrice(dataFile, security, date);
   if (!sharePrice_.has_value() || !averageBuyPrice_.has_value()) {
     return std::nullopt;
   }
-
-  return sharesHeld(security, account, date) * (sharePrice_.value() - averageBuyPrice_.value());
+  return sharesHeld(dataFile, security, date) * (sharePrice_.value() - averageBuyPrice_.value());
 }
 
-std::optional<Decimal> unrealizedCashGained(const Security& security, Date date) {
-  const std::optional<Decimal> sharePrice_ = sharePrice(security, date);
-  const std::optional<Decimal> averageBuyPrice_ = averageBuyPrice(security, date);
+std::optional<i64> unrealizedCashGained(const DataFile& dataFile, i64 security, i64 account, i64 date) {
+  auto sharePrice_ = sharePrice(dataFile, security, date);
+  auto averageBuyPrice_ = averageBuyPrice(dataFile, security, account, date);
   if (!sharePrice_.has_value() || !averageBuyPrice_.has_value()) {
     return std::nullopt;
   }
-
-  return sharesHeld(security, date) * (sharePrice_.value() - averageBuyPrice_.value());
+  return sharesHeld(dataFile, security, account, date) * (sharePrice_.value() - averageBuyPrice_.value());
 }
 
-Decimal totalIncome(const Security& security, const Account& account, Date date) {
-  return unrealizedCashGained(security, account, date).value_or(0) + cashGained(security, account, date) +
-         dividendIncome(security, account, date);
-}
-
-Decimal dividendIncome(const Security& security, const Account& account, Date date) {
-  std::vector<pv::Decimal> dividendsPerTransaction;
-  for (const auto& t : account.transactions()) {
-    auto tSecurity = algorithms::security(t);
-    if (&security == tSecurity && t->date <= date && t->action() == Action::DIVIDEND) {
-      dividendsPerTransaction.push_back(static_cast<const DividendTransaction*>(t)->amount);
-    }
-  }
-
-  return std::reduce(dividendsPerTransaction.cbegin(), dividendsPerTransaction.cend());
-}
-
-Decimal dividendIncome(const Security& security, Date date) {
-  pv::Decimal total = 0;
-  for (const auto* account : security.dataFile().accounts()) {
-    total += dividendIncome(security, *account, date);
-  }
-
-  return total;
-}
-
-Decimal totalIncome(const Security& security, Date date) {
-  return unrealizedCashGained(security, date).value_or(0) + cashGained(security, date) + dividendIncome(security, date);
-}
-
-Decimal costBasis(const Security& security, const Account& account, Date date) {
-  return sharesHeld(security, account, date) * averageBuyPrice(security, account, date).value_or(0);
-}
-
-Decimal costBasis(const Security& security, Date date) {
-  return sharesHeld(security, date) * averageBuyPrice(security, date).value_or(0);
-}
-
-Decimal cashBalance(const Transaction* transaction) {
-  switch (transaction->action()) {
-  case Action::BUY: {
-    auto* t = static_cast<const BuyTransaction*>(transaction);
-    return -((t->numberOfShares * t->sharePrice) + t->commission);
-  }
-  case Action::SELL: {
-    auto* t = static_cast<const SellTransaction*>(transaction);
-    return (t->numberOfShares * t->sharePrice) - t->commission;
-  }
-  case Action::DEPOSIT: {
-    auto* t = static_cast<const DepositTransaction*>(transaction);
-
-    return t->amount;
-  }
-  case Action::WITHDRAW: {
-    auto* t = static_cast<const WithdrawTransaction*>(transaction);
-    return -t->amount;
-  }
-  case Action::DIVIDEND: {
-    return static_cast<const DepositTransaction*>(transaction)->amount;
-  }
-  default:
+std::optional<i64> averageBuyPrice(const DataFile& dataFile, i64 security, i64 date) {
+  auto stmt = dataFile.query(averageBuyPriceQuery);
+  if (!stmt) {
     return 0;
   }
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  sqlite3_step(&*stmt);
+  std::optional<i64> result = std::nullopt;
+  
+  if (sqlite3_column_type(&*stmt, 0) != SQLITE_NULL) {
+    result = std::llround(sqlite3_column_double(&*stmt, 0));
+  }
+
+  return result;
 }
 
-Security* security(const Transaction* transaction) {
-  switch (transaction->action()) {
-  case Action::BUY:
-    return static_cast<const BuyTransaction*>(transaction)->security;
-  case Action::SELL:
-    return static_cast<const SellTransaction*>(transaction)->security;
-  case Action::DEPOSIT:
-    return static_cast<const DepositTransaction*>(transaction)->security;
-  case Action::WITHDRAW:
-    return static_cast<const WithdrawTransaction*>(transaction)->security;
-  case Action::DIVIDEND:
-    return static_cast<const DividendTransaction*>(transaction)->security;
-  default:
-    return nullptr;
+std::optional<i64> averageBuyPrice(const DataFile& dataFile, i64 security, i64 account, i64 date) {
+  auto stmt = dataFile.query(averageBuyPriceByAccountQuery);
+  if (!stmt) {
+    return 0;
   }
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  sqlite3_bind_int64(&*stmt, 3, static_cast<sqlite3_int64>(account));
+  sqlite3_step(&*stmt);
+  std::optional<i64> result = std::nullopt;
+  
+  if (sqlite3_column_type(&*stmt, 0) != SQLITE_NULL) {
+    result = std::llround(sqlite3_column_double(&*stmt, 0));
+  }
+
+  return result;
+}
+
+
+std::optional<i64> averageSellPrice(const DataFile& dataFile, i64 security, i64 date) {
+  auto stmt = dataFile.query(averageSellPriceQuery);
+  if (!stmt) {
+    return 0;
+  }
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  sqlite3_step(&*stmt);
+  std::optional<i64> result = std::nullopt;
+  
+  if (sqlite3_column_type(&*stmt, 0) != SQLITE_NULL) {
+    result = std::llround(sqlite3_column_double(&*stmt, 0));
+  }
+
+  return result;
+}
+
+std::optional<i64> averageSellPrice(const DataFile& dataFile, i64 security, i64 account, i64 date) {
+  auto stmt = dataFile.query(averageSellPriceByAccountQuery);
+  if (!stmt) {
+    return 0;
+  }
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  sqlite3_bind_int64(&*stmt, 3, static_cast<sqlite3_int64>(account));
+  sqlite3_step(&*stmt);
+  std::optional<i64> result = std::nullopt;
+  
+  if (sqlite3_column_type(&*stmt, 0) != SQLITE_NULL) {
+    result = std::llround(sqlite3_column_double(&*stmt, 0));
+  }
+
+  return result;
+}
+
+std::optional<i64> marketValue(const DataFile& dataFile, i64 security, i64 date) {
+  auto sharePrice_ = sharePrice(dataFile, security, date);
+  if (!sharePrice_.has_value()) {
+    return std::nullopt;
+  }
+  return (*sharePrice_) * sharesHeld(dataFile, security, date);
+}
+
+std::optional<i64> marketValue(const DataFile& dataFile, i64 security, i64 account, i64 date) {
+  auto sharePrice_ = sharePrice(dataFile, security, date);
+  if (!sharePrice_.has_value()) {
+    return std::nullopt;
+  }
+  return (*sharePrice_) * sharesHeld(dataFile, security, account, date);
 }
 
 } // namespace algorithms

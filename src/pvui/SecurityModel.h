@@ -5,7 +5,7 @@
 #include "pv/Signals.h"
 #include <QAbstractTableModel>
 #include <QObject>
-#include <map>
+#include <optional>
 #include <vector>
 
 namespace pvui::models {
@@ -13,15 +13,17 @@ class SecurityModel : public QAbstractTableModel {
   Q_OBJECT
 private:
   pv::DataFile& dataFile_;
-  std::vector<pv::Security*> securities;
+  std::vector<pv::i64> securities;
 
   // Connections
   pv::ScopedConnection securityAddedConnection;
   pv::ScopedConnection securityRemovedConnection;
-  std::unordered_multimap<const pv::Security*, boost::signals2::scoped_connection> securityChangeConnections;
+  pv::ScopedConnection securityUpdatedConnection;
+  pv::ScopedConnection resetConnection;
 
-  void setupSecurity(pv::Security* security);
+  void setupSecurity(pv::i64 security);
 
+  void repopulate();
 public:
   SecurityModel(pv::DataFile& dataFile, QObject* parent = nullptr);
 
@@ -39,11 +41,12 @@ public:
 
   bool setData(const QModelIndex& index, const QVariant& data, int role) override;
 
-  const pv::Security* mapFromIndex(const QModelIndex& index) const noexcept;
-  pv::Security* mapFromIndex(const QModelIndex& index) noexcept;
+  int rowOfSecurity(pv::i64 security) const noexcept;
+  pv::i64 securityOfRow(int rowIndex) const noexcept;
 signals:
-  void securityAdded(pv::Security* security);
-  void securityRemoved(const pv::Security* security);
+  void reset();
+  void securityAdded(pv::i64 security);
+  void securityRemoved(pv::i64 security);
 };
 } // namespace pvui::models
 

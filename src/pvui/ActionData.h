@@ -1,11 +1,9 @@
 #ifndef PVUI_ACTION_MAPPINGS_H
 #define PVUI_ACTION_MAPPINGS_H
 
-#include "pv/Transaction.h"
 #include <QString>
-#include <map>
-#include <string>
 #include <vector>
+#include "pv/DataFile.h"
 
 namespace pvui {
 

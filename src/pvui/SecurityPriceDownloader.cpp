@@ -2,6 +2,7 @@
 #include <QNetworkRequest>
 #include <cassert>
 #include <utility>
+#include <cmath>
 
 namespace pvui {
 
@@ -15,12 +16,12 @@ QUrl generateDownloadUrl(const QString& symbol, const QDate& begin, const QDate&
   return base.arg(symbol, QString::number(beginSecs), QString::number(endSecs));
 }
 
-std::map<QDate, pv::Decimal> parse(QIODevice& data) {
+std::map<QDate, pv::i64> parse(QIODevice& data) {
   constexpr int dateColumn = 0;
   constexpr int priceColumn = 4; // Closing price
   constexpr unsigned int skipHeaderRows = 1;
 
-  std::map<QDate, pv::Decimal> output;
+  std::map<QDate, pv::i64> output;
 
   QStringList currentLine;
 
@@ -36,18 +37,20 @@ std::map<QDate, pv::Decimal> parse(QIODevice& data) {
     }
 
     QDate date = QDate::fromString(currentLine.at(dateColumn), Qt::ISODate); // Make sure to use ISO format (yyyy-MM-dd)
-    pv::Decimal price;
 
     if (!date.isValid()) {
       continue;
     }
-    try {
-      price = pv::Decimal(currentLine.at(priceColumn).toStdString());
-    } catch (...) {
+
+    bool priceOk;
+    double priceDouble = currentLine.at(priceColumn).toDouble(&priceOk);
+    if (!priceOk) {
       continue;
     }
 
-    output.insert({std::move(date), std::move(price)});
+    pv::i64 price = static_cast<pv::i64>(std::llround(priceDouble * 100));
+
+    output.insert({std::move(date), price});
   }
 
   return output;

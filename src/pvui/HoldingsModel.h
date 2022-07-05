@@ -2,30 +2,30 @@
 #define PVUI_MODELS_HOLDINGSMODEL_H
 
 #include "pv/DataFile.h"
+#include "pv/Integer64.h"
 #include "pv/Signals.h"
 #include <QAbstractTableModel>
 #include <unordered_map>
 
+class sqlite3_stmt;
 namespace pvui {
 namespace models {
 
 class HoldingsModel : public QAbstractTableModel {
   Q_OBJECT
 private:
+  sqlite3_stmt* stmt_rowNumberOfSecurity = nullptr;
+
   pv::DataFile& dataFile_;
-  std::vector<pv::Security*> securities;
+  std::vector<pv::i64> securities;
 
   // Connections
-  boost::signals2::scoped_connection securityAddedConnection;
-  boost::signals2::scoped_connection securityRemovedConnection;
-  std::unordered_multimap<pv::Security*, pv::ScopedConnection> securityChangeConnections;
+  pv::ScopedConnection changedConnection;
+  pv::ScopedConnection resetConnection;
 
-  void update(pv::Security& security, int column);
+  void update(pv::i64 security);
 
-protected:
-  void createListeners(pv::Security& security);
-  void removeListeners(pv::Security& security);
-
+  void repopulate();
 public:
   explicit HoldingsModel(pv::DataFile& dataFile, QObject* parent = nullptr);
 
@@ -34,9 +34,7 @@ public:
   QVariant data(const QModelIndex& index, int role) const override;
   QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
 signals:
-  void securityAdded(pv::Security& security);
-  void securityRemoved(const pv::Security& security);
-  void securityChanged(pv::Security& security);
+  void reset();
 
   // QAbstractItemModel interface
 };

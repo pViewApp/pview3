@@ -2,6 +2,7 @@
 #define PVUI_CONTROLS_SECURITYINSERTIONWIDGET_H
 
 #include "DataFileManager.h"
+#include "pv/Integer64.h"
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QLineEdit>
@@ -18,12 +19,16 @@ private:
   QComboBox* sectorEditor = new QComboBox;
   QHBoxLayout* layout = new QHBoxLayout(this);
   pvui::DataFileManager& dataFileManager_;
-  void reset();
 
+  void reset();
+private slots:
+  void handleDataFileChanged();
 public:
   SecurityInsertionWidget(pvui::DataFileManager& manager, QWidget* parent = nullptr);
 public slots:
   bool submit();
+signals:
+  void submitted(pv::i64 security);
 };
 } // namespace controls
 } // namespace pvui

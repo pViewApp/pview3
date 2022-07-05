@@ -10,18 +10,15 @@
 
 namespace pvui {
 
+/// \note Reports can assume that the dataFileManager is not null during reload(). This means that you should never reload() a report when
+/// you have a null \c DataFileManager.
 class Report : public PageWidget {
   Q_OBJECT
-private:
-  const DataFileManager& dataFileManager;
-
-  QString name_;
-
 protected:
-  const pv::DataFile& dataFile() const noexcept { return *dataFileManager; }
-
+  DataFileManager& dataFileManager;
+  QString name_;
 public:
-  Report(QString name, const DataFileManager& dataFileManager, QWidget* parent = nullptr)
+  Report(QString name, DataFileManager& dataFileManager, QWidget* parent = nullptr)
       : PageWidget(parent), dataFileManager(dataFileManager), name_(name) {
     setTitle(name);
     QObject::connect(this, &Report::nameChanged, this, &Report::setTitle);

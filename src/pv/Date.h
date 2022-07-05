@@ -1,29 +1,17 @@
 #ifndef PV_DATE_H
 #define PV_DATE_H
 
-#include <chrono>
-#include <date/date.h>
+#include "Integer64.h"
+#include <ctime>
+#include <cmath>
 
 namespace pv {
 
-using Date = date::local_days;
-using Year = date::year;
-using Month = date::month;
-using Day = date::day;
-using Days = date::days;
-using Months = date::months;
-using Years = date::years;
-using YearMonthDay = date::year_month_day;
-using YearMonth = date::year_month;
-using MonthDay = date::month_day;
-
 namespace dates {
 
-inline Date today() {
-  return Date(YearMonthDay(std::chrono::time_point_cast<date::days>(std::chrono::system_clock::now())));
+inline i64 today() {
+  return static_cast<i64>(std::floor(std::time(nullptr) / 86400.0));
 }
-
-inline Date unixEpoch() { return Date(YearMonthDay(Year(1970), Month(1), Day(1))); }
 
 } // namespace dates
 

@@ -5,9 +5,9 @@
 
 namespace pv {
 
-template <typename Slot>
+template <typename... Slot>
 using Signal =
-    typename boost::signals2::signal_type<Slot,
+    typename boost::signals2::signal_type<void(Slot...),
                                           boost::signals2::keywords::mutex_type<boost::signals2::dummy_mutex>>::type;
 using Connection = boost::signals2::connection;
 using ScopedConnection = boost::signals2::scoped_connection;

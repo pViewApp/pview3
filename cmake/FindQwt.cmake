@@ -92,7 +92,9 @@ if ( WIN32 )
   find_library ( QWT_DEBUG_LIBRARY
 	   NAMES qwtd
   )
-  set(QWT_LIBRARY debug ${QWT_DEBUG_LIBRARY} optimized ${QWT_LIBRARY})
+  if (QWT_DEBUG_LIBRARY)
+    set(QWT_LIBRARY debug ${QWT_DEBUG_LIBRARY} optimized ${QWT_LIBRARY})
+  endif()
 endif()
 
 

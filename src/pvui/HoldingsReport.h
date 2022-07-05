@@ -33,7 +33,7 @@ private:
   void populateSummary();
 
 private slots:
-  void setDataFile(pv::DataFile& dataFile);
+  void handleDataFileChanged();
 
 public:
   HoldingsReport(DataFileManager& manager, QWidget* parent = nullptr);

@@ -1,5 +1,24 @@
 #include "ExtendedSpinBox.h"
 
+int pvui::controls::ExtendedSpinBox::valueFromText(const QString& text) const {
+  if (text.isEmpty()) {
+    return 0.;
+  }
+  return QSpinBox::valueFromText(text);
+}
+
+QString pvui::controls::ExtendedSpinBox::textFromValue(int value) const {
+  if (value == 0 && cleanText().isEmpty())
+    return "";
+  return QSpinBox::textFromValue(value);
+}
+
+QValidator::State pvui::controls::ExtendedSpinBox::validate(QString& text, int& pos) const {
+  if (text.isEmpty())
+    return QValidator::Acceptable;
+  return QSpinBox::validate(text, pos);
+}
+
 double pvui::controls::ExtendedDoubleSpinBox::valueFromText(const QString& text) const {
   if (text.isEmpty()) {
     return 0.;

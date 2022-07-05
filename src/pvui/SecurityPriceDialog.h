@@ -5,6 +5,7 @@
 #include "SecurityPriceModel.h"
 #include "pv/Security.h"
 #include "pv/Signals.h"
+#include "pvui/DataFileManager.h"
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QHBoxLayout>
@@ -13,6 +14,7 @@
 #include <QTableView>
 #include <QWidget>
 #include <memory>
+#include <optional>
 
 namespace pvui {
 namespace dialogs {
@@ -21,7 +23,8 @@ namespace dialogs {
 class SecurityPriceDialog : public QDialog {
   Q_OBJECT
 private:
-  pv::Security* security_ = nullptr;
+  DataFileManager& dataFileManager;
+  pv::i64 security_;
 
   QVBoxLayout* layout = new QVBoxLayout(this);
   QTableView* table = new QTableView;
@@ -31,22 +34,23 @@ private:
   QSortFilterProxyModel* proxyModel = new QSortFilterProxyModel(table);
   std::unique_ptr<models::SecurityPriceModel> model = nullptr;
 
-  pv::ScopedConnection securityNameChangeConnection;
+  pv::ScopedConnection securityUpdatedConnection;
+  pv::ScopedConnection resetConnection;
 
   void setupTableContextMenu();
 
   void updateTitle();
-
-public:
-  SecurityPriceDialog(pv::Security& security, QWidget* parent = nullptr);
-  void showEvent(QShowEvent*) override { insertionWidget->setFocus(); }
 private slots:
   void onSubmit(QDate date);
+
+  void handleDataFileChanged();
+public:
+  SecurityPriceDialog(DataFileManager& dataFileManager, pv::i64 security, QWidget* parent = nullptr);
 public slots:
-  void setSecurity(pv::Security& security);
+  void setSecurity(pv::i64 security);
 
 signals:
-  void securityNameChanged();
+  void securityUpdated();
 };
 
 } // namespace dialogs

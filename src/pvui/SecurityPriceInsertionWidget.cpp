@@ -1,8 +1,17 @@
 #include "SecurityPriceInsertionWidget.h"
+#include "pv/DataFile.h"
+#include "pv/Security.h"
 #include <QShortcut>
+#include <optional>
+#include "DateUtils.h"
+#include "pvui/DataFileManager.h"
+#include <cmath>
 
-pvui::controls::SecurityPriceInsertionWidget::SecurityPriceInsertionWidget(pv::Security& security, QWidget* parent)
-    : QWidget(parent), security_(&security) {
+namespace pvui {
+namespace controls {
+
+SecurityPriceInsertionWidget::SecurityPriceInsertionWidget(DataFileManager& dataFileManager, QWidget* parent)
+    : QWidget(parent), dataFileManager(dataFileManager) {
   layout->addWidget(dateEditor, 1);
   layout->addWidget(priceEditor, 1);
 
@@ -23,28 +32,37 @@ pvui::controls::SecurityPriceInsertionWidget::SecurityPriceInsertionWidget(pv::S
   QObject::connect(submitShortcutEnter, &QShortcut::activated, this, &SecurityPriceInsertionWidget::submit);
   QObject::connect(submitShortcutReturn, &QShortcut::activated, this, &SecurityPriceInsertionWidget::submit);
 
-  setSecurity(security);
+  QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this, &SecurityPriceInsertionWidget::handleDataFileChanged);
+  handleDataFileChanged();
 }
 
-void pvui::controls::SecurityPriceInsertionWidget::reset() {
+void SecurityPriceInsertionWidget::handleDataFileChanged() {
+  setSecurity(std::nullopt);
+}
+
+void SecurityPriceInsertionWidget::reset() {
   dateEditor->setDate(QDate::currentDate());
   priceEditor->setBlank();
 }
 
-bool pvui::controls::SecurityPriceInsertionWidget::submit() {
-  using namespace pv;
+bool SecurityPriceInsertionWidget::submit() {
+  if (!security_.has_value()) {
+    return false;
+  }
 
   auto qDate = dateEditor->date();
-  Date date(YearMonthDay(Year(qDate.year()), Month(qDate.month()), Day(qDate.day())));
+  auto date = toEpochDate(qDate);
 
-  if (security_->prices().find(date) != security_->prices().cend())
+  if (pv::security::price(*dataFileManager, *security_, date).has_value())
     return false;
 
   if (priceEditor->cleanText().isEmpty())
     return false;
 
-  if (!security_->setPrice(date, priceEditor->decimalValue()))
+  auto result = dataFileManager->setSecurityPrice(*security_, date, static_cast<pv::i64>(std::llround(priceEditor->value() * 100)));
+  if (result != pv::ResultCode::OK) {
     return false;
+  }
 
   reset();
   dateEditor->setFocus();
@@ -53,7 +71,12 @@ bool pvui::controls::SecurityPriceInsertionWidget::submit() {
   return true;
 }
 
-void pvui::controls::SecurityPriceInsertionWidget::setSecurity(pv::Security& security) {
-  security_ = &security;
+void SecurityPriceInsertionWidget::setSecurity(std::optional<pv::i64> security) {
+  security_ = std::move(security);
   reset();
+  setEnabled(security.has_value());
 }
+
+} // namespace controls
+} // namespace pvui
+

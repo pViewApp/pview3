@@ -1,5 +1,9 @@
 #include "MarketValueReport.h"
 #include "pv/Algorithms.h"
+#include "DateUtils.h"
+#include <sqlite3.h>
+#include "pv/Integer64.h"
+#include "pv/Security.h"
 #include <QDate>
 #include <QDateTime>
 #include <QLabel>
@@ -7,6 +11,7 @@
 #include <QLocale>
 #include <QwtAxisId>
 #include <QwtColumnSymbol>
+#include <cassert>
 #include <QwtDateScaleDraw>
 #include <QwtLegend>
 #include <QwtPlotCanvas>
@@ -17,11 +22,12 @@
 #include <QwtText>
 #include <algorithm>
 #include <cassert>
+#include <vector>
 
 namespace pvui {
 namespace reports {
 
-MarketValueReport::MarketValueReport(QString name, const DataFileManager& dataFileManager, QWidget* parent)
+MarketValueReport::MarketValueReport(QString name, DataFileManager& dataFileManager, QWidget* parent)
     : Report(name, dataFileManager, parent), div(new QwtScaleDiv) {
   titleLabel()->hide();
   layout()->addLayout(groupBySelectorLayout);
@@ -74,41 +80,43 @@ void MarketValueReport::setupGroupBySelection() {
   QObject::connect(groupBySelector, &QComboBox::currentTextChanged, this, [this]() { reload(); });
 }
 
-pv::Date MarketValueReport::convertDate(QDate date) noexcept {
-  return pv::Date(pv::YearMonthDay(pv::Year(date.year()), pv::Month(date.month()), pv::Day(date.day())));
-}
-
-void MarketValueReport::drawPlot(std::function<QString(const pv::Security*)> grouper) noexcept {
+void MarketValueReport::drawPlot(std::function<QString(const pv::i64)> grouper) noexcept {
+  assert(dataFileManager.has());
   // todo improve efficiency of this function
-  std::map<QString, QMap<QDate, pv::Decimal>> values;
+  std::map<QString, QMap<QDate, double>> values;
   //        ^ group       ^ date   ^ market value
   // Populate cashBalances and values
-
-  const std::vector<const pv::Security*>& securities = dataFile().securities();
 
   { // Begin new scope because we declare variables here that are not needed later
     QVector<double> costBasisXData;
     QVector<double> costBasisYData;
 
-    for (auto date = start(); date <= end(); date = date.addDays(interval)) {
-      pv::Decimal costBasis = 0;
-      auto pvDate = convertDate(date);
-      for (const auto* security : securities) {
+    auto securityListStmt = dataFileManager->query("SELECT Id FROM Securities");
+    std::vector<pv::i64> securities;
+
+    while (sqlite3_step(securityListStmt.get()) == SQLITE_ROW) {
+      securities.push_back(sqlite3_column_int64(securityListStmt.get(), 0));
+    }
+
+    for (QDate date = start(), endDate = end(); date <= endDate; date = date.addDays(interval)) {
+      pv::i64 costBasis = 0;
+      pv::i64 epochDay = toEpochDate(date);
+      for (const auto security : securities) {
         QString group = grouper(security);
 
         auto iter = values[group].find(date); // Automatically create values[sector] if needed
         if (iter == values[group].end()) {
-          values[group][date] = pv::algorithms::marketValue(*security, pvDate).value_or(0);
+          values[group][date] = pv::algorithms::marketValue(*dataFileManager, security, epochDay).value_or(0);
         } else {
           // Add to existing value
-          iter.value() += pv::algorithms::marketValue(*security, pvDate).value_or(0);
+          iter.value() += pv::algorithms::marketValue(*dataFileManager, security, epochDay).value_or(0);
         }
 
-        costBasis += pv::algorithms::costBasis(*security, pvDate);
+        costBasis += pv::algorithms::costBasis(*dataFileManager, security, epochDay);
       }
 
       costBasisXData += QwtDate::toDouble(QDateTime(date, QTime(0, 0, 0)));
-      costBasisYData += static_cast<double>(costBasis);
+      costBasisYData += costBasis / 100.;
     }
 
     costBasisCurve.setSamples(costBasisXData, costBasisYData);
@@ -124,20 +132,22 @@ void MarketValueReport::drawPlot(std::function<QString(const pv::Security*)> gro
   titles += QwtText(tr("Cash Balance"));
 
   for (auto date = start(); date <= end(); date = date.addDays(interval)) {
-    auto pvDate = convertDate(date);
+    auto pvDate = toEpochDate(date); 
     QVector<double> samplesForDate;
     samplesForDate.reserve(titles.size() + 1);
     for (const auto& pair : values) {
       assert(pair.second.contains(date));
-      samplesForDate += static_cast<double>(pair.second.value(date));
+      samplesForDate += pair.second.value(date) / 100.; 
     }
 
-    pv::Decimal cashBalance = 0;
-    for (const auto* account : dataFile().accounts()) {
-      cashBalance += pv::algorithms::cashBalance(*account, pvDate);
+    pv::i64 cashBalance = 0;
+
+    auto accountQuery = dataFileManager->query("SELECT Id FROM Accounts");
+    while (sqlite3_step(accountQuery.get()) == SQLITE_ROW) {
+      cashBalance += pv::algorithms::cashBalance(*dataFileManager, sqlite3_column_int64(accountQuery.get(), 0), pvDate);
     }
 
-    samplesForDate += static_cast<double>(cashBalance);
+    samplesForDate += cashBalance / 100.;
 
     samples += QwtSetSample(QwtDate::toDouble(QDateTime(date, QTime(0, 0, 0))), samplesForDate);
   }
@@ -170,11 +180,11 @@ QwtScaleDiv MarketValueReport::createScaleDiv() const noexcept {
 }
 void MarketValueReport::reload() noexcept {
   if (groupBySelector->currentText() == tr("Security")) {
-    drawPlot([](const pv::Security* security) { return QString::fromStdString(security->symbol()); });
+    drawPlot([this](pv::i64 security) { return QString::fromStdString(pv::security::symbol(*dataFileManager, security)); });
   } else if (groupBySelector->currentText() == tr("Asset Class")) {
-    drawPlot([](const pv::Security* security) { return QString::fromStdString(security->assetClass()); });
+    drawPlot([this](pv::i64 security) { return QString::fromStdString(pv::security::assetClass(*dataFileManager, security)); });
   } else if (groupBySelector->currentText() == tr("Sector")) {
-    drawPlot([](const pv::Security* security) { return QString::fromStdString(security->sector()); });
+    drawPlot([this](pv::i64 security) { return QString::fromStdString(pv::security::sector(*dataFileManager, security)); });
   }
 
   plot->setAxisScaleDiv(QwtAxis::XBottom, createScaleDiv());

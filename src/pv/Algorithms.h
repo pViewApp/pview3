@@ -1,69 +1,56 @@
 #ifndef PV_ALGORITHMS_ALGORITHMS_H
 #define PV_ALGORITHMS_ALGORITHMS_H
 
-#include "Decimal.h"
 #include "pv/DataFile.h"
 #include <optional>
+#include "pv/Integer64.h"
 
 namespace pv {
 namespace algorithms {
 
-Security* security(const Transaction* transaction);
+i64 cashBalance(const DataFile& dataFile, i64 account, i64 date);
 
-Decimal cashBalance(const Transaction* transaction);
+i64 sharesHeld(const DataFile& dataFile, i64 security, i64 date);
 
-Decimal cashBalance(const Account& account, Date date = dates::today());
+i64 sharesHeld(const DataFile& dataFile, i64 security, i64 account, i64 date);
 
-Decimal sharesHeld(const Security& security, const Account& account, Date date = dates::today());
+i64 sharesSold(const DataFile& dataFile, i64 security, i64 account);
 
-Decimal sharesHeld(const Security& security, Date date = dates::today());
+i64 sharesSold(const DataFile& dataFile, i64 security, i64 account, i64 date);
 
-Decimal cashSpent(const Security& security, const Account& account, Date date = dates::today());
+i64 cashGained(const DataFile& dataFile, i64 security, i64 date);
 
-Decimal cashSpent(const Security& security, Date date = dates::today());
+i64 cashGained(const DataFile& dataFile, i64 security, i64 account, i64 date);
 
-Decimal cashEarned(const Security& security, const Account& account, Date date = dates::today());
+i64 dividendIncome(const DataFile& dataFile, i64 security, i64 date);
 
-Decimal cashEarned(const Security& security, Date date = dates::today());
+i64 dividendIncome(const DataFile& dataFile, i64 security, i64 account, i64 date);
 
-Decimal cashGained(const Security& security, const Account& account, Date date = dates::today());
+i64 costBasis(const DataFile& dataFile, i64 security, i64 date);
 
-Decimal cashGained(const Security& security, Date date = dates::today());
+i64 costBasis(const DataFile& dataFile, i64 security, i64 account, i64 date);
 
-Decimal dividendIncome(const Security& security, const Account& account, Date date = dates::today());
+i64 totalIncome(const DataFile& dataFile, i64 security, i64 date);
 
-Decimal dividendIncome(const Security& security, Date date = dates::today());
+i64 totalIncome(const DataFile& dataFile, i64 security, i64 account, i64 date);
 
-Decimal costBasis(const Security& security, const Account& account, Date date = dates::today());
+std::optional<i64> sharePrice(const DataFile& dataFile, i64 security, i64 date);
 
-Decimal costBasis(const Security& security, Date date = dates::today());
+std::optional<i64> unrealizedCashGained(const DataFile& dataFile, i64 security, i64 date);
 
-std::optional<Decimal> unrealizedCashGained(const Security& security, const Account& account,
-                                            Date date = dates::today());
+std::optional<i64> unrealizedCashGained(const DataFile& dataFile, i64 security, i64 account, i64 date);
 
-std::optional<Decimal> unrealizedCashGained(const Security& security, Date date = dates::today());
+std::optional<i64> averageBuyPrice(const DataFile& dataFile, i64 security, i64 date); 
 
-std::optional<Decimal> sharePrice(const Security& security, Date date = dates::today());
+std::optional<i64> averageBuyPrice(const DataFile& dataFile, i64 security, i64 account, i64 date); 
 
-std::optional<Decimal> marketValue(const Security& security, const Account& account, Date date = dates::today());
+std::optional<i64> averageSellPrice(const DataFile& dataFile, i64 security, i64 date); 
 
-std::optional<Decimal> marketValue(const Security& security, Date date = dates::today());
+std::optional<i64> averageSellPrice(const DataFile& dataFile, i64 security, i64 account, i64 date); 
 
-std::optional<Decimal> averageBuyPrice(const Security& security, Date date = dates::today());
+std::optional<i64> marketValue(const DataFile& dataFile, i64 security, i64 date);
 
-std::optional<Decimal> averageSellPrice(const Security& security, Date date = dates::today());
-
-std::optional<Decimal> averageBuyPrice(const Security& security, const Account& account, Date date = dates::today());
-
-std::optional<Decimal> averageSellPrice(const Security& security, const Account& account, Date date = dates::today());
-
-std::optional<Decimal> unrealizedGainRelative(const Security& security, const Account& account,
-                                              Date date = dates::today());
-std::optional<Decimal> unrealizedGainRelative(const Security& security, Date date = dates::today());
-
-Decimal totalIncome(const Security& security, const Account& account, Date date = dates::today());
-
-Decimal totalIncome(const Security& security, Date date = dates::today());
+std::optional<i64> marketValue(const DataFile& dataFile, i64 security, i64 account, i64 date);
 
 } // namespace algorithms
 } // namespace pv
