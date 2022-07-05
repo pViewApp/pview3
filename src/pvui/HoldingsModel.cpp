@@ -108,30 +108,30 @@ QVariant HoldingsModel::data(const QModelIndex& index, int role) const {
   }
   case recentQuoteColumn: {
     return holding.recentQuote ? moneyData(*holding.recentQuote, role)
-                               : stringData(tr("N/A"), role, FormatFlag::Numeric);
+                               : stringData(tr("N/A"), role, FormatFlag::Numeric | FormatFlag::SortFirst);
   }
   case averageBuyPriceColumn: {
     return holding.avgBuyPrice ? moneyData(*holding.avgBuyPrice, role)
-                               : stringData(tr("N/A"), role, FormatFlag::Numeric);
+                               : stringData(tr("N/A"), role, FormatFlag::Numeric | FormatFlag::SortFirst);
   }
   case averageSellPriceColumn: {
     return holding.avgSellPrice ? moneyData(*holding.avgSellPrice, role)
-                                : stringData(tr("N/A"), role, FormatFlag::Numeric);
+                                : stringData(tr("N/A"), role, FormatFlag::Numeric | FormatFlag::SortFirst);
   }
   case sharesHeldColumn: {
     return numberData(holding.sharesHeld, role);
   }
   case unrealizedGainColumn: {
     return holding.unrealizedGain ? moneyData(*holding.unrealizedGain, role, FormatFlag::Numeric | FormatFlag::ColorNegative)
-                                  : stringData(tr("N/A"), role, FormatFlag::Numeric);
+                                  : stringData(tr("N/A"), role, FormatFlag::Numeric | FormatFlag::SortFirst);
   }
   case unrealizedGainPercentageColumn: {
     return holding.unrealizedGainPercentage
                ? percentageData(*holding.unrealizedGainPercentage, role, FormatFlag::Numeric | FormatFlag::ColorNegative)
-               : stringData(tr("N/A"), role, FormatFlag::Numeric);
+               : stringData(tr("N/A"), role, FormatFlag::Numeric | FormatFlag::SortFirst);
   }
   case realizedGainColumn: {
-    return moneyData(holding.realizedGain, role, FormatFlag::Numeric | FormatFlag::ColorNegative);
+    return moneyData(holding.realizedGain, role, FormatFlag::Numeric | FormatFlag::ColorNegative | FormatFlag::SortFirst);
   }
   case dividendIncomeColumn: {
     return moneyData(holding.dividendIncome, role);
@@ -140,11 +140,11 @@ QVariant HoldingsModel::data(const QModelIndex& index, int role) const {
     return moneyData(holding.costBasis, role);
   }
   case totalIncomeColumn: {
-    return moneyData(holding.totalIncome, role, FormatFlag::Numeric | FormatFlag::ColorNegative);
+    return moneyData(holding.totalIncome, role, FormatFlag::Numeric | FormatFlag::ColorNegative | FormatFlag::SortFirst);
   }
   case marketValueColunm: {
     return holding.marketValue ? moneyData(*holding.marketValue, role)
-                               : stringData(tr("N/A"), role, FormatFlag::Numeric);
+                               : stringData(tr("N/A"), role, FormatFlag::Numeric | FormatFlag::SortFirst);
   }
   default:
     return QVariant();

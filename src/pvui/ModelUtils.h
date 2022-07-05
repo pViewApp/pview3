@@ -15,6 +15,10 @@ enum class FormatFlag {
   /// Format as a numeric value.
   /// This is currently implemented by right-aligning the value.
   Numeric = 4,
+  /// Treat this value as the lowest possible numeric value for sorting.
+  SortFirst = 8,
+  /// Treat this value as the highest possible numeric value for sorting.
+  SortLast = 16,
 };
 
 Q_DECLARE_FLAGS(FormatFlags, FormatFlag);

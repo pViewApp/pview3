@@ -4,7 +4,10 @@
 #include <QColor>
 #include <QStringLiteral>
 #include <Qt>
+#include <limits>
+#include <qvariant.h>
 #include <string>
+#include <QVariant>
 #include <type_traits>
 #include <Qt>
 
@@ -33,6 +36,16 @@ QVariant formatAlignment(FormatFlags flags) {
   }
 }
 
+QVariant sortData(const QVariant& value, FormatFlags flags) {
+  if (flags & FormatFlag::SortFirst) {
+    return -std::numeric_limits<double>::infinity();
+  } else if (flags & FormatFlag::SortLast) {
+    return std::numeric_limits<double>::infinity();
+  } else {
+    return value;
+  }
+}
+
 template <typename NumberType> QVariant genericNumberData(NumberType number, int role, FormatFlags flags) {
   if (role == Qt::TextAlignmentRole) {
     return formatAlignment(flags);
@@ -48,7 +61,7 @@ template <typename NumberType> QVariant genericNumberData(NumberType number, int
   } else if (role == Qt::DisplayRole || role == Qt::AccessibleTextRole) {
     return QStringLiteral("%L1").arg(number); // return localized number
   } else if (role == SortRole) {
-    return number;
+    return sortData(number, flags);
   } else {
     return QVariant();
   }
@@ -59,8 +72,10 @@ template <typename NumberType> QVariant genericNumberData(NumberType number, int
 QVariant stringData(const QString& string, int role, FormatFlags flags) {
   if (role == Qt::TextAlignmentRole) {
     return formatAlignment(flags);
-  } else if (role == Qt::DisplayRole || role == Qt::AccessibleTextRole || role == SortRole) {
+  } else if (role == Qt::DisplayRole || role == Qt::AccessibleTextRole) {
     return string;
+  } else if (role == SortRole) {
+    return sortData(string, flags);
   } else {
     return QVariant();
   }
@@ -76,7 +91,7 @@ QVariant moneyData(pv::i64 money, int role, FormatFlags flags) {
   } else if (role == Qt::DisplayRole || role == Qt::AccessibleTextRole) {
     return ::pvui::util::formatMoney(money);
   } else if (role == SortRole) {
-      return money;
+      return sortData(money, flags);
   } else {
     return QVariant();
   }
@@ -90,7 +105,7 @@ QVariant percentageData(double percentage, int role, FormatFlags flags) {
   } else if (role == Qt::ForegroundRole) {
     return formatColor(percentage, flags);
   } else if (role == SortRole) {
-      return percentage;
+      return sortData(percentage, flags);
   } else if (role == Qt::DisplayRole || role == Qt::AccessibleTextRole) {
     return ::pvui::util::formatPercentage(percentage);
   } else {
