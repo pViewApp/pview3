@@ -1,17 +1,17 @@
 #include "HoldingsModel.h"
+#include "DateUtils.h"
 #include "ModelUtils.h"
 #include "pv/Algorithms.h"
 #include "pv/Integer64.h"
+#include "pv/Security.h"
+#include <QSize>
+#include <Qt>
 #include <iterator>
 #include <memory>
 #include <optional>
-#include <Qt>
 #include <qnamespace.h>
 #include <sqlite3.h>
-#include "pv/Security.h"
-#include <QSize>
 #include <utility>
-#include "DateUtils.h"
 
 constexpr int symbolColumn = 0;
 constexpr int nameColumn = 1;
@@ -33,112 +33,118 @@ namespace models {
 
 HoldingsModel::HoldingsModel(pv::DataFile& dataFile, QObject* parent)
     : QAbstractTableModel(parent), dataFile_(dataFile) {
-  repopulate();
+  changedConnection = dataFile.onChanged([&]() { emit reset(); });
 
-  changedConnection =
-      dataFile.onChanged([&]() { emit reset(); });
-
-  QObject::connect(this, &HoldingsModel::reset, this, [&]{ beginResetModel(); repopulate(); endResetModel(); });
+  QObject::connect(this, &HoldingsModel::reset, this, [&] {
+    beginResetModel();
+    holdings.clear();
+    needsRepopulating = true;
+    endResetModel();
+  });
 }
 
 void HoldingsModel::repopulate() {
-  securities.clear();
+  beginResetModel();
+  holdings.clear();
 
   auto stmt = dataFile_.query("SELECT Id FROM Securities");
   while (sqlite3_step(stmt.get()) == SQLITE_ROW) {
-    securities.push_back(sqlite3_column_int64(stmt.get(), 0));
+    pv::i64 security = sqlite3_column_int64(stmt.get(), 0);
+    Holding h;
+    pv::i64 today = currentEpochDate();
+    h.security = security;
+    h.symbol = QString::fromStdString(pv::security::symbol(dataFile_, security));
+    h.name = QString::fromStdString(pv::security::name(dataFile_, security));
+    h.sharesHeld = pv::algorithms::sharesHeld(dataFile_, security, today);
+    h.recentQuote = pv::algorithms::sharePrice(dataFile_, security, today);
+    h.avgBuyPrice = pv::algorithms::averageBuyPrice(dataFile_, security, today);
+    h.avgSellPrice = pv::algorithms::averageSellPrice(dataFile_, security, today);
+    h.unrealizedGain = pv::algorithms::unrealizedCashGained(dataFile_, security, today);
+    if (!h.unrealizedGain.has_value() || !h.avgBuyPrice.has_value()) {
+      h.unrealizedGainPercentage = std::nullopt;
+    } else {
+      double second = h.avgBuyPrice.value() * h.sharesHeld;
+      if (second == 0) {
+        h.unrealizedGainPercentage = 0; // Avoid division by zero
+      } else {
+        h.unrealizedGainPercentage = (h.unrealizedGain.value() * 100) / second;
+      }
+    }
+    h.realizedGain = pv::algorithms::cashGained(dataFile_, security, today);
+    h.dividendIncome = pv::algorithms::dividendIncome(dataFile_, security, today);
+    h.costBasis = pv::algorithms::costBasis(dataFile_, security, today);
+    h.totalIncome = pv::algorithms::totalIncome(dataFile_, security, today);
+    h.marketValue = pv::algorithms::marketValue(dataFile_, security, today);
+
+    holdings.push_back(std::move(h));
   }
+
+  needsRepopulating = false;
+  endResetModel();
 }
 
+bool HoldingsModel::canFetchMore(const QModelIndex& parent) const { return !parent.isValid() && needsRepopulating; }
 
-void HoldingsModel::update(pv::i64 security) {
-  auto rowNumber = static_cast<int>(std::find(securities.begin(), securities.end(), security) - securities.begin());
+void HoldingsModel::fetchMore(const QModelIndex&) { repopulate(); }
 
-  auto firstIndex = index(rowNumber, 0);
-  auto lastIndex = index(rowNumber, ::columnCount);
-
-  emit dataChanged(firstIndex, lastIndex);
-}
-
-int HoldingsModel::rowCount(const QModelIndex&) const { return static_cast<int>(securities.size()); }
+int HoldingsModel::rowCount(const QModelIndex& index) const { return index.isValid() ? 0 : holdings.size(); }
 
 int HoldingsModel::columnCount(const QModelIndex&) const { return ::columnCount; }
 
 QVariant HoldingsModel::data(const QModelIndex& index, int role) const {
   using modelutils::FormatFlag;
+  using modelutils::moneyData;
   using modelutils::numberData;
   using modelutils::percentageData;
-  using modelutils::moneyData;
+  using modelutils::stringData;
 
-  if (role == Qt::TextAlignmentRole) {
-    int col = index.column();
-    if (col == symbolColumn || col == nameColumn) {
-      return QVariant(); // Use default alignment for text column
-    } else {
-      return QVariant(Qt::AlignRight | Qt::AlignVCenter); // right-align numbers
-    }
-  }
-  if (role != Qt::DisplayRole && role != Qt::AccessibleTextRole && role != Qt::ForegroundRole)
-    return QVariant();
-
-  pv::i64 security = securities.at(index.row());
+  Holding holding = holdings.at(index.row());
   switch (index.column()) {
   case symbolColumn: {
-    return QString::fromStdString(pv::security::symbol(dataFile_, security));
+    return stringData(holding.symbol, role);
   }
   case nameColumn: {
-    return QString::fromStdString(pv::security::name(dataFile_, security));
+    return stringData(holding.name, role);
   }
   case recentQuoteColumn: {
-    std::optional<pv::i64> recentQuote = pv::algorithms::sharePrice(dataFile_, security, currentEpochDate());
-    return recentQuote ? moneyData(*recentQuote, role) : tr("N/A");
+    return holding.recentQuote ? moneyData(*holding.recentQuote, role)
+                               : stringData(tr("N/A"), role, FormatFlag::Numeric);
   }
   case averageBuyPriceColumn: {
-    std::optional<pv::i64> averageBuyPrice = pv::algorithms::averageBuyPrice(dataFile_, security, currentEpochDate());
-    return averageBuyPrice.has_value() ? moneyData(*averageBuyPrice, role) : QVariant(tr("N/A"));
+    return holding.avgBuyPrice ? moneyData(*holding.avgBuyPrice, role)
+                               : stringData(tr("N/A"), role, FormatFlag::Numeric);
   }
   case averageSellPriceColumn: {
-    std::optional<pv::i64> averageSellPrice = pv::algorithms::averageSellPrice(dataFile_, security, currentEpochDate());
-    return averageSellPrice.has_value() ? moneyData(*averageSellPrice, role) : QVariant(tr("N/A"));
+    return holding.avgSellPrice ? moneyData(*holding.avgSellPrice, role)
+                                : stringData(tr("N/A"), role, FormatFlag::Numeric);
   }
   case sharesHeldColumn: {
-    return numberData(pv::algorithms::sharesHeld(dataFile_, security, currentEpochDate()), role);
+    return numberData(holding.sharesHeld, role);
   }
   case unrealizedGainColumn: {
-    return moneyData(pv::algorithms::unrealizedCashGained(dataFile_, security, currentEpochDate()).value_or(0), role,
-                           FormatFlag::COLOR_NEGATIVE);
+    return holding.unrealizedGain ? moneyData(*holding.unrealizedGain, role, FormatFlag::Numeric | FormatFlag::ColorNegative)
+                                  : stringData(tr("N/A"), role, FormatFlag::Numeric);
   }
   case unrealizedGainPercentageColumn: {
-    std::optional<pv::i64> averageBuyPrice = pv::algorithms::averageBuyPrice(dataFile_, security, currentEpochDate());
-    std::optional<pv::i64> sharesHeld = pv::algorithms::sharesHeld(dataFile_, security, currentEpochDate());
-    std::optional<pv::i64> unrealizedCashGained = pv::algorithms::unrealizedCashGained(dataFile_, security, currentEpochDate());
-    
-    pv::i64 second = sharesHeld.value_or(0) * averageBuyPrice.value_or(0);
-
-    if (second == 0) {
-      return percentageData(0, role, FormatFlag::COLOR_NEGATIVE);
-    } else {
-      return percentageData((unrealizedCashGained.value_or(0) * 100) / static_cast<double>(second), role, FormatFlag::COLOR_NEGATIVE);
-    }
+    return holding.unrealizedGainPercentage
+               ? percentageData(*holding.unrealizedGainPercentage, role, FormatFlag::Numeric | FormatFlag::ColorNegative)
+               : stringData(tr("N/A"), role, FormatFlag::Numeric);
   }
   case realizedGainColumn: {
-    return moneyData(pv::algorithms::cashGained(dataFile_, security, currentEpochDate()), role, FormatFlag::COLOR_NEGATIVE);
+    return moneyData(holding.realizedGain, role, FormatFlag::Numeric | FormatFlag::ColorNegative);
   }
   case dividendIncomeColumn: {
-    return moneyData(pv::algorithms::dividendIncome(dataFile_, security, currentEpochDate()), role);
+    return moneyData(holding.dividendIncome, role);
   }
   case costBasisColumn: {
-    return moneyData(pv::algorithms::costBasis(dataFile_, security, currentEpochDate()), role);
+    return moneyData(holding.costBasis, role);
   }
   case totalIncomeColumn: {
-    return moneyData(pv::algorithms::totalIncome(dataFile_, security, currentEpochDate()), role, FormatFlag::COLOR_NEGATIVE);
+    return moneyData(holding.totalIncome, role, FormatFlag::Numeric | FormatFlag::ColorNegative);
   }
   case marketValueColunm: {
-    std::optional<pv::i64> marketValue = pv::algorithms::marketValue(dataFile_, security, currentEpochDate());
-    if (!marketValue.has_value()) {
-      return tr("N/A");
-    }
-    return moneyData(*marketValue, role);
+    return holding.marketValue ? moneyData(*holding.marketValue, role)
+                               : stringData(tr("N/A"), role, FormatFlag::Numeric);
   }
   default:
     return QVariant();

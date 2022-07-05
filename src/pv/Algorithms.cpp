@@ -50,14 +50,14 @@ WHERE Transactions.Date <= :Date AND Transaction.AccountId = :AccountId
 
 constexpr char dividendIncomeQuery[] = R"(
 SELECT COALESCE(SUM(DividendTransactions.Amount), 0) FROM Transactions
-  INNER JOIN DividendTransactions ON Transactions.Id = DividendTransactions.Id
+  INNER JOIN DividendTransactions ON Transactions.Id = DividendTransactions.TransactionId
     AND DividendTransactions.SecurityId = :SecurityId
-WHERE Transactions.Date = :Date AND Transactions.AccountId = :AccountId
+WHERE Transactions.Date = :Date
 )";
 
 constexpr char dividendIncomeByAccountQuery[] = R"(
 SELECT COALESCE(SUM(DividendTransactions.Amount), 0) FROM Transactions
-  INNER JOIN DividendTransactions ON Transactions.Id = DividendTransactions.Id
+  INNER JOIN DividendTransactions ON Transactions.Id = DividendTransactions.TransactionId
     AND DividendTransactions.SecurityId = :SecurityId
 WHERE Transactions.Date = :Date AND Transactions.AccountId = :AccountId
 )";

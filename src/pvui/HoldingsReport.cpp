@@ -6,6 +6,7 @@
 #include "pv/Integer64.h"
 #include "pv/Security.h"
 #include "pvui/DataFileManager.h"
+#include "pvui/ModelUtils.h"
 #include <QApplication>
 #include <QHeaderView>
 #include <QShowEvent>
@@ -53,7 +54,8 @@ HoldingsReport::HoldingsReport(DataFileManager& manager, QWidget* parent) : Repo
     settings.setValue(QString::fromUtf8(headerStateKey), table->horizontalHeader()->saveState());
   });
 
-    handleDataFileChanged();
+  handleDataFileChanged();
+  proxyModel.setSortRole(modelutils::SortRole);
 }
 
 void HoldingsReport::reload() noexcept {

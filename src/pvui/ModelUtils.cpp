@@ -6,27 +6,36 @@
 #include <Qt>
 #include <string>
 #include <type_traits>
+#include <Qt>
 
 namespace pvui {
 namespace modelutils {
 
 namespace {
 
-QVariant formatColor(double amount, const FormatFlags& flags) {
-  if (flags & FormatFlag::COLOR_NEGATIVE && amount < 0) {
+QVariant formatColor(double amount, FormatFlags flags) {
+  if (flags & FormatFlag::ColorNegative && amount < 0) {
     // Color negative number
     return QColor(Qt::GlobalColor::red);
   }
-  if (flags & FormatFlag::COLOR_POSITIVE && amount > 0) {
+  if (flags & FormatFlag::ColorPositive && amount > 0) {
     return QColor(Qt::GlobalColor::darkGreen);
   } else {
     return QVariant(); // Don't color text
   }
 }
 
+QVariant formatAlignment(FormatFlags flags) {
+  if (flags & FormatFlag::Numeric) {
+    return QVariant(Qt::AlignRight | Qt::AlignVCenter);
+  } else {
+    return QVariant(Qt::AlignLeft | Qt::AlignVCenter);
+  }
+}
+
 template <typename NumberType> QVariant genericNumberData(NumberType number, int role, FormatFlags flags) {
   if (role == Qt::TextAlignmentRole) {
-    return QVariant(Qt::AlignTrailing | Qt::AlignCenter);
+    return formatAlignment(flags);
   } else if (role == Qt::EditRole) {
     // Cast to int or double, because only these types are editable with Qt's default item editor factory
     if (std::is_floating_point<NumberType>::value) {
@@ -38,6 +47,8 @@ template <typename NumberType> QVariant genericNumberData(NumberType number, int
     return formatColor(number, flags);
   } else if (role == Qt::DisplayRole || role == Qt::AccessibleTextRole) {
     return QStringLiteral("%L1").arg(number); // return localized number
+  } else if (role == SortRole) {
+    return number;
   } else {
     return QVariant();
   }
@@ -45,15 +56,27 @@ template <typename NumberType> QVariant genericNumberData(NumberType number, int
 
 } // namespace
 
+QVariant stringData(const QString& string, int role, FormatFlags flags) {
+  if (role == Qt::TextAlignmentRole) {
+    return formatAlignment(flags);
+  } else if (role == Qt::DisplayRole || role == Qt::AccessibleTextRole || role == SortRole) {
+    return string;
+  } else {
+    return QVariant();
+  }
+}
+
 QVariant moneyData(pv::i64 money, int role, FormatFlags flags) {
   if (role == Qt::TextAlignmentRole) {
-    return QVariant(Qt::AlignTrailing | Qt::AlignCenter);
+    return formatAlignment(flags);
   } else if (role == Qt::EditRole) {
     return money / 100.;
   } else if (role == Qt::ForegroundRole) {
     return formatColor(money, flags);
   } else if (role == Qt::DisplayRole || role == Qt::AccessibleTextRole) {
     return ::pvui::util::formatMoney(money);
+  } else if (role == SortRole) {
+      return money;
   } else {
     return QVariant();
   }
@@ -61,13 +84,17 @@ QVariant moneyData(pv::i64 money, int role, FormatFlags flags) {
 
 QVariant percentageData(double percentage, int role, FormatFlags flags) {
   if (role == Qt::TextAlignmentRole) {
-    return QVariant(Qt::AlignTrailing | Qt::AlignCenter);
+    return formatAlignment(flags);
   } else if (role == Qt::EditRole) {
     return percentage;
   } else if (role == Qt::ForegroundRole) {
     return formatColor(percentage, flags);
-  } else {
+  } else if (role == SortRole) {
+      return percentage;
+  } else if (role == Qt::DisplayRole || role == Qt::AccessibleTextRole) {
     return ::pvui::util::formatPercentage(percentage);
+  } else {
+    return QVariant();
   }
 }
 
