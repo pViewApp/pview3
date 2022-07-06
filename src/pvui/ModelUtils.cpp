@@ -3,13 +3,12 @@
 #include "pv/Integer64.h"
 #include <QColor>
 #include <QStringLiteral>
+#include <QVariant>
 #include <Qt>
 #include <limits>
 #include <qvariant.h>
 #include <string>
-#include <QVariant>
 #include <type_traits>
-#include <Qt>
 
 namespace pvui {
 namespace modelutils {
@@ -91,7 +90,7 @@ QVariant moneyData(pv::i64 money, int role, FormatFlags flags) {
   } else if (role == Qt::DisplayRole || role == Qt::AccessibleTextRole) {
     return ::pvui::util::formatMoney(money);
   } else if (role == SortRole) {
-      return sortData(money, flags);
+    return sortData(money, flags);
   } else {
     return QVariant();
   }
@@ -105,7 +104,7 @@ QVariant percentageData(double percentage, int role, FormatFlags flags) {
   } else if (role == Qt::ForegroundRole) {
     return formatColor(percentage, flags);
   } else if (role == SortRole) {
-      return sortData(percentage, flags);
+    return sortData(percentage, flags);
   } else if (role == Qt::DisplayRole || role == Qt::AccessibleTextRole) {
     return ::pvui::util::formatPercentage(percentage);
   } else {

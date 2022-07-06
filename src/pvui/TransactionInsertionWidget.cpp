@@ -2,6 +2,8 @@
 #include "ActionData.h"
 #include "SecurityUtils.h"
 #include "pv/DataFile.h"
+#include "SecurityModel.h"
+#include <memory>
 #include <sqlite3.h>
 #include "pv/Integer64.h"
 #include "pv/Security.h"
@@ -10,6 +12,7 @@
 #include <QShortcut>
 #include <optional>
 #include "DateUtils.h"
+#include "pvui/SecurityModel.h"
 
 namespace pvui {
 namespace controls {
@@ -57,11 +60,14 @@ TransactionInsertionWidget::TransactionInsertionWidget(DataFileManager& dataFile
   QObject::connect(returnShortcut, &QShortcut::activated, this, &TransactionInsertionWidget::submit);
   QObject::connect(enterShortcut, &QShortcut::activated, this, &TransactionInsertionWidget::submit);
 
+  securityProxy.sort(0, Qt::AscendingOrder);
+  securityEditor->setModelColumn(0);
+  securityEditor->setModel(&securityProxy);
+
   setFocusProxy(dateEditor);
 
   setupActionList();
   handleDataFileChanged(); // Initialize in consistent state
-  //
   // Handle dataFile
   QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this, &TransactionInsertionWidget::handleDataFileChanged);
 }
@@ -85,31 +91,8 @@ void TransactionInsertionWidget::repopulateSecurityList() {
 }
 
 void TransactionInsertionWidget::setupSecurityList() {
-  securityAddedConnection.disconnect();
-  securityRemovedConnection.disconnect();
-  securityUpdatedConnection.disconnect();
-  resetConnection.disconnect();
-
-  securityEditor->clear();
-if (!dataFileManager.has()) {
-    return;
-  }
-
-  securityAddedConnection = dataFileManager->onSecurityAdded([this](pv::i64 security) {
-    QString text = securityEditor->currentText();
-    securityEditor->addItem(QString::fromStdString(pv::security::symbol(*dataFileManager, security)), security);
-    securityEditor->model()->sort(0);
-    securityEditor->setCurrentText(text);
-  });
-
-  securityRemovedConnection = dataFileManager->onSecurityRemoved(
-      [this](pv::i64 security) { securityEditor->removeItem(securityEditor->findData(security)); });
-
-  resetConnection = dataFileManager->onRollback([this] { repopulateSecurityList(); });
-
-  repopulateSecurityList();
-
-  securityEditor->model()->sort(0);
+  securityModel = dataFileManager.has() ? std::make_unique<models::SecurityModel>(*dataFileManager) : nullptr;
+  securityProxy.setSourceModel(&*securityModel);
 }
 
 bool TransactionInsertionWidget::submit() {

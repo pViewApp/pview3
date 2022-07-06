@@ -10,10 +10,18 @@
 #include <QHBoxLayout>
 #include <QWidget>
 #include <boost/signals2.hpp>
+#include <memory>
 #include <optional>
+#include <QSortFilterProxyModel>
 
 namespace pvui {
+
+namespace models {
+class SecurityModel;
+}
+
 namespace controls {
+
 class TransactionInsertionWidget : public QWidget {
   Q_OBJECT
 private:
@@ -24,15 +32,13 @@ private:
   QDateEdit* dateEditor = new QDateEdit;
   QComboBox* actionEditor = new QComboBox;
   QComboBox* securityEditor = new QComboBox;
+  QSortFilterProxyModel securityProxy;
+  std::unique_ptr<models::SecurityModel> securityModel = nullptr;
+
   controls::ExtendedSpinBox* numberOfSharesEditor = new controls::ExtendedSpinBox;
   controls::ExtendedDoubleSpinBox* sharePriceEditor = new controls::ExtendedDoubleSpinBox;
   controls::ExtendedDoubleSpinBox* commissionEditor = new controls::ExtendedDoubleSpinBox;
   controls::ExtendedDoubleSpinBox* totalAmountEditor = new controls::ExtendedDoubleSpinBox;
-
-  pv::ScopedConnection securityAddedConnection;
-  pv::ScopedConnection securityUpdatedConnection;
-  pv::ScopedConnection securityRemovedConnection;
-  pv::ScopedConnection resetConnection;
 
   void reset();
   void repopulateSecurityList();

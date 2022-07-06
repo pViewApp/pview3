@@ -122,16 +122,18 @@ QVariant HoldingsModel::data(const QModelIndex& index, int role) const {
     return numberData(holding.sharesHeld, role);
   }
   case unrealizedGainColumn: {
-    return holding.unrealizedGain ? moneyData(*holding.unrealizedGain, role, FormatFlag::Numeric | FormatFlag::ColorNegative)
-                                  : stringData(tr("N/A"), role, FormatFlag::Numeric | FormatFlag::SortFirst);
-  }
-  case unrealizedGainPercentageColumn: {
-    return holding.unrealizedGainPercentage
-               ? percentageData(*holding.unrealizedGainPercentage, role, FormatFlag::Numeric | FormatFlag::ColorNegative)
+    return holding.unrealizedGain
+               ? moneyData(*holding.unrealizedGain, role, FormatFlag::Numeric | FormatFlag::ColorNegative)
                : stringData(tr("N/A"), role, FormatFlag::Numeric | FormatFlag::SortFirst);
   }
+  case unrealizedGainPercentageColumn: {
+    return holding.unrealizedGainPercentage ? percentageData(*holding.unrealizedGainPercentage, role,
+                                                             FormatFlag::Numeric | FormatFlag::ColorNegative)
+                                            : stringData(tr("N/A"), role, FormatFlag::Numeric | FormatFlag::SortFirst);
+  }
   case realizedGainColumn: {
-    return moneyData(holding.realizedGain, role, FormatFlag::Numeric | FormatFlag::ColorNegative | FormatFlag::SortFirst);
+    return moneyData(holding.realizedGain, role,
+                     FormatFlag::Numeric | FormatFlag::ColorNegative | FormatFlag::SortFirst);
   }
   case dividendIncomeColumn: {
     return moneyData(holding.dividendIncome, role);
@@ -140,7 +142,8 @@ QVariant HoldingsModel::data(const QModelIndex& index, int role) const {
     return moneyData(holding.costBasis, role);
   }
   case totalIncomeColumn: {
-    return moneyData(holding.totalIncome, role, FormatFlag::Numeric | FormatFlag::ColorNegative | FormatFlag::SortFirst);
+    return moneyData(holding.totalIncome, role,
+                     FormatFlag::Numeric | FormatFlag::ColorNegative | FormatFlag::SortFirst);
   }
   case marketValueColunm: {
     return holding.marketValue ? moneyData(*holding.marketValue, role)
