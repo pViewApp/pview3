@@ -46,7 +46,7 @@ private:
   QDialogButtonBox buttonBox = QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
 public:
   AdvancedSecurityPriceDownloadDialog(QWidget* parent = nullptr) : QDialog(parent) {
-    setWindowTitle(tr("Advanced Security Price Download"));
+    setWindowTitle(tr("Update Security Prices"));
     settings.beginGroup(QStringLiteral("AdvancedSecurityPriceDownloadDialog"));
 
     setLayout(&mainLayout);
