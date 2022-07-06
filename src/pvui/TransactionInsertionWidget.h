@@ -8,11 +8,11 @@
 #include <QComboBox>
 #include <QDateEdit>
 #include <QHBoxLayout>
+#include <QSortFilterProxyModel>
 #include <QWidget>
 #include <boost/signals2.hpp>
 #include <memory>
 #include <optional>
-#include <QSortFilterProxyModel>
 
 namespace pvui {
 

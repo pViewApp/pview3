@@ -1,18 +1,18 @@
 #include "TransactionInsertionWidget.h"
 #include "ActionData.h"
+#include "DateUtils.h"
+#include "SecurityModel.h"
 #include "SecurityUtils.h"
 #include "pv/DataFile.h"
-#include "SecurityModel.h"
-#include <memory>
-#include <sqlite3.h>
 #include "pv/Integer64.h"
 #include "pv/Security.h"
 #include "pvui/DataFileManager.h"
-#include <cmath>
-#include <QShortcut>
-#include <optional>
-#include "DateUtils.h"
 #include "pvui/SecurityModel.h"
+#include <QShortcut>
+#include <cmath>
+#include <memory>
+#include <optional>
+#include <sqlite3.h>
 
 namespace pvui {
 namespace controls {

@@ -143,7 +143,7 @@ QVariant HoldingsModel::data(const QModelIndex& index, int role) const {
   }
   case totalIncomeColumn: {
     return moneyData(holding.totalIncome, role,
-                     FormatFlag::Numeric | FormatFlag::ColorNegative | FormatFlag::SortFirst);
+                     FormatFlag::Numeric | FormatFlag::ColorNegative);
   }
   case marketValueColunm: {
     return holding.marketValue ? moneyData(*holding.marketValue, role)
