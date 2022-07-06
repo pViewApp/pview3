@@ -1,20 +1,19 @@
 #include "TransactionModel.h"
 #include "ActionData.h"
+#include "DateUtils.h"
 #include "ModelUtils.h"
-#include <Qt>
 #include "pv/DataFile.h"
-#include <sqlite3.h>
 #include "pv/Integer64.h"
 #include "pv/Security.h"
 #include "pv/Transaction.h"
+#include <QAbstractTableModel>
 #include <QDate>
+#include <QStringLiteral>
+#include <Qt>
 #include <cassert>
 #include <cmath>
 #include <optional>
-#include <QStringLiteral>
-#include "DateUtils.h"
-#include <QAbstractTableModel>
-
+#include <sqlite3.h>
 
 namespace {
 
@@ -173,8 +172,7 @@ int pvui::models::TransactionModel::indexOfTransaction(pv::i64 transaction) {
   auto iter = std::find(transactions.begin(), transactions.end(), transaction);
   if (iter == transactions.end()) {
     return -1;
-  }
-  else {
+  } else {
     return static_cast<int>(iter - transactions.begin());
   }
 }
@@ -226,7 +224,7 @@ int pvui::models::TransactionModel::columnCount(const QModelIndex&) const { retu
 QVariant pvui::models::TransactionModel::data(const QModelIndex& index, int role) const {
   if (role == Qt::TextAlignmentRole) {
     auto col = index.column();
-    if(col == dateColumn || col == actionColumn || col == securityColumn) {
+    if (col == dateColumn || col == actionColumn || col == securityColumn) {
       return QVariant(); // Use default alignment for non-numeric column
     } else {
       return QVariant(Qt::AlignRight | Qt::AlignVCenter); // Right align
@@ -245,9 +243,9 @@ QVariant pvui::models::TransactionModel::data(const QModelIndex& index, int role
     return actionData != nullptr ? actionData->name : QVariant();
   }
   case securityColumn: {
-      std::optional<pv::i64> securityId = getSecurity(dataFile, transaction);
-      return securityId ? QString::fromStdString(pv::security::symbol(dataFile, *securityId)) : QVariant();
-    }
+    std::optional<pv::i64> securityId = getSecurity(dataFile, transaction);
+    return securityId ? QString::fromStdString(pv::security::symbol(dataFile, *securityId)) : QVariant();
+  }
   case numberOfSharesColumn: {
     std::optional<pv::i64> numberOfShares = getNumberOfShares(dataFile, transaction);
     return numberOfShares ? modelutils::numberData(*numberOfShares, role) : QVariant();
@@ -255,7 +253,6 @@ QVariant pvui::models::TransactionModel::data(const QModelIndex& index, int role
   case sharePriceColumn: {
     std::optional<pv::i64> sharePrice = getSharePrice(dataFile, transaction);
     return sharePrice ? modelutils::moneyData(*sharePrice, role) : QVariant();
-
   }
   case commissionColumn: {
     std::optional<pv::i64> commission = getCommission(dataFile, transaction);
@@ -277,8 +274,8 @@ Qt::ItemFlags pvui::models::TransactionModel::flags(const QModelIndex& index) co
   switch (pv::transaction::action(dataFile, transactions.at(index.row()))) {
   case pv::Action::BUY: // Fall through
   case pv::Action::SELL: {
-    if (index.column() == securityColumn || index.column() == numberOfSharesColumn ||
-        index.column() == sharePriceColumn || index.column() == commissionColumn) {
+    if (index.column() == numberOfSharesColumn || index.column() == sharePriceColumn ||
+        index.column() == commissionColumn) {
       return Editable;
     } else {
       return NonEditable;
@@ -287,7 +284,8 @@ Qt::ItemFlags pvui::models::TransactionModel::flags(const QModelIndex& index) co
   case pv::Action::DEPOSIT:  //  Fall through
   case pv::Action::WITHDRAW: // Fall through
   case pv::Action::DIVIDEND: {
-    if (index.column() == securityColumn || index.column() == totalAmountColumn) {
+    if (index.column() == totalAmountColumn) {
+
       return Editable;
     } else {
       return NonEditable;
@@ -308,15 +306,16 @@ bool pvui::models::TransactionModel::setData(const QModelIndex& index, const QVa
   pv::i64 transaction = transactionOfIndex(index.row());
 
   switch (index.column()) {
-    case numberOfSharesColumn:
+  case numberOfSharesColumn:
     return setNumberOfShares(dataFile, transaction, value.toLongLong());
-    case sharePriceColumn:
+  case sharePriceColumn:
     return setSharePrice(dataFile, transaction, std::llround(value.toDouble() * 100));
-    case commissionColumn:
+  case commissionColumn:
     return setCommission(dataFile, transaction, std::llround(value.toDouble() * 100));
-    case totalAmountColumn:
+  case totalAmountColumn:
     return setAmount(dataFile, transaction, std::llround(value.toDouble() * 100));
-    default: return false;
+  default:
+    return false;
   }
 }
 
