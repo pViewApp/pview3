@@ -13,9 +13,11 @@
 #include <QHeaderView>
 #include <QMessageBox>
 #include <optional>
+#include <QStringLiteral>
 
 pvui::SecurityPageWidget::SecurityPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent)
     : PageWidget(parent), dataFileManager_(dataFileManager) {
+  settings.beginGroup(QStringLiteral("SecurityPage"));
   setTitle(tr("Securities"));
 
   // Setup layout
@@ -230,8 +232,7 @@ void pvui::SecurityPageWidget::endUpdateSecurityPrices() {
   delete currentPriceDownload;
   currentPriceDownload = nullptr;
 
-  constexpr char failedSecurityDownloadSettingKey[] = "pv/SecurityPage/suppressFailedSecurityPriceDownloadDialog";
-  bool suppressFailedDownloadDialog = settings.value(failedSecurityDownloadSettingKey, false).toBool();
+  bool suppressFailedDownloadDialog = settings.value(QStringLiteral("SuppressFailedSecurityPriceDownloadWarning"), false).toBool();
 
   if (!failedSecurityDownloadsSymbols.empty() && !suppressFailedDownloadDialog) {
     resetSecurityPriceUpdateDialog();
@@ -247,7 +248,7 @@ void pvui::SecurityPageWidget::endUpdateSecurityPrices() {
 
     QCheckBox* checkBox = new QCheckBox(tr("&Don't show this again"));
     QObject::connect(checkBox, &QCheckBox::toggled, this,
-                     [=](bool toggled) { settings.setValue(failedSecurityDownloadSettingKey, toggled); });
+                     [=](bool toggled) { settings.setValue(QStringLiteral("SuppressFailedSecurityPriceDownloadWarning"), toggled); });
 
     securityPriceUpdateDialog.setCheckBox(checkBox);
     securityPriceUpdateDialog.setText(base);
