@@ -26,13 +26,13 @@ private:
   std::unordered_set<QNetworkReply*> replies;
 
 public:
-  SecurityPriceDownload(Download download);
-  SecurityPriceDownload(std::vector<Download> downloads);
+  SecurityPriceDownload(Download download, QObject* parent = nullptr);
+  SecurityPriceDownload(std::vector<Download> downloads, QObject* parent = nullptr);
 
 public slots:
   void abort();
 signals:
-  void success(std::map<QDate, pv::i64> data, QString symbol);
+  void success(const std::map<QDate, pv::i64>& data, QString symbol);
   void error(QNetworkReply::NetworkError error, QString symbol);
   void complete();
 };
@@ -43,8 +43,8 @@ private:
   QNetworkAccessManager manager;
 
 public:
-  SecurityPriceDownload* download(QString symbol, QDate begin, QDate end);
-  SecurityPriceDownload* download(QStringList symbol, QDate begin, QDate end);
+  SecurityPriceDownload* download(QString symbol, QDate begin, QDate end, QObject* parent = nullptr);
+  SecurityPriceDownload* download(QStringList symbol, QDate begin, QDate end, QObject* parent = nullptr);
 };
 
 } // namespace pvui

@@ -59,10 +59,10 @@ std::map<QDate, pv::i64> parse(QIODevice& data) {
 
 } // namespace
 
-SecurityPriceDownload::SecurityPriceDownload(Download download)
-    : SecurityPriceDownload(std::vector<Download>({download})) {}
+SecurityPriceDownload::SecurityPriceDownload(Download download, QObject* parent)
+    : SecurityPriceDownload(std::vector<Download>({download}), parent) {}
 
-SecurityPriceDownload::SecurityPriceDownload(std::vector<Download> downloads) {
+SecurityPriceDownload::SecurityPriceDownload(std::vector<Download> downloads, QObject* parent) : QObject(parent) {
   replies.reserve(downloads.size());
   for (auto& download : downloads) {
     const auto& symbol = download.symbol;
@@ -106,19 +106,19 @@ void SecurityPriceDownload::abort() {
   replies.clear();
 }
 
-SecurityPriceDownload* SecurityPriceDownloader::download(QString symbol, QDate begin, QDate end) {
+SecurityPriceDownload* SecurityPriceDownloader::download(QString symbol, QDate begin, QDate end, QObject* parent) {
   auto* reply = manager.get(QNetworkRequest(generateDownloadUrl(symbol, begin, end)));
 
-  return new SecurityPriceDownload({symbol, reply});
+  return new SecurityPriceDownload({symbol, reply}, parent);
 }
 
-SecurityPriceDownload* SecurityPriceDownloader::download(QStringList symbols, QDate begin, QDate end) {
+SecurityPriceDownload* SecurityPriceDownloader::download(QStringList symbols, QDate begin, QDate end, QObject* parent) {
   std::vector<SecurityPriceDownload::Download> downloads;
   for (const auto& symbol : symbols) {
     auto* reply = manager.get(QNetworkRequest(generateDownloadUrl(symbol, begin, end)));
     downloads.push_back(SecurityPriceDownload::Download{symbol, reply});
   }
-  return new SecurityPriceDownload(std::move(downloads));
+  return new SecurityPriceDownload(std::move(downloads), parent);
 }
 
 } // namespace pvui

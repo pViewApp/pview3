@@ -47,6 +47,7 @@ private:
   QAction securityInfoAction = QAction(tr("Edit Security Prices..."));
   QAction deleteSecurityAction = QAction(tr("Delete Security"));
   QAction updateSecurityPriceAction = QAction(tr("Update Security Prices"));
+  QAction advancedUpdateSecurityPriceAction = QAction(tr("Update Security Prices (Advanced)..."));
 
   QMessageBox securityPriceUpdateDialog =
       QMessageBox(QMessageBox::Warning, tr("Failed to Download Security Prices"), "", QMessageBox::Ok, this);
@@ -64,8 +65,10 @@ private slots:
 
   void handleSecuritySubmitted(pv::i64 security);
 
-  void beginUpdateSecurityPrices();
-  void updateSecurityPrices(std::map<QDate, pv::i64> data, QString symbol);
+  void beginUpdateSecurityPrices(QDate begin, int onConflictBehaviour);
+  void beginBasicUpdateSecurityPrices();
+  void beginAdvancedUpdateSecurityPrices();
+  void updateSecurityPrices(const std::map<QDate, pv::i64>& data, QString symbol, int onConflictBehaviour);
   void updateSecurityPricesError(QNetworkReply::NetworkError err, QString symbol);
   void endUpdateSecurityPrices();
 

@@ -14,8 +14,85 @@
 #include <QMessageBox>
 #include <optional>
 #include <QStringLiteral>
+#include <QDialog>
+#include <QDateEdit>
+#include <QFormLayout>
+#include <QLabel>
+#include <QDialogButtonBox>
+#include <QVBoxLayout>
 
-pvui::SecurityPageWidget::SecurityPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent)
+namespace pvui {
+namespace {
+
+enum class OnConflictBehaviour : int {
+  SKIP, REPLACE
+};
+
+constexpr OnConflictBehaviour defaultOnConflictBehaviour = OnConflictBehaviour::SKIP;
+
+class AdvancedSecurityPriceDownloadDialog : public QDialog {
+private:
+  QSettings settings;
+
+  QVBoxLayout mainLayout;
+  QFormLayout formLayout;
+
+  QLabel durationLabel = QLabel(tr("Update Prices For:"));
+  QSpinBox durationEditor = QSpinBox();
+
+  QLabel onConflictLabel = QLabel(tr("On Conflict:")); 
+  QComboBox onConflictEditor = QComboBox();
+
+  QDialogButtonBox buttonBox = QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+public:
+  AdvancedSecurityPriceDownloadDialog(QWidget* parent = nullptr) : QDialog(parent) {
+    setWindowTitle(tr("Advanced Security Price Download"));
+    settings.beginGroup(QStringLiteral("AdvancedSecurityPriceDownloadDialog"));
+
+    setLayout(&mainLayout);
+
+    mainLayout.addLayout(&formLayout);
+    mainLayout.addWidget(&buttonBox);
+    
+    formLayout.addRow(&durationLabel, &durationEditor);
+    formLayout.addRow(&onConflictLabel, &onConflictEditor);
+
+    durationEditor.setPrefix(tr("Last "));
+    durationEditor.setValue(settings.value(QStringLiteral("Duration"), 30).toInt());
+    durationEditor.setSuffix(tr(" Day(s)"));
+    durationEditor.setMinimum(0);
+    durationEditor.setMaximum(365 * 100); // A century!
+
+    onConflictEditor.setEditable(false);
+    onConflictEditor.addItem(tr("Skip"), QVariant(static_cast<int>(OnConflictBehaviour::SKIP)));
+    onConflictEditor.addItem(tr("Replace"), QVariant(static_cast<int>(OnConflictBehaviour::REPLACE)));
+
+    onConflictEditor.setCurrentIndex(settings.value(QStringLiteral("OnConflictBehaviour"), QVariant(static_cast<int>(defaultOnConflictBehaviour))).toInt());
+      
+   // Disable Resizing
+    setSizeGripEnabled(false);
+    mainLayout.setSizeConstraint(QLayout::SetFixedSize);
+
+    QObject::connect(&buttonBox, &QDialogButtonBox::accepted, this, [this]() {
+                       accept();
+                       settings.setValue(QStringLiteral("Duration"), duration());
+                       settings.setValue(QStringLiteral("OnConflictBehaviour"), static_cast<int>(onConflictBehaviour()));
+                     });
+    QObject::connect(&buttonBox, &QDialogButtonBox::rejected, this, &AdvancedSecurityPriceDownloadDialog::reject);
+  }
+
+  int duration() const noexcept {
+    return durationEditor.value();
+  }
+
+  OnConflictBehaviour onConflictBehaviour() const noexcept {
+    return static_cast<OnConflictBehaviour>(onConflictEditor.currentData().toInt());
+  }
+};
+
+}
+
+SecurityPageWidget::SecurityPageWidget(DataFileManager& dataFileManager, QWidget* parent)
     : PageWidget(parent), dataFileManager_(dataFileManager) {
   settings.beginGroup(QStringLiteral("SecurityPage"));
   setTitle(tr("Securities"));
@@ -48,6 +125,7 @@ pvui::SecurityPageWidget::SecurityPageWidget(pvui::DataFileManager& dataFileMana
   table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
   table->verticalHeader()->hide();
   table->setSelectionBehavior(QTableView::SelectionBehavior::SelectRows);
+  table->setSelectionMode(QTableView::SingleSelection);
   QObject::connect(table->selectionModel(), &QItemSelectionModel::selectionChanged, this, [&] {
     std::optional<pv::i64> security = currentSelectedSecurity();
     bool enabled = security.has_value();
@@ -59,12 +137,12 @@ pvui::SecurityPageWidget::SecurityPageWidget(pvui::DataFileManager& dataFileMana
   handleDataFileChanged();
 }
 
-void pvui::SecurityPageWidget::resetSecurityPriceUpdateDialog() {
+void SecurityPageWidget::resetSecurityPriceUpdateDialog() {
   securityPriceUpdateDialog.setText("");
   securityPriceUpdateDialog.setCheckBox(nullptr);
 }
 
-void pvui::SecurityPageWidget::setupActions() {
+void SecurityPageWidget::setupActions() {
   toolBar_->setObjectName(QString::fromUtf8("securityPageToolBar"));
   toolBar_->setWindowTitle(tr("Securities"));
 
@@ -75,6 +153,7 @@ void pvui::SecurityPageWidget::setupActions() {
   toolBar_->addAction(&securityInfoAction);
   toolBar_->addAction(&deleteSecurityAction);
   toolBar_->addAction(&updateSecurityPriceAction);
+  toolBar_->addAction(&advancedUpdateSecurityPriceAction);
 
   securityInfoAction.setEnabled(false);
   deleteSecurityAction.setEnabled(false);
@@ -100,32 +179,38 @@ void pvui::SecurityPageWidget::setupActions() {
   });
 
   QObject::connect(&updateSecurityPriceAction, &QAction::triggered, this,
-                   &SecurityPageWidget::beginUpdateSecurityPrices);
+                   &SecurityPageWidget::beginBasicUpdateSecurityPrices);
+  QObject::connect(&advancedUpdateSecurityPriceAction, &QAction::triggered, this,
+                   &SecurityPageWidget::beginAdvancedUpdateSecurityPrices);
 
   table->addAction(&securityInfoAction);
   table->addAction(&deleteSecurityAction);
   table->addAction(&updateSecurityPriceAction);
+  table->addAction(&advancedUpdateSecurityPriceAction);
   table->setContextMenuPolicy(Qt::ActionsContextMenu);
 }
 
-void pvui::SecurityPageWidget::handleDataFileChanged() {
+void SecurityPageWidget::handleDataFileChanged() {
   model = dataFileManager_.has() ? std::make_unique<models::SecurityModel>(*dataFileManager_) : nullptr;
   proxyModel.setSourceModel(model.get());
-  securityInfoAction.setEnabled(dataFileManager_.has());
-  deleteSecurityAction.setEnabled(dataFileManager_.has());
-  updateSecurityPriceAction.setEnabled(dataFileManager_.has());
+  bool enableActions = dataFileManager_.has();
+  bool enableSecurityDependentActions = enableActions && currentSelectedSecurity().has_value();
+  securityInfoAction.setEnabled(enableSecurityDependentActions);
+  deleteSecurityAction.setEnabled(enableSecurityDependentActions);
+  updateSecurityPriceAction.setEnabled(enableActions);
+  advancedUpdateSecurityPriceAction.setEnabled(enableActions);
 
   setToolBarLabel(std::nullopt);
 }
 
-void pvui::SecurityPageWidget::handleSecuritySubmitted(pv::i64 security) {
+void SecurityPageWidget::handleSecuritySubmitted(pv::i64 security) {
   // Select the new security in the table
   QModelIndex index = proxyModel.mapFromSource(model->index(model->rowOfSecurity(security), 0));
   table->selectionModel()->select(index, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
   table->scrollTo(index);
 }
 
-std::optional<pv::i64> pvui::SecurityPageWidget::currentSelectedSecurity() {
+std::optional<pv::i64> SecurityPageWidget::currentSelectedSecurity() {
   QItemSelection selection = table->selectionModel()->selection();
   if (selection.isEmpty())
     return std::nullopt;
@@ -139,7 +224,7 @@ std::optional<pv::i64> pvui::SecurityPageWidget::currentSelectedSecurity() {
   return model->securityOfRow(proxyModel.mapToSource(index).row());
 }
 
-void pvui::SecurityPageWidget::setToolBarLabel(std::optional<pv::i64> security) {
+void SecurityPageWidget::setToolBarLabel(std::optional<pv::i64> security) {
   static QString format = QString::fromUtf8("%1: ");
   if (security.has_value()) {
     toolBarTitleLabel->setText(format.arg(QString::fromStdString(pv::security::name(*dataFileManager_, *security))));
@@ -154,15 +239,14 @@ void pvui::SecurityPageWidget::setToolBarLabel(std::optional<pv::i64> security) 
   }
 }
 
-void pvui::SecurityPageWidget::beginUpdateSecurityPrices() {
+void SecurityPageWidget::beginUpdateSecurityPrices(QDate begin, int onConflictBehaviour) {
   if (currentPriceDownload != nullptr) {
     return; // Only 1 download at a time
   }
 
   std::optional<pv::i64> currentSecurity = currentSelectedSecurity();
 
-  auto endDate = QDate::currentDate().addDays(1);
-  auto beginDate = endDate.addDays(-(3 * 31)); // 3 months
+  auto endDate = QDate::currentDate();
 
   QStringList symbols;
 
@@ -176,18 +260,33 @@ void pvui::SecurityPageWidget::beginUpdateSecurityPrices() {
     }
   }
 
-  currentPriceDownload = priceDownloader_.download(symbols, beginDate, endDate);
+  currentPriceDownload = priceDownloader_.download(symbols, begin, endDate);
   currentPriceDownload->setParent(this);
 
-  QObject::connect(currentPriceDownload, &SecurityPriceDownload::success, this,
-                   &SecurityPageWidget::updateSecurityPrices);
+  QObject::connect(currentPriceDownload, &SecurityPriceDownload::success, this, [=](const std::map<QDate, pv::i64>& data, QString symbol) {updateSecurityPrices(data, symbol, onConflictBehaviour);});
   QObject::connect(currentPriceDownload, &SecurityPriceDownload::error, this,
                    &SecurityPageWidget::updateSecurityPricesError);
   QObject::connect(currentPriceDownload, &SecurityPriceDownload::complete, this,
                    &SecurityPageWidget::endUpdateSecurityPrices);
 }
 
-void pvui::SecurityPageWidget::updateSecurityPrices(std::map<QDate, pv::i64> prices, QString symbol) {
+void SecurityPageWidget::beginBasicUpdateSecurityPrices() {
+  beginUpdateSecurityPrices(QDate::currentDate().addMonths(-3), static_cast<int>(defaultOnConflictBehaviour));
+}
+
+void SecurityPageWidget::beginAdvancedUpdateSecurityPrices() {
+  AdvancedSecurityPriceDownloadDialog* dialog = new AdvancedSecurityPriceDownloadDialog(this);
+  dialog->setAttribute(Qt::WA_DeleteOnClose);
+  QObject::connect(dialog, &AdvancedSecurityPriceDownloadDialog::accepted, this, [this, dialog]() {
+                     if (dialog->duration() == 0) {
+                       return;
+                     }
+                     beginUpdateSecurityPrices(QDate::currentDate().addDays(-(dialog->duration())), static_cast<int>(dialog->onConflictBehaviour()));
+                   });
+    dialog->open();
+}
+
+void SecurityPageWidget::updateSecurityPrices(const std::map<QDate, pv::i64>& prices, QString symbol, int onConflictBehaviour) {
   if (!dataFileManager_.has()) {
     return;
   }
@@ -197,7 +296,7 @@ void pvui::SecurityPageWidget::updateSecurityPrices(std::map<QDate, pv::i64> pri
   bool transactionCreated = dataFileManager_->beginTransaction() == pv::ResultCode::OK;
   for (const auto& pair : prices) {
     pv::i64 date = toEpochDate(pair.first);
-    if (!pv::security::price(*dataFileManager_, security, date).has_value()) {
+    if (static_cast<OnConflictBehaviour>(onConflictBehaviour) == OnConflictBehaviour::REPLACE || !pv::security::price(*dataFileManager_, security, date).has_value()) {
       // Only do it if no existing price on pvDate
       dataFileManager_->setSecurityPrice(security, date, pair.second);
     }
@@ -207,7 +306,7 @@ void pvui::SecurityPageWidget::updateSecurityPrices(std::map<QDate, pv::i64> pri
   }
 }
 
-void pvui::SecurityPageWidget::updateSecurityPricesError(QNetworkReply::NetworkError err, QString symbol) {
+void SecurityPageWidget::updateSecurityPricesError(QNetworkReply::NetworkError err, QString symbol) {
   assert(err != QNetworkReply::NoError && "No error occured, but still called error slot?");
 
   if (err == QNetworkReply::ContentNotFoundError) {
@@ -228,7 +327,7 @@ void pvui::SecurityPageWidget::updateSecurityPricesError(QNetworkReply::NetworkE
   securityPriceUpdateDialog.show();
 }
 
-void pvui::SecurityPageWidget::endUpdateSecurityPrices() {
+void SecurityPageWidget::endUpdateSecurityPrices() {
   delete currentPriceDownload;
   currentPriceDownload = nullptr;
 
@@ -257,3 +356,4 @@ void pvui::SecurityPageWidget::endUpdateSecurityPrices() {
 
   failedSecurityDownloadsSymbols.clear();
 }
+} // namespace pvui
