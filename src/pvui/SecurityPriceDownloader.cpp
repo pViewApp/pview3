@@ -29,7 +29,8 @@ std::map<QDate, pv::i64> parse(QIODevice& data) {
     data.readLine();
   }
 
-  while (data.canReadLine()) {
+  while (data.bytesAvailable()) {
+    // use bytesAvailable() instead of canReadLine(), because canReadLine() needs complete lines, and the last line might not be complete (end with \n)
     currentLine = QString::fromUtf8(data.readLine()).split(',');
     if (priceColumn >= currentLine.size()) {
       assert(false && "Could not parse security prices, not enough commas!");
