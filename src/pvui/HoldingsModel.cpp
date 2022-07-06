@@ -133,7 +133,7 @@ QVariant HoldingsModel::data(const QModelIndex& index, int role) const {
   }
   case realizedGainColumn: {
     return moneyData(holding.realizedGain, role,
-                     FormatFlag::Numeric | FormatFlag::ColorNegative | FormatFlag::SortFirst);
+                     FormatFlag::Numeric | FormatFlag::ColorNegative);
   }
   case dividendIncomeColumn: {
     return moneyData(holding.dividendIncome, role);
