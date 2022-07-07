@@ -11,7 +11,7 @@ namespace {
 QUrl generateDownloadUrl(const QString& symbol, const QDate& begin, const QDate& end) {
   static QString base = "https://query1.finance.yahoo.com/v7/finance/download/"
                         "%1?period1=%2&period2=%3&interval=1d&events=history&includeAdjustedClose=true";
-  auto beginSecs = QDateTime(begin, QTime(0, 0), Qt::LocalTime).toSecsSinceEpoch();
+  auto beginSecs = QDateTime(begin, QTime(23, 59, 999), Qt::LocalTime).toSecsSinceEpoch();
   auto endSecs = QDateTime(end, QTime(0, 0), Qt::LocalTime).toSecsSinceEpoch();
   return base.arg(symbol, QString::number(beginSecs), QString::number(endSecs));
 }
