@@ -100,8 +100,8 @@ void SettingsDialog::refresh() {
 
 void SettingsDialog::resetToDefaults() {
   set(QStringLiteral("AccountPage/WarnOnTransactionDeletion"), true);
-  set(QStringLiteral("AccountPage/WarnOnSecurityDeletion"), true);
-  set(QStringLiteral("AccountPage/WarnOnSecurityPriceDownloadFailure"), true);
+  set(QStringLiteral("SecurityPage/WarnOnSecurityDeletion"), true);
+  set(QStringLiteral("SecurityPage/WarnOnSecurityPriceDownloadFailure"), true);
   set(QStringLiteral("SecurityPriceDialog/WarnOnSecurityPriceDeletion"), true);
   refresh();
 }
