@@ -342,7 +342,9 @@ void pvui::MainWindow::setupNavigation() {
                    &MainWindow::pageChanged);
 
   // Setup context menu
+
   accountsDeleteAction.setShortcut(QKeySequence::Delete);
+  accountsDeleteAction.setShortcutContext(Qt::WidgetShortcut);
   navigationWidget->setContextMenuPolicy(Qt::ActionsContextMenu);
 }
 
