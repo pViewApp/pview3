@@ -57,7 +57,7 @@ pvui::MainWindow::MainWindow(QWidget* parent)
   resize(windowWidth, windowHeight);
 
   // Setup title
-  updateTitle();
+  updateWindowFileLocation();
   QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this, &MainWindow::handleDataFileChanged);
 
   setupToolBars();
@@ -76,12 +76,17 @@ pvui::MainWindow::MainWindow(QWidget* parent)
   handleDataFileChanged();
 
   if (settings.contains(QStringLiteral("lastOpenedFile"))) {
-    fileOpen_(settings.value(QStringLiteral("lastOpenedFile")).toString().toStdString());
+    try {
+      fileOpen_(settings.value(QStringLiteral("lastOpenedFile")).toString().toStdString());
+    } catch(...) {
+      // Ignore, we just don't open the file if fail
+      // It would be better to log this error though, maybe do that in future
+    }
   }
 }
 
 void pvui::MainWindow::handleDataFileChanged() {
-  updateTitle();
+  updateWindowFileLocation();
 
   navigationWidget->selectionModel()->clearSelection();
 
@@ -239,7 +244,7 @@ void pvui::MainWindow::fileNew() {
                           tr("pView couldn't create the file. Please try again later."));
   }
 
-  updateTitle();
+  updateWindowFileLocation();
 }
 
 void pvui::MainWindow::fileOpen() {
@@ -253,22 +258,22 @@ void pvui::MainWindow::fileOpen() {
   }
   std::string file = file_.toStdString();
 
-  fileOpen_(std::move(file));
-}
-
-void pvui::MainWindow::fileOpen_(std::string location) {
   try {
-    dataFileManager.setDataFile(
-        pv::DataFile(location, SQLITE_OPEN_READWRITE)); // unset SQLITE_OPEN_CREATE, because we don't want to create a
-                                                        // new file if it doesn't already exist
-    settings.setValue(QStringLiteral("lastOpenedFile"), QString::fromStdString(location));
-  } catch (...) {
-    QString fileName = QString::fromStdString(std::filesystem::path(location).filename().string());
+    fileOpen_(std::move(file));
+  } catch(...) {
+    QString fileName = QString::fromStdString(std::filesystem::path(file).filename().string());
     QMessageBox::critical(
         this, tr("Failed to Open File"),
         tr("pView couldn't open %1. Please check that the file exists and is a valid pView file.").arg(fileName));
   }
-  updateTitle();
+}
+
+void pvui::MainWindow::fileOpen_(std::string location) {
+  dataFileManager.setDataFile(
+      pv::DataFile(location, SQLITE_OPEN_READWRITE)); // unset SQLITE_OPEN_CREATE, because we don't want to create a
+                                                      // new file if it doesn't already exist
+  settings.setValue(QStringLiteral("lastOpenedFile"), QString::fromStdString(location));
+  updateWindowFileLocation();
 }
 
 void pvui::MainWindow::fileQuit() { close(); }
@@ -348,13 +353,15 @@ void pvui::MainWindow::setupNavigation() {
   navigationWidget->setContextMenuPolicy(Qt::ActionsContextMenu);
 }
 
-void pvui::MainWindow::updateTitle() {
+void pvui::MainWindow::updateWindowFileLocation() {
   if (dataFileManager.has()) {
     std::filesystem::path filePath =
         dataFileManager->filePath().value_or(tr("Temporary File (Changes Will Not Be Saved)").toStdString());
     setWindowTitle(tr("%1 - pView").arg(QString::fromStdString(filePath.filename().string())));
+    setWindowFilePath(QString::fromStdString(filePath.string()));
   } else {
     setWindowTitle(tr("No File Open - pView"));
+    setWindowFilePath(QStringLiteral(""));
   }
 }
 

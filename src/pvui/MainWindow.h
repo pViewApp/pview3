@@ -62,7 +62,7 @@ private slots:
   void handleDataFileChanged();
   void pageChanged();
 
-  void updateTitle();
+  void updateWindowFileLocation();
 
   // Action handlers
   void fileNew();
