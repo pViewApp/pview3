@@ -26,11 +26,19 @@ void hideToolBar(QToolBar* toolBar) {
     toolBar->hide();
   }
 }
+
+#ifdef Q_OS_MACOS
+constexpr char settingsActionText[] = "&Preferences";
+#else
+constexpr char settingsActionText[] = "&Settings";
+#endif
+
 } // namespace
 
 pvui::MainWindow::MainWindow(QWidget* parent)
-    : QMainWindow(parent), fileMenu(tr("&File")), fileNewAction(tr("&New")), fileOpenAction(tr("&Open")),
-      fileQuitAction(tr("&Quit")), accountsMenu(tr("&Accounts")), accountsNewAction(tr("&New Account")),
+    : QMainWindow(parent), settingsDialog(this), fileMenu(tr("&File")), fileNewAction(tr("&New")),
+      fileOpenAction(tr("&Open")), fileSettingsAction(tr(settingsActionText)), fileQuitAction(tr("&Quit")),
+      accountsMenu(tr("&Accounts")), accountsNewAction(tr("&New Account")),
       accountsDeleteAction(tr("&Delete Account")) {
   settings.beginGroup(QStringLiteral("pvui/MainWindow"));
 
@@ -174,24 +182,35 @@ void pvui::MainWindow::setupMenuBar() {
   menuBar()->addMenu(&fileMenu);
   menuBar()->addMenu(&accountsMenu);
 
-  fileMenu.addActions({&fileNewAction, &fileOpenAction});
-  fileMenu.addSeparator();
-  fileMenu.addAction(&fileQuitAction);
+  // File
 
-  accountsMenu.addAction(&accountsNewAction);
+  fileNewAction.setShortcut(QKeySequence::New);
+  fileOpenAction.setShortcut(QKeySequence::Open);
+  fileSettingsAction.setShortcut(QKeySequence::Preferences);
+  fileQuitAction.setShortcut(QKeySequence::Quit);
 
   QObject::connect(&fileNewAction, &QAction::triggered, this, &MainWindow::fileNew);
   QObject::connect(&fileOpenAction, &QAction::triggered, this, &MainWindow::fileOpen);
   QObject::connect(&fileQuitAction, &QAction::triggered, this, &MainWindow::fileQuit);
+  QObject::connect(&fileSettingsAction, &QAction::triggered, this, &pvui::MainWindow::toolsSettings);
+
+  fileSettingsAction.setMenuRole(QAction::MenuRole::PreferencesRole);
+  fileQuitAction.setMenuRole(QAction::MenuRole::QuitRole);
+
+  fileMenu.addActions({&fileNewAction, &fileOpenAction});
+  fileMenu.addSeparator();
+  fileMenu.addAction(&fileSettingsAction);
+  fileMenu.addSeparator();
+  fileMenu.addAction(&fileQuitAction);
+
+  // Accounts
+
+  accountsMenu.addAction(&accountsNewAction);
 
   QObject::connect(&accountsNewAction, &QAction::triggered, this, &MainWindow::accountsNew);
   QObject::connect(&accountsDeleteAction, &QAction::triggered, this, &MainWindow::accountsDelete);
 
-  fileNewAction.setShortcut(QKeySequence::New);
-  fileOpenAction.setShortcut(QKeySequence::Open);
-  fileQuitAction.setShortcut(QKeySequence::Quit);
-
-  fileQuitAction.setMenuRole(QAction::MenuRole::QuitRole);
+  // Tools
 }
 
 void pvui::MainWindow::fileNew() {
@@ -199,7 +218,8 @@ void pvui::MainWindow::fileNew() {
                     .value(QStringLiteral("pvui/mainWindow/newDirectory"),
                            QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
                     .toString();
-  QString fileQStr = QFileDialog::getSaveFileName(this, tr("Open File"), dir, tr("pView Files (*.pvf);;All Files (*.*)"));
+  QString fileQStr =
+      QFileDialog::getSaveFileName(this, tr("Open File"), dir, tr("pView Files (*.pvf);;All Files (*.*)"));
   if (fileQStr.isNull()) {
     return;
   };
@@ -239,12 +259,14 @@ void pvui::MainWindow::fileOpen() {
 void pvui::MainWindow::fileOpen_(std::string location) {
   try {
     dataFileManager.setDataFile(
-        pv::DataFile(location, SQLITE_OPEN_READWRITE)); // unset SQLITE_OPEN_CREATE, because we don't want to create a new file if it doesn't already exist
+        pv::DataFile(location, SQLITE_OPEN_READWRITE)); // unset SQLITE_OPEN_CREATE, because we don't want to create a
+                                                        // new file if it doesn't already exist
     settings.setValue(QStringLiteral("lastOpenedFile"), QString::fromStdString(location));
   } catch (...) {
     QString fileName = QString::fromStdString(std::filesystem::path(location).filename().string());
-    QMessageBox::critical(this, tr("Failed to Open File"),
-                          tr("pView couldn't open %1. Please check that the file exists and is a valid pView file.").arg(fileName));
+    QMessageBox::critical(
+        this, tr("Failed to Open File"),
+        tr("pView couldn't open %1. Please check that the file exists and is a valid pView file.").arg(fileName));
   }
   updateTitle();
 }
@@ -253,9 +275,10 @@ void pvui::MainWindow::fileQuit() { close(); }
 
 void pvui::MainWindow::accountsDelete() {
   pv::i64 account = navigationModel.accountFromIndex(navigationWidget->selectionModel()->currentIndex());
-  QMessageBox::Button userResponse = QMessageBox::warning(
-      this, tr("Deleting Account %1").arg(QString::fromStdString(pv::account::name(*dataFileManager, account))),
-      tr("Are you sure you want to delete this account and it's transactions? This cannot be undone."),
+  QString accountName = QString::fromStdString(pv::account::name(*dataFileManager, account)).toHtmlEscaped();
+  QMessageBox::Button userResponse = QMessageBox::question(
+      this, tr("Delete Account?"),
+      tr("<html>Are you sure you want to delete the account <b>%1</b> and it's transactions? This cannot be undone.</html>").arg(accountName),
       QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
   if (userResponse == QMessageBox::Yes) {
     dataFileManager->removeAccount(account);
@@ -279,6 +302,11 @@ void pvui::MainWindow::accountsNew() {
       QMessageBox::warning(this, tr("Invalid Account Name"), tr("The account name must not be empty"));
     }
   }
+}
+
+void pvui::MainWindow::toolsSettings() {
+  settingsDialog.refresh();
+  settingsDialog.open();
 }
 
 void pvui::MainWindow::setupNavigation() {
@@ -314,10 +342,7 @@ void pvui::MainWindow::setupNavigation() {
                    &MainWindow::pageChanged);
 
   // Setup context menu
-
-  accountsDeleteAction.setShortcut(QKeySequence::StandardKey::Delete);
-  accountsDeleteAction.setShortcutContext(Qt::WidgetShortcut);
-
+  accountsDeleteAction.setShortcut(QKeySequence::Delete);
   navigationWidget->setContextMenuPolicy(Qt::ActionsContextMenu);
 }
 

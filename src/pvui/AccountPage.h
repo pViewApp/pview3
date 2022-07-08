@@ -9,15 +9,11 @@
 #include "pv/Integer64.h"
 #include "pv/Signals.h"
 #include "pvui/DataFileManager.h"
-#include <QAction>
-#include <QComboBox>
-#include <QDate>
-#include <QDateEdit>
-#include <QShowEvent>
 #include <QSortFilterProxyModel>
 #include <QTableView>
-#include <QVariant>
 #include <QWidget>
+#include <QSettings>
+#include <QAction>
 
 namespace pvui {
 
@@ -33,6 +29,7 @@ private:
   pv::ScopedConnection transactionUpdatedConnection;
   pv::ScopedConnection resetConnection;
 
+  QSettings settings;
   QTableView* table = new QTableView;
   controls::TransactionInsertionWidget* insertWidget;
   QSortFilterProxyModel* proxyModel = new QSortFilterProxyModel(table);
@@ -49,6 +46,7 @@ private slots:
 
   void handleTransactionSubmitted(pv::i64 transaction);
 
+  bool canDeleteTransactions();
   void deleteSelectedTransactions();
 
   void handleDataFileChanged();

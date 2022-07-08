@@ -4,6 +4,9 @@
 #include "SecurityPriceDialog.h"
 #include "DateUtils.h"
 #include <cassert>
+#include <qcheckbox.h>
+#include <qmessagebox.h>
+#include <qnamespace.h>
 #include <sqlite3.h>
 #include <QMetaObject>
 #include "SecurityUtils.h"
@@ -24,9 +27,7 @@
 namespace pvui {
 namespace {
 
-enum class OnConflictBehaviour : int {
-  SKIP, REPLACE
-};
+enum class OnConflictBehaviour : int { SKIP, REPLACE };
 
 constexpr OnConflictBehaviour defaultOnConflictBehaviour = OnConflictBehaviour::SKIP;
 
@@ -40,10 +41,11 @@ private:
   QLabel durationLabel = QLabel(tr("Update Prices For:"));
   QSpinBox durationEditor = QSpinBox();
 
-  QLabel onConflictLabel = QLabel(tr("On Conflict:")); 
+  QLabel onConflictLabel = QLabel(tr("On Conflict:"));
   QComboBox onConflictEditor = QComboBox();
 
   QDialogButtonBox buttonBox = QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+
 public:
   AdvancedSecurityPriceDownloadDialog(QWidget* parent = nullptr) : QDialog(parent) {
     setWindowTitle(tr("Update Security Prices"));
@@ -53,7 +55,7 @@ public:
 
     mainLayout.addLayout(&formLayout);
     mainLayout.addWidget(&buttonBox);
-    
+
     formLayout.addRow(&durationLabel, &durationEditor);
     formLayout.addRow(&onConflictLabel, &onConflictEditor);
 
@@ -67,30 +69,30 @@ public:
     onConflictEditor.addItem(tr("Skip"), QVariant(static_cast<int>(OnConflictBehaviour::SKIP)));
     onConflictEditor.addItem(tr("Replace"), QVariant(static_cast<int>(OnConflictBehaviour::REPLACE)));
 
-    onConflictEditor.setCurrentIndex(settings.value(QStringLiteral("OnConflictBehaviour"), QVariant(static_cast<int>(defaultOnConflictBehaviour))).toInt());
-      
-   // Disable Resizing
+    onConflictEditor.setCurrentIndex(
+        settings.value(QStringLiteral("OnConflictBehaviour"), QVariant(static_cast<int>(defaultOnConflictBehaviour)))
+            .toInt());
+
+    // Disable Resizing
     setSizeGripEnabled(false);
     mainLayout.setSizeConstraint(QLayout::SetFixedSize);
 
     QObject::connect(&buttonBox, &QDialogButtonBox::accepted, this, [this]() {
-                       accept();
-                       settings.setValue(QStringLiteral("Duration"), duration());
-                       settings.setValue(QStringLiteral("OnConflictBehaviour"), static_cast<int>(onConflictBehaviour()));
-                     });
+      accept();
+      settings.setValue(QStringLiteral("Duration"), duration());
+      settings.setValue(QStringLiteral("OnConflictBehaviour"), static_cast<int>(onConflictBehaviour()));
+    });
     QObject::connect(&buttonBox, &QDialogButtonBox::rejected, this, &AdvancedSecurityPriceDownloadDialog::reject);
   }
 
-  int duration() const noexcept {
-    return durationEditor.value();
-  }
+  int duration() const noexcept { return durationEditor.value(); }
 
   OnConflictBehaviour onConflictBehaviour() const noexcept {
     return static_cast<OnConflictBehaviour>(onConflictEditor.currentData().toInt());
   }
 };
 
-}
+} // namespace
 
 SecurityPageWidget::SecurityPageWidget(DataFileManager& dataFileManager, QWidget* parent)
     : PageWidget(parent), dataFileManager_(dataFileManager) {
@@ -105,19 +107,24 @@ SecurityPageWidget::SecurityPageWidget(DataFileManager& dataFileManager, QWidget
   setupActions();
 
   // Setup table
-  QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this, &SecurityPageWidget::handleDataFileChanged);
+  QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this,
+                   &SecurityPageWidget::handleDataFileChanged);
   if (currentPriceDownload != nullptr) {
     currentPriceDownload->abort();
   }
-  QObject::connect(insertionWidget, &controls::SecurityInsertionWidget::submitted, this, &SecurityPageWidget::handleSecuritySubmitted);
-  QObject::connect(&proxyModel, &QSortFilterProxyModel::sourceModelChanged, this, [this]{
-                     auto rc = table->model()->rowCount();
-                     (void) rc;
-                     table->update();
-                     table->updateGeometry();
-                     table->scrollToTop();
-                     table->scrollToBottom();
-                   }, Qt::QueuedConnection);
+  QObject::connect(insertionWidget, &controls::SecurityInsertionWidget::submitted, this,
+                   &SecurityPageWidget::handleSecuritySubmitted);
+  QObject::connect(
+      &proxyModel, &QSortFilterProxyModel::sourceModelChanged, this,
+      [this] {
+        auto rc = table->model()->rowCount();
+        (void)rc;
+        table->update();
+        table->updateGeometry();
+        table->scrollToTop();
+        table->scrollToBottom();
+      },
+      Qt::QueuedConnection);
 
   proxyModel.sort(0, Qt::AscendingOrder);
   table->setSortingEnabled(true);
@@ -172,8 +179,10 @@ void SecurityPageWidget::setupActions() {
   QObject::connect(&deleteSecurityAction, &QAction::triggered, this, [&]() {
     assert(dataFileManager_.has());
     std::optional<pv::i64> security = currentSelectedSecurity();
-    if (!security.has_value())
+
+    if (!security.has_value() || !showSecurityDeleteWarning()) {
       return;
+    }
 
     dataFileManager_->removeSecurity(*security);
   });
@@ -208,6 +217,30 @@ void SecurityPageWidget::handleSecuritySubmitted(pv::i64 security) {
   QModelIndex index = proxyModel.mapFromSource(model->index(model->rowOfSecurity(security), 0));
   table->selectionModel()->select(index, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
   table->scrollTo(index);
+}
+
+bool SecurityPageWidget::showSecurityDeleteWarning() {
+  if (!settings.value(QStringLiteral("WarnOnSecurityDeletion"), true).toBool()) {
+    return true;
+  }
+
+  std::optional currentSecurity = currentSelectedSecurity();
+
+  if (!dataFileManager_.has() || !currentSecurity) {
+    return false;
+  }
+
+  QString text = tr("<html>Are you sure you want to delete <b>%1</b>? This cannot be undone.</html>")
+                     .arg(QString::fromStdString(pv::security::symbol(*dataFileManager_, *currentSecurity)));
+  QMessageBox* warning = new QMessageBox(QMessageBox::Icon::Question, tr("Delete Security?"), text,
+                                         QMessageBox::Yes | QMessageBox::Cancel, this);
+  QCheckBox* dontShowAgain = new QCheckBox(tr("&Don't show this again"));
+  dontShowAgain->setChecked(false);
+  warning->setCheckBox(dontShowAgain);
+  warning->setAttribute(Qt::WA_DeleteOnClose);
+  QObject::connect(warning, &QMessageBox::accepted, this,
+                   [this, dontShowAgain]() { settings.setValue(QStringLiteral("WarnOnSecurityDeletion"), !dontShowAgain->isChecked()); });
+  return warning->exec() == QMessageBox::Yes;
 }
 
 std::optional<pv::i64> SecurityPageWidget::currentSelectedSecurity() {
@@ -260,10 +293,13 @@ void SecurityPageWidget::beginUpdateSecurityPrices(QDate begin, int onConflictBe
     }
   }
 
-  currentPriceDownload = priceDownloader_.download(symbols, begin, endDate);
+  currentPriceDownload = priceDownloader_.download(symbols, begin, endDate, this);
   currentPriceDownload->setParent(this);
 
-  QObject::connect(currentPriceDownload, &SecurityPriceDownload::success, this, [=](const std::map<QDate, pv::i64>& data, QString symbol) {updateSecurityPrices(data, symbol, onConflictBehaviour);});
+  QObject::connect(currentPriceDownload, &SecurityPriceDownload::success, this,
+                   [=](const std::map<QDate, pv::i64>& data, QString symbol) {
+                     updateSecurityPrices(data, symbol, onConflictBehaviour);
+                   });
   QObject::connect(currentPriceDownload, &SecurityPriceDownload::error, this,
                    &SecurityPageWidget::updateSecurityPricesError);
   QObject::connect(currentPriceDownload, &SecurityPriceDownload::complete, this,
@@ -278,15 +314,17 @@ void SecurityPageWidget::beginAdvancedUpdateSecurityPrices() {
   AdvancedSecurityPriceDownloadDialog* dialog = new AdvancedSecurityPriceDownloadDialog(this);
   dialog->setAttribute(Qt::WA_DeleteOnClose);
   QObject::connect(dialog, &AdvancedSecurityPriceDownloadDialog::accepted, this, [this, dialog]() {
-                     if (dialog->duration() == 0) {
-                       return;
-                     }
-                     beginUpdateSecurityPrices(QDate::currentDate().addDays(-(dialog->duration())), static_cast<int>(dialog->onConflictBehaviour()));
-                   });
-    dialog->open();
+    if (dialog->duration() == 0) {
+      return;
+    }
+    beginUpdateSecurityPrices(QDate::currentDate().addDays(-(dialog->duration())),
+                              static_cast<int>(dialog->onConflictBehaviour()));
+  });
+  dialog->open();
 }
 
-void SecurityPageWidget::updateSecurityPrices(const std::map<QDate, pv::i64>& prices, QString symbol, int onConflictBehaviour) {
+void SecurityPageWidget::updateSecurityPrices(const std::map<QDate, pv::i64>& prices, QString symbol,
+                                              int onConflictBehaviour) {
   if (!dataFileManager_.has()) {
     return;
   }
@@ -296,7 +334,8 @@ void SecurityPageWidget::updateSecurityPrices(const std::map<QDate, pv::i64>& pr
   bool transactionCreated = dataFileManager_->beginTransaction() == pv::ResultCode::OK;
   for (const auto& pair : prices) {
     pv::i64 date = toEpochDate(pair.first);
-    if (static_cast<OnConflictBehaviour>(onConflictBehaviour) == OnConflictBehaviour::REPLACE || !pv::security::price(*dataFileManager_, security, date).has_value()) {
+    if (static_cast<OnConflictBehaviour>(onConflictBehaviour) == OnConflictBehaviour::REPLACE ||
+        !pv::security::price(*dataFileManager_, security, date).has_value()) {
       // Only do it if no existing price on pvDate
       dataFileManager_->setSecurityPrice(security, date, pair.second);
     }
@@ -331,7 +370,8 @@ void SecurityPageWidget::endUpdateSecurityPrices() {
   delete currentPriceDownload;
   currentPriceDownload = nullptr;
 
-  bool suppressFailedDownloadDialog = settings.value(QStringLiteral("SuppressFailedSecurityPriceDownloadWarning"), false).toBool();
+  bool suppressFailedDownloadDialog =
+      !settings.value(QStringLiteral("WarnOnSecurityPriceDownloadFailure"), true).toBool();
 
   if (!failedSecurityDownloadsSymbols.empty() && !suppressFailedDownloadDialog) {
     resetSecurityPriceUpdateDialog();
@@ -346,8 +386,12 @@ void SecurityPageWidget::endUpdateSecurityPrices() {
     base.append("</ul></html>");
 
     QCheckBox* checkBox = new QCheckBox(tr("&Don't show this again"));
-    QObject::connect(checkBox, &QCheckBox::toggled, this,
-                     [=](bool toggled) { settings.setValue(QStringLiteral("SuppressFailedSecurityPriceDownloadWarning"), toggled); });
+    checkBox->setChecked(false);
+    QObject::connect(&securityPriceUpdateDialog, &QMessageBox::finished, this, [=](int result) {
+      if (result == QDialog::Accepted) {
+        settings.setValue(QStringLiteral("WarnOnSecurityPriceDownloadFailure"), !checkBox->isChecked());
+      }
+    });
 
     securityPriceUpdateDialog.setCheckBox(checkBox);
     securityPriceUpdateDialog.setText(base);

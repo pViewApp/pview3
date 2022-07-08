@@ -63,6 +63,8 @@ private:
 private slots:
   void handleDataFileChanged();
 
+  bool showSecurityDeleteWarning();
+
   void handleSecuritySubmitted(pv::i64 security);
 
   void beginUpdateSecurityPrices(QDate begin, int onConflictBehaviour);

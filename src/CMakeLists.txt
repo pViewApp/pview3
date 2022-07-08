@@ -62,6 +62,8 @@ add_executable(pview
 	pvui/SecurityPriceModel.h
 	pvui/SecurityUtils.cpp
 	pvui/SecurityUtils.h
+  pvui/SettingsDialog.cpp
+  pvui/SettingsDialog.h
 	pvui/StandardReportFactory.h
 	pvui/StandardReportFactory.cpp
 	pvui/TransactionInsertionWidget.cpp

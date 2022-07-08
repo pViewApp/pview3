@@ -15,6 +15,7 @@
 #include <QWidget>
 #include <memory>
 #include <optional>
+#include <QSettings>
 
 namespace pvui {
 namespace dialogs {
@@ -23,6 +24,7 @@ namespace dialogs {
 class SecurityPriceDialog : public QDialog {
   Q_OBJECT
 private:
+  QSettings settings;
   DataFileManager& dataFileManager;
   pv::i64 security_;
 
@@ -44,6 +46,8 @@ private slots:
   void onSubmit(QDate date);
 
   void handleDataFileChanged();
+  bool canDeleteSecurityPrices();
+  void deleteSelectedSecurityPrices();
 public:
   SecurityPriceDialog(DataFileManager& dataFileManager, pv::i64 security, QWidget* parent = nullptr);
 public slots:

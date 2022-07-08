@@ -1,6 +1,7 @@
 #include "AccountPage.h"
 #include "FormatUtils.h"
 #include "SecurityPage.h"
+#include <QCheckBox>
 #include "TransactionInsertionWidget.h"
 #include "pv/Account.h"
 #include "pv/Algorithms.h"
@@ -16,9 +17,12 @@
 #include <QTreeView>
 #include <cassert>
 #include <optional>
+#include <QMessageBox>
 
 pvui::AccountPageWidget::AccountPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent)
-    : PageWidget(parent), dataFileManager(dataFileManager), insertWidget(new controls::TransactionInsertionWidget(dataFileManager)) {
+    : PageWidget(parent), dataFileManager(dataFileManager),
+      insertWidget(new controls::TransactionInsertionWidget(dataFileManager)) {
+  settings.beginGroup("AccountPage");
   // UI Init
   layout()->addWidget(table, 1);
   layout()->addWidget(insertWidget);
@@ -32,29 +36,60 @@ pvui::AccountPageWidget::AccountPageWidget(pvui::DataFileManager& dataFileManage
   table->scrollToBottom();
 
   // Setup delete transaction
+  table->setContextMenuPolicy(Qt::ActionsContextMenu);
   deleteTransactionAction.setShortcut(QKeySequence::Delete);
   QObject::connect(&deleteTransactionAction, &QAction::triggered, this, &AccountPageWidget::deleteSelectedTransactions);
   table->addAction(&deleteTransactionAction);
-  table->setContextMenuPolicy(Qt::ActionsContextMenu);
 
   // Setup listeners
-
   QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this,
                    &AccountPageWidget::handleDataFileChanged);
   QObject::connect(this, &AccountPageWidget::accountUpdated, this, &AccountPageWidget::handleAccountUpdated);
-  QObject::connect(this, &AccountPageWidget::transactionUpdated, this,
-                   &AccountPageWidget::handleTransactionsUpdated);
+  QObject::connect(this, &AccountPageWidget::transactionUpdated, this, &AccountPageWidget::handleTransactionsUpdated);
   QObject::connect(this, &AccountPageWidget::reset, this, &AccountPageWidget::handleReset);
 
-  QObject::connect(insertWidget, &controls::TransactionInsertionWidget::submitted, this, &AccountPageWidget::handleTransactionSubmitted);
-  QObject::connect(proxyModel, &QAbstractProxyModel::sourceModelChanged, this, [this] { table->scrollToBottom(); }, Qt::ConnectionType::QueuedConnection); // scroll to bottom when the table is changed,
-  // For the previous line, we force a queued connection because we need to give it a delay, otherwise scrollToBottom will not work
+  QObject::connect(insertWidget, &controls::TransactionInsertionWidget::submitted, this,
+                   &AccountPageWidget::handleTransactionSubmitted);
+  QObject::connect(
+      proxyModel, &QAbstractProxyModel::sourceModelChanged, this, [this] { table->scrollToBottom(); },
+      Qt::ConnectionType::QueuedConnection); // scroll to bottom when the table is changed,
+  // For the previous line, we force a queued connection because we need to give it a delay, otherwise scrollToBottom
+  // will not work
 
   handleDataFileChanged(); // Call in constructor to initialize state
 }
 
+bool pvui::AccountPageWidget::canDeleteTransactions() {
+  if (!account_.has_value() || !dataFileManager.has()) {
+    return false;
+  }
+
+  if (!settings.value(QStringLiteral("WarnOnTransactionDeletion"), true).toBool()) {
+    return true;
+  }
+
+  int numberOfTransactionsSelected = table->selectionModel()->selectedRows().size();
+  QString accountName = QString::fromStdString(pv::account::name(*dataFileManager, *account_)).toHtmlEscaped();
+  QString warningText = tr("<html>Are you sure you want to delete <b>%1</b> transaction(s) from <b>%2</b>?</html>",
+                           nullptr, numberOfTransactionsSelected)
+                            .arg(numberOfTransactionsSelected)
+                            .arg(accountName);
+
+  QMessageBox* warning =
+      new QMessageBox(QMessageBox::Question, tr("Delete Transaction(s)?", nullptr, numberOfTransactionsSelected),
+                      warningText, QMessageBox::Yes | QMessageBox::Cancel, this);
+  QCheckBox* dontShowAgain = new QCheckBox(tr("&Don't show this again"));
+  dontShowAgain->setChecked(false);
+  warning->setCheckBox(dontShowAgain);
+  warning->setAttribute(Qt::WA_DeleteOnClose);
+  QObject::connect(warning, &QMessageBox::accepted, this, [dontShowAgain, this]() {
+    settings.setValue(QStringLiteral("WarnOnTransactionDeletion"), !dontShowAgain->isChecked());
+  });
+  return warning->exec() == QMessageBox::Yes;
+}
+
 void pvui::AccountPageWidget::deleteSelectedTransactions() {
-  if (!dataFileManager.has()) {
+  if (!canDeleteTransactions()) {
     return;
   }
 
@@ -138,7 +173,7 @@ void pvui::AccountPageWidget::handleTransactionSubmitted(pv::i64 transaction) {
 
 void pvui::AccountPageWidget::updateTitle() {
   setTitle(account_.has_value() ? QString::fromStdString(pv::account::name(*dataFileManager, *account_))
-                               : tr("No Account Open"));
+                                : tr("No Account Open"));
 }
 
 void pvui::AccountPageWidget::setAccount(std::optional<pv::i64> account) {
@@ -150,7 +185,7 @@ void pvui::AccountPageWidget::setAccount(std::optional<pv::i64> account) {
   updateCashBalance();
 
   model = this->account_.has_value() ? std::make_unique<models::TransactionModel>(*dataFileManager, *this->account_)
-                                    : nullptr;
+                                     : nullptr;
   proxyModel->setSourceModel(model.get());
   insertWidget->setAccount(this->account_);
 }

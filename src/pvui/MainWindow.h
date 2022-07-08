@@ -14,7 +14,7 @@
 #include <QWidget>
 #include <unordered_map>
 #include <QMenu>
-
+#include "SettingsDialog.h"
 #include "AccountPage.h"
 #include "DataFileManager.h"
 #include "NavigationModel.h"
@@ -42,11 +42,14 @@ private:
   AccountPageWidget* accountPage = new AccountPageWidget(dataFileManager);
   SecurityPageWidget* securityPage = new SecurityPageWidget(dataFileManager);
 
+  dialogs::SettingsDialog settingsDialog;
+
   //// MENU BAR
   
   QMenu fileMenu;
   QAction fileNewAction;
   QAction fileOpenAction;
+  QAction fileSettingsAction;
   QAction fileQuitAction;
 
   QMenu accountsMenu;
@@ -70,6 +73,8 @@ private slots:
   void accountsDelete();
 
   void fileOpen_(std::string location); // Actual implementation of file-opening logic
+
+  void toolsSettings();
 protected:
   void closeEvent(QCloseEvent* event) override;
 public:
