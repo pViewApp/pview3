@@ -2,6 +2,7 @@
 #include "FormatUtils.h"
 #include "SecurityPage.h"
 #include <QCheckBox>
+#include "pvui/ModelUtils.h"
 #include "TransactionInsertionWidget.h"
 #include "pv/Account.h"
 #include "pv/Algorithms.h"
@@ -33,6 +34,7 @@ pvui::AccountPageWidget::AccountPageWidget(pvui::DataFileManager& dataFileManage
   table->sortByColumn(0, Qt::AscendingOrder);
   table->setSelectionBehavior(QTableView::SelectRows);
   table->setModel(proxyModel);
+  proxyModel->setSortRole(pvui::modelutils::SortRole);
   table->scrollToBottom();
 
   // Setup delete transaction

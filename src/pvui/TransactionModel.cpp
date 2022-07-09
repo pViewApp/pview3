@@ -230,7 +230,7 @@ QVariant pvui::models::TransactionModel::data(const QModelIndex& index, int role
       return QVariant(Qt::AlignRight | Qt::AlignVCenter); // Right align
     }
   }
-  if (role != Qt::DisplayRole && role != Qt::EditRole && role != Qt::AccessibleTextRole) {
+  if (role != Qt::DisplayRole && role != Qt::EditRole && role != Qt::AccessibleTextRole && role != modelutils::SortRole) {
     return QVariant();
   }
   pv::i64 transaction = transactions.at(index.row());
@@ -244,23 +244,23 @@ QVariant pvui::models::TransactionModel::data(const QModelIndex& index, int role
   }
   case securityColumn: {
     std::optional<pv::i64> securityId = getSecurity(dataFile, transaction);
-    return securityId ? QString::fromStdString(pv::security::symbol(dataFile, *securityId)) : QVariant();
+    return modelutils::stringData(securityId ? QString::fromStdString(pv::security::symbol(dataFile, *securityId)) : QString(), role);
   }
   case numberOfSharesColumn: {
     std::optional<pv::i64> numberOfShares = getNumberOfShares(dataFile, transaction);
-    return numberOfShares ? modelutils::numberData(*numberOfShares, role) : QVariant();
+    return numberOfShares ? modelutils::numberData(*numberOfShares, role) : (role == modelutils::SortRole ? modelutils::lowestData() : QVariant());
   }
   case sharePriceColumn: {
     std::optional<pv::i64> sharePrice = getSharePrice(dataFile, transaction);
-    return sharePrice ? modelutils::moneyData(*sharePrice, role) : QVariant();
+    return sharePrice ? modelutils::moneyData(*sharePrice, role) : (role == modelutils::SortRole ? modelutils::lowestData() : QVariant());
   }
   case commissionColumn: {
     std::optional<pv::i64> commission = getCommission(dataFile, transaction);
-    return commission ? modelutils::moneyData(*commission, role) : QVariant();
+    return commission ? modelutils::moneyData(*commission, role) : (role == modelutils::SortRole ? modelutils::lowestData() : QVariant());
   }
   case totalAmountColumn: {
     std::optional<pv::i64> totalAmount = getTotalAmount(dataFile, transaction);
-    return totalAmount ? modelutils::moneyData(*totalAmount, role) : QVariant();
+    return totalAmount ? modelutils::moneyData(*totalAmount, role) : (role == modelutils::SortRole ? modelutils::lowestData() : QVariant());
   }
   default:
     return QVariant();

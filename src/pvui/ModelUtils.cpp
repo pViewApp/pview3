@@ -37,9 +37,9 @@ QVariant formatAlignment(FormatFlags flags) {
 
 QVariant sortData(const QVariant& value, FormatFlags flags) {
   if (flags & FormatFlag::SortFirst) {
-    return -std::numeric_limits<double>::infinity();
+    return lowestData();
   } else if (flags & FormatFlag::SortLast) {
-    return std::numeric_limits<double>::infinity();
+    return highestData();
   } else {
     return value;
   }
@@ -67,6 +67,14 @@ template <typename NumberType> QVariant genericNumberData(NumberType number, int
 }
 
 } // namespace
+
+QVariant lowestData() {
+  return QVariant(-std::numeric_limits<double>::infinity());
+}
+
+QVariant highestData() {
+  return QVariant(std::numeric_limits<double>::infinity());
+}
 
 QVariant stringData(const QString& string, int role, FormatFlags flags) {
   if (role == Qt::TextAlignmentRole) {

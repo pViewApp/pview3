@@ -27,6 +27,10 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(FormatFlags);
 /// \brief a Qt role used to get values for sorting
 constexpr int SortRole = 2008;
 
+QVariant lowestData();
+
+QVariant highestData();
+
 QVariant stringData(const QString& string, int role, FormatFlags flags = FormatFlags());
 
 QVariant moneyData(pv::i64 money, int role, FormatFlags flags = FormatFlag::Numeric);
