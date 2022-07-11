@@ -60,14 +60,14 @@ public:
     formLayout.addRow(&onConflictLabel, &onConflictEditor);
 
     durationEditor.setPrefix(tr("Last "));
-    durationEditor.setValue(settings.value(QStringLiteral("Duration"), 30).toInt());
     durationEditor.setSuffix(tr(" Day(s)"));
     durationEditor.setMinimum(0);
-    durationEditor.setMaximum(365 * 100); // A century!
+    durationEditor.setMaximum(365 * 1000); // A millenium!
+    durationEditor.setValue(settings.value(QStringLiteral("Duration"), 30).toInt());
 
     onConflictEditor.setEditable(false);
-    onConflictEditor.addItem(tr("Skip"), QVariant(static_cast<int>(OnConflictBehaviour::SKIP)));
     onConflictEditor.addItem(tr("Replace"), QVariant(static_cast<int>(OnConflictBehaviour::REPLACE)));
+    onConflictEditor.addItem(tr("Skip"), QVariant(static_cast<int>(OnConflictBehaviour::SKIP)));
 
     onConflictEditor.setCurrentIndex(
         settings.value(QStringLiteral("OnConflictBehaviour"), QVariant(static_cast<int>(defaultOnConflictBehaviour)))
