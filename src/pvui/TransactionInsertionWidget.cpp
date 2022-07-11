@@ -1,5 +1,4 @@
 #include "TransactionInsertionWidget.h"
-#include "ActionData.h"
 #include "DateUtils.h"
 #include "SecurityModel.h"
 #include "SecurityUtils.h"
@@ -59,6 +58,13 @@ TransactionInsertionWidget::TransactionInsertionWidget(DataFileManager& dataFile
   QShortcut* enterShortcut = new QShortcut(Qt::Key_Enter, this);
   QObject::connect(returnShortcut, &QShortcut::activated, this, &TransactionInsertionWidget::submit);
   QObject::connect(enterShortcut, &QShortcut::activated, this, &TransactionInsertionWidget::submit);
+
+  QObject::connect(actionEditor, qOverload<int>(&QComboBox::currentIndexChanged), this, &TransactionInsertionWidget::handleActionChanged);
+  QObject::connect(numberOfSharesEditor, qOverload<int>(&ExtendedSpinBox::valueChanged), this, &TransactionInsertionWidget::updateValues);
+  QObject::connect(sharePriceEditor, qOverload<double>(&ExtendedDoubleSpinBox::valueChanged), this, &TransactionInsertionWidget::updateValues);
+  QObject::connect(commissionEditor, qOverload<double>(&ExtendedDoubleSpinBox::valueChanged), this, &TransactionInsertionWidget::updateValues);
+  QObject::connect(totalAmountEditor, qOverload<double>(&ExtendedDoubleSpinBox::valueChanged), this, &TransactionInsertionWidget::updateValues);
+
 
   securityProxy.sort(0, Qt::AscendingOrder);
   securityEditor->setModelColumn(0);
@@ -123,12 +129,11 @@ bool TransactionInsertionWidget::submit() {
     }
   }
 
-  const pvui::ActionData* actionData = pvui::actionData(actionEditor->currentText());
-  if (actionData == nullptr) {
-    return false; // Invalid action
+  QVariant actionData = actionEditor->currentData();
+  if (!actionData.isValid()) {
+    return false; // No action selected
   }
-
-  pv::Action action = actionData->action;
+  pv::Action action = static_cast<pv::Action>(actionData.toInt());
 
   pv::ResultCode result = pv::ResultCode::SQL_ERROR; // Use some error by default, overrwrite later if needed
 
@@ -187,10 +192,59 @@ void TransactionInsertionWidget::reset() {
   totalAmountEditor->setBlank();
 }
 
-void TransactionInsertionWidget::setupActionList() {
-  for (const pvui::ActionData& action : pvui::actionData()) {
-    actionEditor->addItem(action.name);
+void TransactionInsertionWidget::handleActionChanged() {
+  // first enable all
+  numberOfSharesEditor->setEnabled(true);
+  sharePriceEditor->setEnabled(true);
+  commissionEditor->setEnabled(true);
+  totalAmountEditor->setEnabled(true);
+
+  QVariant actionData = actionEditor->currentData();
+  if (!actionData.isValid()) {
+    return; // Enable all fields
   }
+  pv::Action action = static_cast<pv::Action>(actionData.toInt());
+  // Disable unneeded fields
+  if (action == pv::Action::BUY || action == pv::Action::SELL) {
+    totalAmountEditor->setEnabled(false);
+  } else if (action == pv::Action::DEPOSIT || action == pv::Action::WITHDRAW || action == pv::Action::DIVIDEND) {
+    commissionEditor->setEnabled(false);
+    numberOfSharesEditor->setEnabled(false);
+    sharePriceEditor->setEnabled(false);
+  }
+
+  updateValues();
+}
+
+void TransactionInsertionWidget::updateValues() {
+  QVariant actionData = actionEditor->currentData();
+  if (actionData.isNull()) {
+    return;
+  }
+  pv::Action action = static_cast<pv::Action>(actionData.toInt());
+  switch (action) {
+    case pv::Action::DEPOSIT:
+    case pv::Action::WITHDRAW:
+    case pv::Action::DIVIDEND:
+      numberOfSharesEditor->setBlank();
+      sharePriceEditor->setBlank();
+      commissionEditor->setBlank();
+      break;
+    case pv::Action::SELL:
+      totalAmountEditor->setValue(((std::llround(sharePriceEditor->value() * 100) * numberOfSharesEditor->value()) - std::llround(commissionEditor->value() * 100)) / 100.);
+      break;
+    case pv::Action::BUY:
+      totalAmountEditor->setValue(((std::llround(sharePriceEditor->value() * 100) * numberOfSharesEditor->value()) + std::llround(commissionEditor->value() * 100)) / 100.);
+      break;
+  }
+}
+
+void TransactionInsertionWidget::setupActionList() {
+  actionEditor->addItem(tr("In"), static_cast<int>(pv::Action::DEPOSIT));
+  actionEditor->addItem(tr("Out"), static_cast<int>(pv::Action::WITHDRAW));
+  actionEditor->addItem(tr("Buy"), static_cast<int>(pv::Action::BUY));
+  actionEditor->addItem(tr("Sell"), static_cast<int>(pv::Action::SELL));
+  actionEditor->addItem(tr("Dividend"), static_cast<int>(pv::Action::DIVIDEND));
 }
 
 void TransactionInsertionWidget::setAccount(std::optional<pv::i64> account) {

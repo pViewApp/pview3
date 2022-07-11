@@ -1,5 +1,4 @@
 #include "TransactionModel.h"
-#include "ActionData.h"
 #include "DateUtils.h"
 #include "ModelUtils.h"
 #include "pv/DataFile.h"
@@ -25,6 +24,22 @@ constexpr int sharePriceColumn = 4;
 constexpr int commissionColumn = 5;
 constexpr int totalAmountColumn = 6;
 constexpr int columnCount = 7;
+
+QString nameOfAction(pv::Action action) {
+  switch (action) {
+    case pv::Action::DEPOSIT:
+      return pvui::models::TransactionModel::tr("In");
+    case pv::Action::WITHDRAW:
+      return pvui::models::TransactionModel::tr("Out");
+    case pv::Action::BUY:
+      return pvui::models::TransactionModel::tr("Buy");
+    case pv::Action::SELL:
+      return pvui::models::TransactionModel::tr("Sell");
+    case pv::Action::DIVIDEND:
+      return pvui::models::TransactionModel::tr("Dividend");
+    default: return pvui::models::TransactionModel::tr("(Unknown Action)");
+  }
+}
 
 std::optional<pv::i64> getSecurity(const pv::DataFile& dataFile, pv::i64 transaction) {
   switch (pv::transaction::action(dataFile, transaction)) {
@@ -239,8 +254,7 @@ QVariant pvui::models::TransactionModel::data(const QModelIndex& index, int role
   case dateColumn:
     return toQDate(pv::transaction::date(dataFile, transaction));
   case actionColumn: {
-    auto* actionData = pvui::actionData(pv::transaction::action(dataFile, transaction));
-    return actionData != nullptr ? actionData->name : QVariant();
+    return modelutils::stringData(nameOfAction(pv::transaction::action(dataFile, transaction)), role);
   }
   case securityColumn: {
     std::optional<pv::i64> securityId = getSecurity(dataFile, transaction);

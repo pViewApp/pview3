@@ -1,7 +1,6 @@
 #ifndef PVUI_MODELS_TRANSACTIONMODEL_H
 #define PVUI_MODELS_TRANSACTIONMODEL_H
 
-#include "ActionData.h"
 #include "pv/DataFile.h"
 #include "pv/Integer64.h"
 #include "pv/Signals.h"

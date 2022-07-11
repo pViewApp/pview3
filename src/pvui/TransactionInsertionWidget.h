@@ -40,12 +40,14 @@ private:
   controls::ExtendedDoubleSpinBox* commissionEditor = new controls::ExtendedDoubleSpinBox;
   controls::ExtendedDoubleSpinBox* totalAmountEditor = new controls::ExtendedDoubleSpinBox;
 
-  void reset();
   void repopulateSecurityList();
 private slots:
   void handleDataFileChanged();
   void setupActionList();
   void setupSecurityList();
+  void reset();
+  void handleActionChanged();
+  void updateValues();
 public:
   TransactionInsertionWidget(DataFileManager& dataFile,
                              QWidget* parent = nullptr);

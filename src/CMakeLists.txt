@@ -19,8 +19,6 @@ add_executable(pview
 
 	pvui/AccountPage.cpp
 	pvui/AccountPage.h
-	pvui/ActionData.h
-	pvui/ActionData.cpp
 	pvui/DataFileManager.h
 	pvui/DataFileManager.cpp
   pvui/DateUtils.h
