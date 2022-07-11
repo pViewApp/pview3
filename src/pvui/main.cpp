@@ -5,6 +5,7 @@
 
 int main(int argc, char* argv[]) {
   QApplication::setAttribute(Qt::AA_DisableWindowContextHelpButton);
+  QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
   QCoreApplication::setOrganizationName("pView");
   QCoreApplication::setOrganizationDomain("pviewapp.github.io");
   QCoreApplication::setApplicationName("pView");
