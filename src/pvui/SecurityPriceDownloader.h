@@ -43,6 +43,10 @@ private:
   QNetworkAccessManager manager;
 
 public:
+  /// \brief creates a SecurityPriceDownload object which downloads security prices for \c symbol,
+  /// beginning with \c begin (inclusive) and ending with \c end (exclusive).
+  ///
+  /// The returned SecurityPriceDownload will have this SecurityPriceDownloader as a parent if no parent is supplied.
   SecurityPriceDownload* download(QString symbol, QDate begin, QDate end, QObject* parent = nullptr);
   SecurityPriceDownload* download(QStringList symbol, QDate begin, QDate end, QObject* parent = nullptr);
 };

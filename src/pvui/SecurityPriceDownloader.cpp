@@ -11,8 +11,8 @@ namespace {
 QUrl generateDownloadUrl(const QString& symbol, const QDate& begin, const QDate& end) {
   static QString base = "https://query1.finance.yahoo.com/v7/finance/download/"
                         "%1?period1=%2&period2=%3&interval=1d&events=history&includeAdjustedClose=true";
-  auto beginSecs = QDateTime(begin, QTime(23, 59, 999), Qt::LocalTime).toSecsSinceEpoch();
-  auto endSecs = QDateTime(end, QTime(0, 0), Qt::LocalTime).toSecsSinceEpoch();
+  auto beginSecs = QDateTime(begin, QTime(23, 59, 999), Qt::LocalTime).toSecsSinceEpoch(); // Inclusive on begin date
+  auto endSecs = QDateTime(end.addDays(-1), QTime(23, 59, 999), Qt::LocalTime).toSecsSinceEpoch(); // subtract 1 day because exclusive on end date
   return base.arg(symbol, QString::number(beginSecs), QString::number(endSecs));
 }
 
@@ -109,7 +109,7 @@ void SecurityPriceDownload::abort() {
 SecurityPriceDownload* SecurityPriceDownloader::download(QString symbol, QDate begin, QDate end, QObject* parent) {
   auto* reply = manager.get(QNetworkRequest(generateDownloadUrl(symbol, begin, end)));
 
-  return new SecurityPriceDownload({symbol, reply}, parent);
+  return new SecurityPriceDownload({symbol, reply}, parent == nullptr ? this : parent);
 }
 
 SecurityPriceDownload* SecurityPriceDownloader::download(QStringList symbols, QDate begin, QDate end, QObject* parent) {
@@ -118,7 +118,7 @@ SecurityPriceDownload* SecurityPriceDownloader::download(QStringList symbols, QD
     auto* reply = manager.get(QNetworkRequest(generateDownloadUrl(symbol, begin, end)));
     downloads.push_back(SecurityPriceDownload::Download{symbol, reply});
   }
-  return new SecurityPriceDownload(std::move(downloads), parent);
+  return new SecurityPriceDownload(std::move(downloads), parent == nullptr ? this : parent);
 }
 
 } // namespace pvui
