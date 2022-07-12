@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include <QStatusBar>
 #include "DataFileManager.h"
 #include "pv/DataFile.h"
 #include <QStandardPaths>
@@ -63,6 +64,8 @@ pvui::MainWindow::MainWindow(QWidget* parent)
   setupToolBars();
   setupNavigation();
   setupMenuBar();
+  statusBar()->addWidget(statusBarLabel);
+  statusBar()->setSizeGripEnabled(false);
 
   // Restore state
   if (settings.contains("state")) {
@@ -355,13 +358,16 @@ void pvui::MainWindow::setupNavigation() {
 
 void pvui::MainWindow::updateWindowFileLocation() {
   if (dataFileManager.has()) {
+    std::optional dataFilePath = dataFileManager->filePath();
     std::filesystem::path filePath =
-        dataFileManager->filePath().value_or(tr("Temporary File (Changes Will Not Be Saved)").toStdString());
+        dataFilePath.value_or(tr("Temporary File (Changes Will Not Be Saved)").toStdString());
     setWindowTitle(tr("%1 - pView").arg(QString::fromStdString(filePath.filename().string())));
     setWindowFilePath(QString::fromStdString(filePath.string()));
+    statusBarLabel->setText(dataFilePath ? tr("Autosaving all changes.") : tr("Temporary File - Changes will not be saved."));
   } else {
     setWindowTitle(tr("No File Open - pView"));
     setWindowFilePath(QStringLiteral(""));
+    statusBarLabel->setText(tr("No file open"));
   }
 }
 

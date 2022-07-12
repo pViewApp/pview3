@@ -32,6 +32,8 @@ private:
   DataFileManager dataFileManager;
   QTreeView* navigationWidget = new QTreeView;
 
+  QLabel* statusBarLabel = new QLabel;
+
   StandardReportFactory factory;
   std::vector<Report*> reports = factory.createReports(dataFileManager);
   models::NavigationModel navigationModel = models::NavigationModel(dataFileManager);
