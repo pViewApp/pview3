@@ -367,7 +367,7 @@ void pvui::MainWindow::updateWindowFileLocation() {
   } else {
     setWindowTitle(tr("No File Open - pView"));
     setWindowFilePath(QStringLiteral(""));
-    statusBarLabel->setText(tr("No file open"));
+    statusBarLabel->setText(tr("No file open."));
   }
 }
 
