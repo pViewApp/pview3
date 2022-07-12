@@ -1,22 +1,26 @@
 #include "MainWindow.h"
-#include <QStatusBar>
 #include "DataFileManager.h"
 #include "pv/DataFile.h"
-#include <QStandardPaths>
+#include <QAction>
 #include <QApplication>
-#include <sqlite3.h>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLayout>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QMimeData>
 #include <QShortcut>
+#include <QStandardPaths>
+#include <QStatusBar>
 #include <QString>
+#include <QStringLiteral>
+#include <Qt>
 #include <filesystem>
 #include <functional>
-#include <QAction>
-#include <QStringLiteral>
+#include <sqlite3.h>
 
 constexpr int windowWidth = 800;
 constexpr int windowHeight = 600;
@@ -66,6 +70,7 @@ pvui::MainWindow::MainWindow(QWidget* parent)
   setupMenuBar();
   statusBar()->addWidget(statusBarLabel);
   statusBar()->setSizeGripEnabled(false);
+  setAcceptDrops(true);
 
   // Restore state
   if (settings.contains("state")) {
@@ -99,6 +104,31 @@ void pvui::MainWindow::handleDataFileChanged() {
   accountsMenu.setEnabled(dataFileManager.has());
 
   noPageOpen->setText(dataFileManager.has() ? tr("No Page Open") : tr("Create a new file with <b>File>New</b>."));
+}
+
+void pvui::MainWindow::dragEnterEvent(QDragEnterEvent* event) {
+  event->setDropAction(Qt::CopyAction);
+  if (event->mimeData()->hasUrls()) {
+    auto urls = event->mimeData()->urls();
+    if (urls.size() == 0) {
+      return; // don't accept
+    }
+    if (urls.last().isLocalFile()) {
+      event->acceptProposedAction();
+    }
+  }
+}
+void pvui::MainWindow::dropEvent(QDropEvent* event) {
+  const QMimeData* mime = event->mimeData();
+  if (mime->hasUrls()) {
+    auto urls = mime->urls();
+    if (urls.size() == 0) {
+      return;
+    }
+    if (urls.last().isLocalFile()) {
+      fileOpenWithWarning_(urls.last().toLocalFile().toStdString());
+    }
+  }
 }
 
 void pvui::MainWindow::setupToolBars() {
@@ -261,22 +291,27 @@ void pvui::MainWindow::fileOpen() {
   }
   std::string file = file_.toStdString();
 
-  try {
-    fileOpen_(std::move(file));
-  } catch(...) {
-    QString fileName = QString::fromStdString(std::filesystem::path(file).filename().string());
-    QMessageBox::critical(
-        this, tr("Failed to Open File"),
-        tr("pView couldn't open %1. Please check that the file exists and is a valid pView file.").arg(fileName));
-  }
+  fileOpenWithWarning_(file);
 }
 
-void pvui::MainWindow::fileOpen_(std::string location) {
+void pvui::MainWindow::fileOpen_(const std::string& location) {
   dataFileManager.setDataFile(
       pv::DataFile(location, SQLITE_OPEN_READWRITE)); // unset SQLITE_OPEN_CREATE, because we don't want to create a
                                                       // new file if it doesn't already exist
   settings.setValue(QStringLiteral("lastOpenedFile"), QString::fromStdString(location));
+  contentLayout->setCurrentWidget(noPageOpen);
   updateWindowFileLocation();
+}
+
+void pvui::MainWindow::fileOpenWithWarning_(const std::string& location) noexcept {
+  try {
+    fileOpen_(std::move(location));
+  } catch (...) {
+    QString fileName = QString::fromStdString(std::filesystem::path(location).filename().string());
+    QMessageBox::critical(
+        this, tr("Failed to Open File"),
+        tr("pView couldn't open %1. Please check that the file exists and is a valid pView file.").arg(fileName));
+  }
 }
 
 void pvui::MainWindow::fileQuit() { close(); }

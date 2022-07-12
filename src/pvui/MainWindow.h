@@ -22,6 +22,9 @@
 #include "StandardReportFactory.h"
 #include "pv/DataFile.h"
 
+class QDropEvent;
+class QDragEnterEvent;
+
 namespace pvui {
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -74,17 +77,23 @@ private slots:
   void accountsNew();
   void accountsDelete();
 
-  void fileOpen_(std::string location); // Actual implementation of file-opening logic
+  void fileOpen_(const std::string&
+                     location); // Actual implementation of file-opening logic (opens a file, throws exception if fail)
+  void fileOpenWithWarning_(const std::string& location) noexcept; // Opens a file, warns the user if failed
 
   void toolsSettings();
+
+  void setupToolBar(QToolBar* toolBar);
+  void setupMenuBar();
+  void setupNavigation();
+
 protected:
   void closeEvent(QCloseEvent* event) override;
 public:
   MainWindow(QWidget* parent = nullptr);
 
-  void setupToolBar(QToolBar* toolBar);
-  void setupMenuBar();
-  void setupNavigation();
+  void dragEnterEvent(QDragEnterEvent* event) override;
+  void dropEvent(QDropEvent* event) override;
 };
 } // namespace pvui
 #endif // PVUI_MAINWINDOW_H
