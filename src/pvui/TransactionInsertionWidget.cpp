@@ -167,6 +167,13 @@ bool TransactionInsertionWidget::submit() {
     result = dataFileManager->addDividendTransaction(*account_, date, *security, amount);
     break;
   }
+  case pv::Action::INTEREST: {
+    if (!security.has_value()) {
+      return false;
+    }
+    result = dataFileManager->addInterestTransaction(*account_, date, *security, amount);
+    break;
+  }
   }
 
   if (result != pv::ResultCode::OK) {
@@ -207,7 +214,7 @@ void TransactionInsertionWidget::handleActionChanged() {
   // Disable unneeded fields
   if (action == pv::Action::BUY || action == pv::Action::SELL) {
     totalAmountEditor->setEnabled(false);
-  } else if (action == pv::Action::DEPOSIT || action == pv::Action::WITHDRAW || action == pv::Action::DIVIDEND) {
+  } else if (action == pv::Action::DEPOSIT || action == pv::Action::WITHDRAW || action == pv::Action::DIVIDEND || action == pv::Action::INTEREST) {
     commissionEditor->setEnabled(false);
     numberOfSharesEditor->setEnabled(false);
     sharePriceEditor->setEnabled(false);
@@ -226,6 +233,7 @@ void TransactionInsertionWidget::updateValues() {
     case pv::Action::DEPOSIT:
     case pv::Action::WITHDRAW:
     case pv::Action::DIVIDEND:
+    case pv::Action::INTEREST:
       numberOfSharesEditor->setBlank();
       sharePriceEditor->setBlank();
       commissionEditor->setBlank();
@@ -245,6 +253,7 @@ void TransactionInsertionWidget::setupActionList() {
   actionEditor->addItem(tr("Buy"), static_cast<int>(pv::Action::BUY));
   actionEditor->addItem(tr("Sell"), static_cast<int>(pv::Action::SELL));
   actionEditor->addItem(tr("Dividend"), static_cast<int>(pv::Action::DIVIDEND));
+  actionEditor->addItem(tr("Interest"), static_cast<int>(pv::Action::DIVIDEND));
 }
 
 void TransactionInsertionWidget::setAccount(std::optional<pv::i64> account) {

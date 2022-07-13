@@ -147,5 +147,19 @@ i64 dividendAmount(const DataFile& dataFile, pv::i64 transaction) noexcept {
   return sqlite3_column_int64(&*query, 0);
 }
 
+i64 interestSecurity(const DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto query = dataFile.query("SELECT SecurityId FROM InterestTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(&*query);
+  return sqlite3_column_int64(&*query, 0);
+}
+
+i64 interestAmount(const DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto query = dataFile.query("SELECT Amount FROM InterestTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(&*query);
+  return sqlite3_column_int64(&*query, 0);
+}
+
 }
 } // namespace pv

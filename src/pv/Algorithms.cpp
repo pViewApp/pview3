@@ -62,6 +62,20 @@ SELECT COALESCE(SUM(DividendTransactions.Amount), 0) FROM Transactions
 WHERE Transactions.Date = :Date AND Transactions.AccountId = :AccountId
 )";
 
+constexpr char interestIncomeQuery[] = R"(
+SELECT COALESCE(SUM(InterestTransactions.Amount), 0) FROM Transactions
+  INNER JOIN InterestTransactions ON Transactions.Id = InterestTransactions.TransactionId
+    AND InterestTransactions.SecurityId = :SecurityId
+WHERE Transactions.Date = :Date
+)";
+
+constexpr char interestIncomeByAccountQuery[] = R"(
+SELECT COALESCE(SUM(InterestTransactions.Amount), 0) FROM Transactions
+  INNER JOIN InterestTransactions ON Transactions.Id = InterestTransactions.TransactionId
+    AND InterestTransactions.SecurityId = :SecurityId
+WHERE Transactions.Date = :Date AND Transactions.AccountId = :AccountId
+)";
+
 constexpr char averageBuyPriceQuery[] = R"(
 SELECT SUM(BuyTransactions.SharePrice * BuyTransactions.NumberOfShares) / SUM(BuyTransactions.NumberOfShares) FROM Transactions
   INNER JOIN BuyTransactions ON Transactions.Id = BuyTransactions.TransactionId
@@ -193,6 +207,31 @@ i64 dividendIncome(const DataFile& dataFile, i64 security, i64 account, i64 date
   return result;
 }
 
+i64 interestIncome(const DataFile& dataFile, i64 security, i64 date) {
+  auto stmt = dataFile.query(interestIncomeQuery);
+  if (!stmt) {
+    return 0;
+  }
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  sqlite3_step(&*stmt);
+  auto result = sqlite3_column_int64(&*stmt, 0);
+  return result;
+}
+
+i64 interestIncome(const DataFile& dataFile, i64 security, i64 account, i64 date) {
+  auto stmt = dataFile.query(interestIncomeByAccountQuery);
+  if (!stmt) {
+    return 0;
+  }
+  sqlite3_bind_int64(&*stmt, 1, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(&*stmt, 2, static_cast<sqlite3_int64>(date));
+  sqlite3_bind_int64(&*stmt, 3, static_cast<sqlite3_int64>(account));
+  sqlite3_step(&*stmt);
+  auto result = sqlite3_column_int64(&*stmt, 0);
+  return result;
+}
+
 i64 costBasis(const DataFile& dataFile, i64 security, i64 date) {
   return sharesHeld(dataFile, security, date) * averageBuyPrice(dataFile, security, date).value_or(0);
 }
@@ -202,11 +241,11 @@ i64 costBasis(const DataFile& dataFile, i64 security, i64 account, i64 date) {
 }
 
 i64 totalIncome(const DataFile& dataFile, i64 security, i64 date) {
-  return unrealizedCashGained(dataFile, security, date).value_or(0) + cashGained(dataFile, security, date) + dividendIncome(dataFile, security, date);
+  return unrealizedCashGained(dataFile, security, date).value_or(0) + cashGained(dataFile, security, date) + dividendIncome(dataFile, security, date) + interestIncome(dataFile, security, date);
 }
 
 i64 totalIncome(const DataFile& dataFile, i64 security, i64 account, i64 date) {
-  return unrealizedCashGained(dataFile, security, account, date).value_or(0) + cashGained(dataFile, security, account, date) + dividendIncome(dataFile, security, account, date);
+  return unrealizedCashGained(dataFile, security, account, date).value_or(0) + cashGained(dataFile, security, account, date) + dividendIncome(dataFile, security, account, date) + interestIncome(dataFile, security, date);
 }
 
 std::optional<i64> sharePrice(const DataFile& dataFile, i64 security, i64 date) {

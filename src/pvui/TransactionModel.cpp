@@ -37,6 +37,8 @@ QString nameOfAction(pv::Action action) {
       return pvui::models::TransactionModel::tr("Sell");
     case pv::Action::DIVIDEND:
       return pvui::models::TransactionModel::tr("Dividend");
+    case pv::Action::INTEREST:
+      return pvui::models::TransactionModel::tr("Interest");
     default: return pvui::models::TransactionModel::tr("(Unknown Action)");
   }
 }
@@ -53,6 +55,8 @@ std::optional<pv::i64> getSecurity(const pv::DataFile& dataFile, pv::i64 transac
     return pv::transaction::withdrawSecurity(dataFile, transaction);
   case pv::Action::DIVIDEND:
     return pv::transaction::dividendSecurity(dataFile, transaction);
+  case pv::Action::INTEREST:
+    return pv::transaction::interestSecurity(dataFile, transaction);
   default:
     return std::nullopt;
   }
@@ -149,6 +153,8 @@ bool setAmount(pv::DataFile& dataFile, pv::i64 transaction, pv::i64 commission) 
     return dataFile.setWithdrawAmount(transaction, commission) == pv::ResultCode::OK;
   case pv::Action::DIVIDEND:
     return dataFile.setDividendAmount(transaction, commission) == pv::ResultCode::OK;
+  case pv::Action::INTEREST:
+    return dataFile.setInterestAmount(transaction, commission) == pv::ResultCode::OK;
   default:
     return false;
   }

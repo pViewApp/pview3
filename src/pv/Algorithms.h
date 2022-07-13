@@ -26,6 +26,10 @@ i64 dividendIncome(const DataFile& dataFile, i64 security, i64 date);
 
 i64 dividendIncome(const DataFile& dataFile, i64 security, i64 account, i64 date);
 
+i64 interestIncome(const DataFile& dataFile, i64 security, i64 date);
+
+i64 interestIncome(const DataFile& dataFile, i64 security, i64 account, i64 date);
+
 i64 costBasis(const DataFile& dataFile, i64 security, i64 date);
 
 i64 costBasis(const DataFile& dataFile, i64 security, i64 account, i64 date);

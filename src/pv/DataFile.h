@@ -18,6 +18,7 @@ enum class Action : unsigned char {
   DEPOSIT = 2,
   WITHDRAW = 3,
   DIVIDEND = 4,
+  INTEREST = 5,
 };
 
 // Codes beginning with SQL_ are forwarded from SQLite.
@@ -133,6 +134,7 @@ private:
   sqlite3_stmt* stmt_addDepositTransaction = nullptr;
   sqlite3_stmt* stmt_addWithdrawTransaction = nullptr;
   sqlite3_stmt* stmt_addDividendTransaction = nullptr;
+  sqlite3_stmt* stmt_addInterestTransaction = nullptr;
 
   sqlite3_stmt* stmt_setBuyNumberOfShares = nullptr;
   sqlite3_stmt* stmt_setBuySharePrice = nullptr;
@@ -143,6 +145,7 @@ private:
   sqlite3_stmt* stmt_setDepositAmount = nullptr;
   sqlite3_stmt* stmt_setWithdrawAmount = nullptr;
   sqlite3_stmt* stmt_setDividendAmount = nullptr;
+  sqlite3_stmt* stmt_setInterestAmount = nullptr;
 
   sqlite3_stmt* stmt_removeTransaction = nullptr;
 
@@ -197,6 +200,7 @@ public:
   ResultCode addDepositTransaction(i64 account, i64 date, std::optional<i64> security, i64 amount);
   ResultCode addWithdrawTransaction(i64 account, i64 date, std::optional<i64> security, i64 amount);
   ResultCode addDividendTransaction(i64 account, i64 date, i64 security, i64 amount);
+  ResultCode addInterestTransaction(i64 account, i64 date, i64 security, i64 amount);
 
   ResultCode removeTransaction(i64 id);
 
@@ -213,6 +217,8 @@ public:
   ResultCode setWithdrawAmount(i64 transaction, i64 amount);
   
   ResultCode setDividendAmount(i64 transaction, i64 amount);
+
+  ResultCode setInterestAmount(i64 transaction, i64 amount);
 
   ResultCode setSecurityPrice(i64 security, i64 date, i64 price);
   ResultCode removeSecurityPrice(i64 security, i64 date);

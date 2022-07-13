@@ -20,13 +20,13 @@ public:
   struct Download {
     QString symbol;
     QNetworkReply* reply;
+    QDate endDate;
   };
 
 private:
   std::unordered_set<QNetworkReply*> replies;
-
 public:
-  SecurityPriceDownload(Download download, QObject* parent = nullptr);
+  SecurityPriceDownload(Download download , QObject* parent = nullptr);
   SecurityPriceDownload(std::vector<Download> downloads, QObject* parent = nullptr);
 
 public slots:

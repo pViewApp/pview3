@@ -31,6 +31,7 @@ private:
     std::optional<double> unrealizedGainPercentage;
     pv::i64 realizedGain;
     pv::i64 dividendIncome;
+    pv::i64 interestIncome;
     pv::i64 costBasis;
     pv::i64 totalIncome;
     std::optional<pv::i64> marketValue;

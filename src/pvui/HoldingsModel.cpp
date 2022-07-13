@@ -23,10 +23,11 @@ constexpr int unrealizedGainColumn = 6;
 constexpr int unrealizedGainPercentageColumn = 7;
 constexpr int realizedGainColumn = 8;
 constexpr int dividendIncomeColumn = 9;
-constexpr int costBasisColumn = 10;
-constexpr int totalIncomeColumn = 11;
-constexpr int marketValueColunm = 12;
-constexpr int columnCount = 13; // Update whenever new column added
+constexpr int interestIncomeColumn = 10;
+constexpr int costBasisColumn = 11;
+constexpr int totalIncomeColumn = 12;
+constexpr int marketValueColunm = 13;
+constexpr int columnCount = 14; // Update whenever new column added
 
 namespace pvui {
 namespace models {
@@ -72,6 +73,7 @@ void HoldingsModel::repopulate() {
     }
     h.realizedGain = pv::algorithms::cashGained(dataFile_, security, today);
     h.dividendIncome = pv::algorithms::dividendIncome(dataFile_, security, today);
+    h.interestIncome = pv::algorithms::interestIncome(dataFile_, security, today);
     h.costBasis = pv::algorithms::costBasis(dataFile_, security, today);
     h.totalIncome = pv::algorithms::totalIncome(dataFile_, security, today);
     h.marketValue = pv::algorithms::marketValue(dataFile_, security, today);
@@ -138,6 +140,9 @@ QVariant HoldingsModel::data(const QModelIndex& index, int role) const {
   case dividendIncomeColumn: {
     return moneyData(holding.dividendIncome, role);
   }
+  case interestIncomeColumn: {
+    return moneyData(holding.dividendIncome, role);
+  }
   case costBasisColumn: {
     return moneyData(holding.costBasis, role);
   }
@@ -180,7 +185,9 @@ QVariant HoldingsModel::headerData(int section, Qt::Orientation orientation, int
     case realizedGainColumn:
       return tr("Realized Gain");
     case dividendIncomeColumn:
-      return tr("Dividend Income");
+      return tr("Dividends");
+    case interestIncomeColumn:
+      return tr("Interest");
     case costBasisColumn:
       return tr("Cost Basis");
     case totalIncomeColumn:

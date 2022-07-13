@@ -112,12 +112,23 @@ CREATE TABLE IF NOT EXISTS DividendTransactions(
   FOREIGN KEY(SecurityId) REFERENCES Securities(Id)
 );
 
+CREATE TABLE IF NOT EXISTS InterestTransactions(
+  TransactionId INTEGER NOT NULL PRIMARY KEY,
+  SecurityId INTEGER NOT NULL,
+  Amount INTEGER NOT NULL,
+  
+  CHECK(Amount >= 0),
+  FOREIGN KEY(TransactionId) REFERENCES Transactions(Id) ON DELETE CASCADE,
+  FOREIGN KEY(SecurityId) REFERENCES Securities(Id)
+);
+
 CREATE INDEX IF NOT EXISTS TransactionsIndex ON Transactions(Date, AccountId);
 CREATE INDEX IF NOT EXISTS BuyTransactionsSecurityIndex ON BuyTransactions(SecurityId);
 CREATE INDEX IF NOT EXISTS SellTransactionsSecurityIndex ON SellTransactions(SecurityId);
 CREATE INDEX IF NOT EXISTS DepositTransactionsSecurityIndex ON DepositTransactions(SecurityId);
 CREATE INDEX IF NOT EXISTS WithdrawTransactionsSecurityIndex ON WithdrawTransactions(SecurityId);
 CREATE INDEX IF NOT EXISTS DividendTransactionsSecurityIndex ON DividendTransactions(SecurityId);
+CREATE INDEX IF NOT EXISTS InterestTransactionsSecurityIndex ON InterestTransactions(SecurityId);
 )";
 
 /// \internal Maps and SQLite result code to it's pv::ResultCode equivalant.
@@ -196,6 +207,9 @@ DataFile::DataFile(std::string location, int flags) {
   stmt_addDividendTransaction =
       prepare("INSERT INTO DividendTransactions(TransactionId, SecurityId, Amount) VALUES (?, ?, ?)",
               SQLITE_PREPARE_PERSISTENT);
+  stmt_addInterestTransaction =
+      prepare("INSERT INTO InterestTransactions(TransactionId, SecurityId, Amount) VALUES (?, ?, ?)",
+              SQLITE_PREPARE_PERSISTENT);
 
   //// Transaction Updates
 
@@ -219,6 +233,8 @@ DataFile::DataFile(std::string location, int flags) {
       prepare("UPDATE WithdrawTransactions SET Amount = ? WHERE TransactionId = ?", SQLITE_PREPARE_PERSISTENT);
   stmt_setDividendAmount =
       prepare("UPDATE DividendTransactions SET Amount = ? WHERE TransactionId = ?", SQLITE_PREPARE_PERSISTENT);
+  stmt_setInterestAmount =
+      prepare("UPDATE InterestTransactions SET Amount = ? WHERE TransactionId = ?", SQLITE_PREPARE_PERSISTENT);
 
   //// Removing Transactions
 
@@ -274,6 +290,7 @@ DataFile::~DataFile() noexcept {
   sqlite3_finalize(stmt_addDepositTransaction);
   sqlite3_finalize(stmt_addWithdrawTransaction);
   sqlite3_finalize(stmt_addDividendTransaction);
+  sqlite3_finalize(stmt_addInterestTransaction);
   sqlite3_finalize(stmt_setBuyNumberOfShares);
   sqlite3_finalize(stmt_setBuySharePrice);
   sqlite3_finalize(stmt_setBuyCommission);
@@ -283,6 +300,7 @@ DataFile::~DataFile() noexcept {
   sqlite3_finalize(stmt_setDepositAmount);
   sqlite3_finalize(stmt_setWithdrawAmount);
   sqlite3_finalize(stmt_setDividendAmount);
+  sqlite3_finalize(stmt_setInterestAmount);
   sqlite3_finalize(stmt_removeTransaction);
   sqlite3_finalize(stmt_setSecurityPrice);
   sqlite3_finalize(stmt_removeSecurityPrice);
@@ -330,6 +348,7 @@ void swap(DataFile& lhs, DataFile& rhs) noexcept {
   swap(lhs.stmt_addDepositTransaction, rhs.stmt_addDepositTransaction);
   swap(lhs.stmt_addWithdrawTransaction, rhs.stmt_addWithdrawTransaction);
   swap(lhs.stmt_addDividendTransaction, rhs.stmt_addDividendTransaction);
+  swap(lhs.stmt_addInterestTransaction, rhs.stmt_addInterestTransaction);
   swap(lhs.stmt_setBuyNumberOfShares, rhs.stmt_setBuyNumberOfShares);
   swap(lhs.stmt_setBuySharePrice, rhs.stmt_setBuySharePrice);
   swap(lhs.stmt_setBuyCommission, rhs.stmt_setBuyCommission);
@@ -339,6 +358,7 @@ void swap(DataFile& lhs, DataFile& rhs) noexcept {
   swap(lhs.stmt_setDepositAmount, rhs.stmt_setDepositAmount);
   swap(lhs.stmt_setWithdrawAmount, rhs.stmt_setWithdrawAmount);
   swap(lhs.stmt_setDividendAmount, rhs.stmt_setDividendAmount);
+  swap(lhs.stmt_setInterestAmount, rhs.stmt_setInterestAmount);
   swap(lhs.stmt_removeTransaction, rhs.stmt_removeTransaction);
   swap(lhs.stmt_setSecurityPrice, rhs.stmt_setSecurityPrice);
   swap(lhs.stmt_removeSecurityPrice, rhs.stmt_removeSecurityPrice);
@@ -730,6 +750,34 @@ ResultCode DataFile::addDividendTransaction(i64 account, i64 date, i64 security,
   return result;
 }
 
+ResultCode DataFile::addInterestTransaction(i64 account, i64 date, i64 security, i64 amount) {
+  assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
+
+  beginSavepoint();
+
+  auto result = addTransaction(date, account, Action::INTEREST);
+
+  if (result != ResultCode::OK) {
+    releaseSavepoint();
+    return result;
+  }
+
+  sqlite3_bind_int64(stmt_addInterestTransaction, 1, sqlite3_last_insert_rowid(db));
+  sqlite3_bind_int64(stmt_addInterestTransaction, 2, static_cast<sqlite3_int64>(security));
+  sqlite3_bind_int64(stmt_addInterestTransaction, 3, static_cast<sqlite3_int64>(amount));
+  result = mapSQLiteCodes(sqlite3_step(stmt_addInterestTransaction));
+  sqlite3_reset(stmt_addInterestTransaction);
+
+  if (result != ResultCode::OK) {
+    rollbackSavepoint();
+  } else {
+    releaseSavepoint();
+    transactionAddedSignal(lastInsertedId());
+  }
+
+  return result;
+}
+
 ResultCode DataFile::setBuyNumberOfShares(i64 transaction, i64 numberOfShares) {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
@@ -809,6 +857,15 @@ ResultCode DataFile::setDividendAmount(i64 transaction, i64 amount) {
   sqlite3_bind_int64(stmt_setDividendAmount, 2, transaction);
   sqlite3_step(stmt_setDividendAmount);
   return finishTransactionUpdate(mapSQLiteCodes(sqlite3_reset(stmt_setDividendAmount)), transaction);
+}
+
+ResultCode DataFile::setInterestAmount(i64 transaction, i64 amount) {
+  assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
+
+  sqlite3_bind_int64(stmt_setInterestAmount, 1, amount);
+  sqlite3_bind_int64(stmt_setInterestAmount, 2, transaction);
+  sqlite3_step(stmt_setInterestAmount);
+  return finishTransactionUpdate(mapSQLiteCodes(sqlite3_reset(stmt_setInterestAmount)), transaction);
 }
 
 ResultCode DataFile::removeTransaction(i64 id) {

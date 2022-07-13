@@ -32,6 +32,9 @@ i64 withdrawAmount(const DataFile& dataFile, pv::i64 transaction) noexcept;
 i64 dividendSecurity(const DataFile& dataFile, pv::i64 transaction) noexcept;
 i64 dividendAmount(const DataFile& dataFile, pv::i64 transaction) noexcept;
 
+i64 interestSecurity(const DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 interestAmount(const DataFile& dataFile, pv::i64 transaction) noexcept;
+
 }
 } // namespace pv
 
