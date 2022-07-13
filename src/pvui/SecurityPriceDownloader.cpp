@@ -1,8 +1,8 @@
 #include "SecurityPriceDownloader.h"
 #include <QNetworkRequest>
 #include <cassert>
-#include <utility>
 #include <cmath>
+#include <utility>
 
 namespace pvui {
 
@@ -11,8 +11,10 @@ namespace {
 QUrl generateDownloadUrl(const QString& symbol, const QDate& begin, const QDate& end) {
   static QString base = "https://query1.finance.yahoo.com/v7/finance/download/"
                         "%1?period1=%2&period2=%3&interval=1d&events=history&includeAdjustedClose=true";
-  auto beginSecs = QDateTime(begin, QTime(23, 59, 999), Qt::LocalTime).toSecsSinceEpoch(); // Inclusive on begin date
-  auto endSecs = QDateTime(end.addDays(-1), QTime(23, 59, 999), Qt::LocalTime).toSecsSinceEpoch(); // subtract 1 day because exclusive on end date
+  auto beginSecs =
+      QDateTime(begin, QTime(23, 59, 59, 999), Qt::LocalTime).toSecsSinceEpoch(); // Inclusive on begin date
+  auto endSecs = QDateTime(end.addDays(-1), QTime(23, 59, 59, 999), Qt::LocalTime)
+                     .toSecsSinceEpoch(); // subtract 1 day because exclusive on end date
   return base.arg(symbol, QString::number(beginSecs), QString::number(endSecs));
 }
 
@@ -30,7 +32,8 @@ std::map<QDate, pv::i64> parse(QIODevice& data) {
   }
 
   while (data.bytesAvailable()) {
-    // use bytesAvailable() instead of canReadLine(), because canReadLine() needs complete lines, and the last line might not be complete (end with \n)
+    // use bytesAvailable() instead of canReadLine(), because canReadLine() needs complete lines, and the last line
+    // might not be complete (end with \n)
     currentLine = QString::fromUtf8(data.readLine()).split(',');
     if (priceColumn >= currentLine.size()) {
       assert(false && "Could not parse security prices, not enough commas!");
@@ -68,6 +71,7 @@ SecurityPriceDownload::SecurityPriceDownload(std::vector<Download> downloads, QO
     const auto& symbol = download.symbol;
     auto* reply = download.reply;
 
+    QDate endDate = download.endDate;
     replies.insert(reply);
 
     assert(reply->isOpen() && "SecurityPriceDownload replies must be open");
@@ -84,8 +88,16 @@ SecurityPriceDownload::SecurityPriceDownload(std::vector<Download> downloads, QO
                        }
                      });
 
-    QObject::connect(reply, &QNetworkReply::finished, this, [this, symbol, reply]() {
-      emit success(parse(*reply), symbol);
+    
+    QObject::connect(reply, &QNetworkReply::finished, this, [this, symbol, reply, endDate]() {
+      auto data = parse(*reply);
+      // Sometimes, Yahoo returns a data after the ending date
+      // We remove that data here
+      auto firstDateAfterEnd = data.lower_bound(endDate);
+      if (firstDateAfterEnd != data.cend()) {
+        data.erase(firstDateAfterEnd, data.cend());
+      }
+      emit success(data, symbol);
       reply->deleteLater();
 
       replies.erase(reply);
@@ -109,14 +121,14 @@ void SecurityPriceDownload::abort() {
 SecurityPriceDownload* SecurityPriceDownloader::download(QString symbol, QDate begin, QDate end, QObject* parent) {
   auto* reply = manager.get(QNetworkRequest(generateDownloadUrl(symbol, begin, end)));
 
-  return new SecurityPriceDownload({symbol, reply}, parent == nullptr ? this : parent);
+  return new SecurityPriceDownload({symbol, reply, end}, parent == nullptr ? this : parent);
 }
 
 SecurityPriceDownload* SecurityPriceDownloader::download(QStringList symbols, QDate begin, QDate end, QObject* parent) {
   std::vector<SecurityPriceDownload::Download> downloads;
   for (const auto& symbol : symbols) {
     auto* reply = manager.get(QNetworkRequest(generateDownloadUrl(symbol, begin, end)));
-    downloads.push_back(SecurityPriceDownload::Download{symbol, reply});
+    downloads.push_back(SecurityPriceDownload::Download{symbol, reply, end});
   }
   return new SecurityPriceDownload(std::move(downloads), parent == nullptr ? this : parent);
 }
