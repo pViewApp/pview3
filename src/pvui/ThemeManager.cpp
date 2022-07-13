@@ -121,10 +121,13 @@ void ThemeManager::setTheme(Theme theme) {
     } else {
       QApplication::setPalette(darkPalette());
     }
-  } else if (theme == Theme::Auto) {
+  }
+  #ifdef Q_OS_WIN
+  else if (theme == Theme::Auto) {
     QApplication::setStyle("fusion");
     reloadWindowsAutoTheme();
   }
+  #endif
 }
 
 ThemeManager::Theme ThemeManager::currentTheme() {
@@ -133,9 +136,16 @@ ThemeManager::Theme ThemeManager::currentTheme() {
 }
 
 bool ThemeManager::handleNativeEvent(const QByteArray& eventType, void* message, long* result) {
+#ifdef Q_OS_WIN
   if (eventType == QStringLiteral("windows_generic_MSG")) {
     return windowsHandleNativeEvent(static_cast<MSG*>(message), result);
   }
+#else
+// Suppress unused variable warning
+  (void) eventType;
+  (void) message;
+  (void) result;
+#endif
   return false;
 }
 
