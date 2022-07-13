@@ -1,13 +1,14 @@
 #include "SecurityPriceDialog.h"
+#include "AutoFillingDelegate.h"
+#include "DateUtils.h"
 #include "pv/DataFile.h"
 #include "pv/Integer64.h"
-#include <QCheckBox>
-#include <QAction>
-#include "DateUtils.h"
 #include "pv/Security.h"
 #include "pvui/DataFileManager.h"
-#include <QMessageBox>
+#include <QAction>
+#include <QCheckBox>
 #include <QHeaderView>
+#include <QMessageBox>
 #include <optional>
 #include <vector>
 
@@ -48,6 +49,7 @@ SecurityPriceDialog::SecurityPriceDialog(DataFileManager& dataFileManager, pv::i
   table->setSortingEnabled(true);
   table->sortByColumn(0, Qt::SortOrder::AscendingOrder);
   table->setSelectionBehavior(QTableView::SelectionBehavior::SelectRows);
+  table->setItemDelegate(new AutoFillingDelegate);
   setupTableContextMenu();
 
   insertionWidget->setWhatsThis(tr(

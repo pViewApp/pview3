@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 #include "DataFileManager.h"
+#include "ThemeManager.h"
 #include "pv/DataFile.h"
 #include <QAction>
 #include <QApplication>
@@ -389,6 +390,10 @@ void pvui::MainWindow::setupNavigation() {
   accountsDeleteAction.setShortcut(QKeySequence::Delete);
   accountsDeleteAction.setShortcutContext(Qt::WidgetShortcut);
   navigationWidget->setContextMenuPolicy(Qt::ActionsContextMenu);
+}
+
+bool pvui::MainWindow::nativeEvent(const QByteArray& eventType, void* message, long* result) {
+  return pvui::ThemeManager::handleNativeEvent(eventType, message, result);
 }
 
 void pvui::MainWindow::updateWindowFileLocation() {

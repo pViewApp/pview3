@@ -94,6 +94,7 @@ public:
 
   void dragEnterEvent(QDragEnterEvent* event) override;
   void dropEvent(QDropEvent* event) override;
+  bool nativeEvent(const QByteArray& eventType, void* message, long* result) override;
 };
 } // namespace pvui
 #endif // PVUI_MAINWINDOW_H

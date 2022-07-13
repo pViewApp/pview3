@@ -1,24 +1,25 @@
 #include "AccountPage.h"
+#include "AutoFillingDelegate.h"
+#include "DateUtils.h"
 #include "FormatUtils.h"
 #include "SecurityPage.h"
-#include <QCheckBox>
-#include "pvui/ModelUtils.h"
 #include "TransactionInsertionWidget.h"
 #include "pv/Account.h"
 #include "pv/Algorithms.h"
-#include "DateUtils.h"
 #include "pv/DataFile.h"
 #include "pv/Integer64.h"
 #include "pv/Transaction.h"
-#include <QAbstractProxyModel>
 #include "pvui/DataFileManager.h"
+#include "pvui/ModelUtils.h"
+#include <QAbstractProxyModel>
+#include <QCheckBox>
 #include <QDate>
 #include <QHeaderView>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QTreeView>
 #include <cassert>
 #include <optional>
-#include <QMessageBox>
 
 pvui::AccountPageWidget::AccountPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent)
     : PageWidget(parent), dataFileManager(dataFileManager),
@@ -36,6 +37,7 @@ pvui::AccountPageWidget::AccountPageWidget(pvui::DataFileManager& dataFileManage
   table->setModel(proxyModel);
   proxyModel->setSortRole(pvui::modelutils::SortRole);
   table->scrollToBottom();
+  table->setItemDelegate(new AutoFillingDelegate);
 
   // Setup delete transaction
   table->setContextMenuPolicy(Qt::ActionsContextMenu);

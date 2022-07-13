@@ -1,14 +1,18 @@
 #include "SettingsDialog.h"
-#include <QGroupBox>
-#include <QtGlobal>
-#include <QLabel>
-#include <QFrame>
+#include "ThemeManager.h"
 #include <QCheckBox>
-#include <QStringLiteral>
+#include <QComboBox>
 #include <QDialogButtonBox>
-#include <QStackedLayout>
+#include <QFormLayout>
+#include <QFrame>
+#include <QGroupBox>
+#include <QLabel>
 #include <QScrollArea>
 #include <QSizePolicy>
+#include <QStackedLayout>
+#include <QString>
+#include <QStringLiteral>
+#include <QtGlobal>
 
 namespace pvui {
 namespace dialogs {
@@ -46,6 +50,22 @@ root->addWidget(container, 1); // make sure to stretch it out
   container->setWidget(content);
   container->setWidgetResizable(true);
   content->setLayout(&mainLayout);
+
+  // APPEARANCE SECTION
+  appearanceGroupBox = new QGroupBox(tr("&Appearance"));
+  mainLayout.addWidget(appearanceGroupBox);
+  appearanceLayout = new QFormLayout(appearanceGroupBox);
+  theme = new QComboBox();
+#ifdef Q_OS_WIN
+  theme->addItem(tr("Auto"), static_cast<int>(ThemeManager::Theme::Auto));
+#endif
+  theme->addItem(tr("Dark"), static_cast<int>(ThemeManager::Theme::FusionDark));
+  theme->addItem(tr("Light"), static_cast<int>(ThemeManager::Theme::FusionLight));
+  theme->addItem(tr("System"), static_cast<int>(ThemeManager::Theme::System));
+  QObject::connect(theme, qOverload<int>(&QComboBox::currentIndexChanged), this, [this]() {
+    ThemeManager::setTheme(static_cast<ThemeManager::Theme>(theme->currentData().toInt()));
+  });
+  appearanceLayout->addRow(new QLabel(tr("Theme:")), theme);
 
   // WARNINGS SECTION
   warningsGroupBox = new QGroupBox(tr("&Warnings"));
@@ -92,6 +112,7 @@ void SettingsDialog::set(const QString& key, const QVariant& value) {
 }
 
 void SettingsDialog::refresh() {
+  theme->setCurrentIndex(theme->findData(static_cast<int>(ThemeManager::currentTheme())));
   warnOnTransactionDeletion->setChecked(settings.value(QStringLiteral("AccountPage/WarnOnTransactionDeletion"), true).toBool());
   warnOnSecurityDeletion->setChecked(settings.value(QStringLiteral("SecurityPage/WarnOnSecurityDeletion"), true).toBool());
   warnOnSecurityPriceDownloadFailure->setChecked(settings.value(QStringLiteral("SecurityPage/WarnOnSecurityPriceDownloadFailure"), true).toBool());
@@ -99,6 +120,7 @@ void SettingsDialog::refresh() {
 }
 
 void SettingsDialog::resetToDefaults() {
+  ThemeManager::setTheme(ThemeManager::defaultTheme());
   set(QStringLiteral("AccountPage/WarnOnTransactionDeletion"), true);
   set(QStringLiteral("SecurityPage/WarnOnSecurityDeletion"), true);
   set(QStringLiteral("SecurityPage/WarnOnSecurityPriceDownloadFailure"), true);

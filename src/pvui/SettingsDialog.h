@@ -11,6 +11,8 @@
 
 class QGroupBox;
 class QCheckBox;
+class QFormLayout;
+class QComboBox;
 
 namespace pvui {
 namespace dialogs {
@@ -30,6 +32,11 @@ private:
   QSettings settings;
 
   QVBoxLayout mainLayout;
+
+  QGroupBox* appearanceGroupBox;
+  QFormLayout* appearanceLayout;
+  QComboBox* theme;
+
   QGroupBox* warningsGroupBox;
   QVBoxLayout* warningsLayout;
   QCheckBox* warnOnTransactionDeletion;
@@ -39,7 +46,7 @@ private:
 
   QDialogButtonBox buttonBox;
 signals:
-  void settingChanged(const QString& key, const QVariant& value);
+  void settingChanged(const QString& key, const QVariant& value); // note: not emitted when the theme is changed
 };
 
 }

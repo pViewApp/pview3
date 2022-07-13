@@ -1,28 +1,29 @@
 #include "SecurityPage.h"
-#include "SecurityModel.h"
-#include <Qt>
-#include "SecurityPriceDialog.h"
+#include "AutoFillingDelegate.h"
 #include "DateUtils.h"
-#include <cassert>
-#include <qcheckbox.h>
-#include <qmessagebox.h>
-#include <qnamespace.h>
-#include <sqlite3.h>
-#include <QMetaObject>
+#include "SecurityModel.h"
+#include "SecurityPriceDialog.h"
 #include "SecurityUtils.h"
 #include "pv/Security.h"
 #include "pvui/SecurityInsertionWidget.h"
 #include <QCheckBox>
-#include <QHeaderView>
-#include <QMessageBox>
-#include <optional>
-#include <QStringLiteral>
-#include <QDialog>
 #include <QDateEdit>
-#include <QFormLayout>
-#include <QLabel>
+#include <QDialog>
 #include <QDialogButtonBox>
+#include <QFormLayout>
+#include <QHeaderView>
+#include <QLabel>
+#include <QMessageBox>
+#include <QMetaObject>
+#include <QStringLiteral>
 #include <QVBoxLayout>
+#include <Qt>
+#include <cassert>
+#include <optional>
+#include <qcheckbox.h>
+#include <qmessagebox.h>
+#include <qnamespace.h>
+#include <sqlite3.h>
 
 namespace pvui {
 namespace {
@@ -133,6 +134,7 @@ SecurityPageWidget::SecurityPageWidget(DataFileManager& dataFileManager, QWidget
   table->verticalHeader()->hide();
   table->setSelectionBehavior(QTableView::SelectionBehavior::SelectRows);
   table->setSelectionMode(QTableView::SingleSelection);
+  table->setItemDelegate(new AutoFillingDelegate);
   QObject::connect(table->selectionModel(), &QItemSelectionModel::selectionChanged, this, [&] {
     std::optional<pv::i64> security = currentSelectedSecurity();
     bool enabled = security.has_value();

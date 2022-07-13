@@ -19,6 +19,8 @@ add_executable(pview
 
 	pvui/AccountPage.cpp
 	pvui/AccountPage.h
+  pvui/AutoFillingDelegate.h
+  pvui/AutoFillingDelegate.cpp
 	pvui/DataFileManager.h
 	pvui/DataFileManager.cpp
   pvui/DateUtils.h
@@ -62,6 +64,8 @@ add_executable(pview
 	pvui/SecurityUtils.h
   pvui/SettingsDialog.cpp
   pvui/SettingsDialog.h
+	pvui/ThemeManager.h
+	pvui/ThemeManager.cpp
 	pvui/StandardReportFactory.h
 	pvui/StandardReportFactory.cpp
 	pvui/TransactionInsertionWidget.cpp
