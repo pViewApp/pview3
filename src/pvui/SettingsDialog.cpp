@@ -116,7 +116,7 @@ void SettingsDialog::refresh() {
   warnOnTransactionDeletion->setChecked(settings.value(QStringLiteral("AccountPage/WarnOnTransactionDeletion"), true).toBool());
   warnOnSecurityDeletion->setChecked(settings.value(QStringLiteral("SecurityPage/WarnOnSecurityDeletion"), true).toBool());
   warnOnSecurityPriceDownloadFailure->setChecked(settings.value(QStringLiteral("SecurityPage/WarnOnSecurityPriceDownloadFailure"), true).toBool());
-  warnOnSecurityPriceDeletion->setChecked((QStringLiteral("SecurityPriceDialog/WarnOnSecurityPriceDeletion"), true));
+  warnOnSecurityPriceDeletion->setChecked(settings.value(QStringLiteral("SecurityPriceDialog/WarnOnSecurityPriceDeletion"), true).toBool());
 }
 
 void SettingsDialog::resetToDefaults() {
