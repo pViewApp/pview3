@@ -52,28 +52,28 @@ constexpr char dividendIncomeQuery[] = R"(
 SELECT COALESCE(SUM(DividendTransactions.Amount), 0) FROM Transactions
   INNER JOIN DividendTransactions ON Transactions.Id = DividendTransactions.TransactionId
     AND DividendTransactions.SecurityId = :SecurityId
-WHERE Transactions.Date = :Date
+WHERE Transactions.Date <= :Date
 )";
 
 constexpr char dividendIncomeByAccountQuery[] = R"(
 SELECT COALESCE(SUM(DividendTransactions.Amount), 0) FROM Transactions
   INNER JOIN DividendTransactions ON Transactions.Id = DividendTransactions.TransactionId
     AND DividendTransactions.SecurityId = :SecurityId
-WHERE Transactions.Date = :Date AND Transactions.AccountId = :AccountId
+WHERE Transactions.Date <= :Date AND Transactions.AccountId = :AccountId
 )";
 
 constexpr char interestIncomeQuery[] = R"(
 SELECT COALESCE(SUM(InterestTransactions.Amount), 0) FROM Transactions
   INNER JOIN InterestTransactions ON Transactions.Id = InterestTransactions.TransactionId
     AND InterestTransactions.SecurityId = :SecurityId
-WHERE Transactions.Date = :Date
+WHERE Transactions.Date <= :Date
 )";
 
 constexpr char interestIncomeByAccountQuery[] = R"(
 SELECT COALESCE(SUM(InterestTransactions.Amount), 0) FROM Transactions
   INNER JOIN InterestTransactions ON Transactions.Id = InterestTransactions.TransactionId
     AND InterestTransactions.SecurityId = :SecurityId
-WHERE Transactions.Date = :Date AND Transactions.AccountId = :AccountId
+WHERE Transactions.Date <= :Date AND Transactions.AccountId = :AccountId
 )";
 
 constexpr char averageBuyPriceQuery[] = R"(
