@@ -26,6 +26,7 @@ HoldingsReport::HoldingsReport(DataFileManager& manager, QWidget* parent) : Repo
   table->verticalHeader()->hide();
   table->setSortingEnabled(true);
   table->horizontalHeader()->setSectionsMovable(true);
+  table->setAlternatingRowColors(true);
 
   layout()->addWidget(table);
 
