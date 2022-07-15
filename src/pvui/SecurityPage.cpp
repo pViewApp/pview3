@@ -99,13 +99,13 @@ SecurityPageWidget::SecurityPageWidget(DataFileManager& dataFileManager, QWidget
     : PageWidget(parent), dataFileManager_(dataFileManager) {
   settings.beginGroup(QStringLiteral("SecurityPage"));
   setTitle(tr("Securities"));
+  //
+  // Setup toolbar & table
+  setupActions();
 
   // Setup layout
   layout()->addWidget(table);
   layout()->addWidget(insertionWidget);
-
-  // Setup toolbar & table
-  setupActions();
 
   // Setup table
   QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this,
@@ -129,19 +129,14 @@ SecurityPageWidget::SecurityPageWidget(DataFileManager& dataFileManager, QWidget
 
   proxyModel.sort(0, Qt::AscendingOrder);
   table->setSortingEnabled(true);
+  table->setSelectionBehavior(QTableView::SelectionBehavior::SelectRows);
+  table->setSelectionMode(QTableView::ExtendedSelection);
   table->setModel(&proxyModel);
   table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
   table->verticalHeader()->hide();
-  table->setSelectionBehavior(QTableView::SelectionBehavior::SelectRows);
-  table->setSelectionMode(QTableView::SingleSelection);
   table->setItemDelegate(new AutoFillingDelegate);
-  QObject::connect(table->selectionModel(), &QItemSelectionModel::selectionChanged, this, [&] {
-    std::optional<pv::i64> security = currentSelectedSecurity();
-    bool enabled = security.has_value();
-    securityInfoAction.setEnabled(enabled);
-    deleteSecurityAction.setEnabled(enabled);
-    setToolBarLabel(security);
-  });
+  QObject::connect(table->selectionModel(), &QItemSelectionModel::selectionChanged, this,
+                   &SecurityPageWidget::updateActions);
 
   handleDataFileChanged();
 }
@@ -152,66 +147,96 @@ void SecurityPageWidget::resetSecurityPriceUpdateDialog() {
 }
 
 void SecurityPageWidget::setupActions() {
-  toolBar_->setObjectName(QString::fromUtf8("securityPageToolBar"));
+  toolBar_ = new QToolBar;
+  layout()->addWidget(toolBar_);
   toolBar_->setWindowTitle(tr("Securities"));
 
-  toolBar_->addWidget(toolBarTitleLabel);
-  toolBarTitleLabel->setTextFormat(Qt::TextFormat::PlainText); // Disable HTML
-  setToolBarLabel(std::nullopt);
-
-  toolBar_->addAction(&securityInfoAction);
+  toolBar_->addAction(&securityPriceAction);
   toolBar_->addAction(&deleteSecurityAction);
   toolBar_->addAction(&updateSecurityPriceAction);
   toolBar_->addAction(&advancedUpdateSecurityPriceAction);
 
-  securityInfoAction.setEnabled(false);
+  securityPriceAction.setEnabled(false);
   deleteSecurityAction.setEnabled(false);
   deleteSecurityAction.setShortcut(QKeySequence::Delete);
 
-  QObject::connect(&securityInfoAction, &QAction::triggered, this, [&]() {
-    assert(dataFileManager_.has());
-    std::optional<pv::i64> security = currentSelectedSecurity();
-    if (!security.has_value())
-      return;
-
-    dialogs::SecurityPriceDialog* dialog = new dialogs::SecurityPriceDialog(dataFileManager_, *security);
-    dialog->exec();
-  });
-
-  QObject::connect(&deleteSecurityAction, &QAction::triggered, this, [&]() {
-    assert(dataFileManager_.has());
-    std::optional<pv::i64> security = currentSelectedSecurity();
-
-    if (!security.has_value() || !showSecurityDeleteWarning()) {
-      return;
+  QObject::connect(&securityPriceAction, &QAction::triggered, this, [&]() {
+    QList securities = selectedSecurities();
+    assert(!securities.isEmpty());
+    if (!securities.isEmpty()) {
+      showSecurityPriceDialog(securities.first());
     }
-
-    dataFileManager_->removeSecurity(*security);
   });
+
+  QObject::connect(&deleteSecurityAction, &QAction::triggered, this, &SecurityPageWidget::deleteSelectedSecurities);
 
   QObject::connect(&updateSecurityPriceAction, &QAction::triggered, this,
                    &SecurityPageWidget::beginBasicUpdateSecurityPrices);
   QObject::connect(&advancedUpdateSecurityPriceAction, &QAction::triggered, this,
                    &SecurityPageWidget::beginAdvancedUpdateSecurityPrices);
 
-  table->addAction(&securityInfoAction);
+  table->addAction(&securityPriceAction);
   table->addAction(&deleteSecurityAction);
   table->addAction(&updateSecurityPriceAction);
   table->addAction(&advancedUpdateSecurityPriceAction);
   table->setContextMenuPolicy(Qt::ActionsContextMenu);
+
+  updateActions();
+}
+
+void SecurityPageWidget::deleteSelectedSecurities() {
+  if (!canDeleteSecurities()) {
+    return;
+  }
+  for (pv::i64 security : selectedSecurities()) {
+    dataFileManager_->removeSecurity(security);
+  }
+}
+
+void SecurityPageWidget::updateActions() {
+  QList currentSecurities = selectedSecurities();
+  if (currentSecurities.isEmpty() || !dataFileManager_.has()) {
+    securityPriceAction.setText(tr("Security &Prices..."));
+    securityPriceAction.setEnabled(false);
+
+    deleteSecurityAction.setText(tr("&Delete Security"));
+    deleteSecurityAction.setEnabled(false);
+
+    updateSecurityPriceAction.setText(tr("Update Security Prices"));
+    updateSecurityPriceAction.setEnabled(dataFileManager_.has());
+
+    advancedUpdateSecurityPriceAction.setText(tr("Update Security Prices (Advanced)..."));
+    advancedUpdateSecurityPriceAction.setEnabled(dataFileManager_.has());
+  } else {
+    QString firstSecuritySymbol =
+        QString::fromStdString(pv::security::symbol(*dataFileManager_, currentSecurities.first()));
+    securityPriceAction.setText(tr("Security &Prices For %1").arg(firstSecuritySymbol));
+    securityPriceAction.setEnabled(true);
+
+    deleteSecurityAction.setText(
+        currentSecurities.size() == 1
+            ? tr("Delete %1").arg(firstSecuritySymbol)
+            : tr("Delete %1 Securities", nullptr, currentSecurities.size()).arg(currentSecurities.size()));
+    deleteSecurityAction.setEnabled(true);
+
+    updateSecurityPriceAction.setText(tr("Update Security Prices For %1").arg(firstSecuritySymbol));
+    advancedUpdateSecurityPriceAction.setText(
+        tr("Update Security Prices For %1 (Advanced)...").arg(firstSecuritySymbol));
+  }
+}
+
+void SecurityPageWidget::showSecurityPriceDialog(pv::i64 security) {
+  assert(dataFileManager_.has());
+
+  dialogs::SecurityPriceDialog* dialog = new dialogs::SecurityPriceDialog(dataFileManager_, security);
+  dialog->exec();
 }
 
 void SecurityPageWidget::handleDataFileChanged() {
   model = dataFileManager_.has() ? std::make_unique<models::SecurityModel>(*dataFileManager_) : nullptr;
   proxyModel.setSourceModel(model.get());
-  bool enableActions = dataFileManager_.has();
-  bool enableSecurityDependentActions = enableActions && currentSelectedSecurity().has_value();
-  securityInfoAction.setEnabled(enableSecurityDependentActions);
-  deleteSecurityAction.setEnabled(enableSecurityDependentActions);
-  updateSecurityPriceAction.setEnabled(enableActions);
-  advancedUpdateSecurityPriceAction.setEnabled(enableActions);
 
-  setToolBarLabel(std::nullopt);
+  updateActions();
 }
 
 void SecurityPageWidget::handleSecuritySubmitted(pv::i64 security) {
@@ -221,57 +246,46 @@ void SecurityPageWidget::handleSecuritySubmitted(pv::i64 security) {
   table->scrollTo(index);
 }
 
-bool SecurityPageWidget::showSecurityDeleteWarning() {
+bool SecurityPageWidget::canDeleteSecurities() {
   if (!settings.value(QStringLiteral("WarnOnSecurityDeletion"), true).toBool()) {
     return true;
   }
 
-  std::optional currentSecurity = currentSelectedSecurity();
+  QList securities = selectedSecurities();
 
-  if (!dataFileManager_.has() || !currentSecurity) {
+  if (!dataFileManager_.has() || securities.isEmpty()) {
     return false;
   }
 
-  QString text = tr("<html>Are you sure you want to delete <b>%1</b>? This cannot be undone.</html>")
-                     .arg(QString::fromStdString(pv::security::symbol(*dataFileManager_, *currentSecurity)));
-  QMessageBox* warning = new QMessageBox(QMessageBox::Icon::Question, tr("Delete Security?"), text,
-                                         QMessageBox::Yes | QMessageBox::Cancel, this);
+  QString text = securities.size() == 1
+                     ? tr("<html>Are you sure you want to delete <b>%1</b>? This cannot be undone.</html>")
+                           .arg(QString::fromStdString(pv::security::symbol(*dataFileManager_, securities.first())))
+                     : tr("<html>Are you sure you want to delete <b>%1</b> security(s)? This cannot be undone.</html>",
+                          nullptr, securities.size())
+                           .arg(securities.size());
+  QMessageBox* warning =
+      new QMessageBox(QMessageBox::Icon::Question, tr("Delete Security(s)?", nullptr, securities.size()), text,
+                      QMessageBox::Yes | QMessageBox::Cancel, this);
   QCheckBox* dontShowAgain = new QCheckBox(tr("&Don't show this again"));
   dontShowAgain->setChecked(false);
   warning->setCheckBox(dontShowAgain);
   warning->setAttribute(Qt::WA_DeleteOnClose);
-  QObject::connect(warning, &QMessageBox::accepted, this,
-                   [this, dontShowAgain]() { settings.setValue(QStringLiteral("WarnOnSecurityDeletion"), !dontShowAgain->isChecked()); });
+  QObject::connect(warning, &QMessageBox::accepted, this, [this, dontShowAgain]() {
+    settings.setValue(QStringLiteral("WarnOnSecurityDeletion"), !dontShowAgain->isChecked());
+  });
   return warning->exec() == QMessageBox::Yes;
 }
 
-std::optional<pv::i64> SecurityPageWidget::currentSelectedSecurity() {
-  QItemSelection selection = table->selectionModel()->selection();
-  if (selection.isEmpty())
-    return std::nullopt;
-
-  QItemSelectionRange range = selection.first();
-
-  if (range.isEmpty())
-    return std::nullopt;
-
-  QModelIndex index = range.topLeft();
-  return model->securityOfRow(proxyModel.mapToSource(index).row());
-}
-
-void SecurityPageWidget::setToolBarLabel(std::optional<pv::i64> security) {
-  static QString format = QString::fromUtf8("%1: ");
-  if (security.has_value()) {
-    toolBarTitleLabel->setText(format.arg(QString::fromStdString(pv::security::name(*dataFileManager_, *security))));
-    toolBarTitleLabel->setEnabled(true);
-    QFont bold = font();
-    bold.setBold(true);
-    toolBarTitleLabel->setFont(bold); // Use bold font
-  } else {
-    toolBarTitleLabel->setText(format.arg(QString::fromUtf8("(No Security Selected)")));
-    toolBarTitleLabel->setDisabled(true);
-    toolBarTitleLabel->setFont(font()); // Use normal font
+QList<pv::i64> SecurityPageWidget::selectedSecurities() {
+  QList<pv::i64> output;
+  if (table->selectionModel() == nullptr) {
+    return output;
   }
+  for (const QModelIndex& index : table->selectionModel()->selectedRows()) {
+    output += model->securityOfRow(proxyModel.mapToSource(index).row());
+  }
+
+  return output;
 }
 
 void SecurityPageWidget::beginUpdateSecurityPrices(QDate begin, int onConflictBehaviour) {
@@ -279,14 +293,15 @@ void SecurityPageWidget::beginUpdateSecurityPrices(QDate begin, int onConflictBe
     return; // Only 1 download at a time
   }
 
-  std::optional<pv::i64> currentSecurity = currentSelectedSecurity();
-
   auto endDate = QDate::currentDate();
 
+  QList securities = selectedSecurities();
   QStringList symbols;
 
-  if (currentSecurity.has_value()) {
-    symbols.append(QString::fromStdString(pv::security::symbol(*dataFileManager_, *currentSecurity)));
+  if (!securities.isEmpty()) {
+    for (pv::i64 security : securities) {
+      symbols += QString::fromStdString(pv::security::symbol(*dataFileManager_, security));
+    }
   } else {
     auto listSecuritiesQuery = dataFileManager_->query("SELECT Id From Securities");
     while (sqlite3_step(&*listSecuritiesQuery) == SQLITE_ROW) {

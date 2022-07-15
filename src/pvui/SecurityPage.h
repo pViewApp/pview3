@@ -9,20 +9,15 @@
 #include "pv/Integer64.h"
 #include "pv/Security.h"
 #include <QAction>
-#include <QComboBox>
-#include <QHBoxLayout>
-#include <QLineEdit>
 #include <QMessageBox>
-#include <QQueue>
-#include <QRegularExpression>
 #include <QSettings>
-#include <QShowEvent>
 #include <QSortFilterProxyModel>
 #include <QTableView>
-#include <QToolBar>
-#include <QValidator>
 #include <memory>
 #include <optional>
+#include <QList>
+
+class QToolBar;
 
 namespace pvui {
 
@@ -36,18 +31,17 @@ private:
 
   QStringList failedSecurityDownloadsSymbols;
 
-  QLabel* toolBarTitleLabel = new QLabel();
-  QToolBar* toolBar_ = new QToolBar(this);
+  QToolBar* toolBar_;
   QTableView* table = new QTableView;
   controls::SecurityInsertionWidget* insertionWidget = new controls::SecurityInsertionWidget(dataFileManager_);
 
   QSortFilterProxyModel proxyModel = QSortFilterProxyModel(table);
   std::unique_ptr<models::SecurityModel> model = nullptr;
 
-  QAction securityInfoAction = QAction(tr("Edit Security Prices..."));
-  QAction deleteSecurityAction = QAction(tr("Delete Security"));
-  QAction updateSecurityPriceAction = QAction(tr("Update Security Prices"));
-  QAction advancedUpdateSecurityPriceAction = QAction(tr("Update Security Prices (Advanced)..."));
+  QAction securityPriceAction;
+  QAction deleteSecurityAction;
+  QAction updateSecurityPriceAction;
+  QAction advancedUpdateSecurityPriceAction;
 
   QMessageBox securityPriceUpdateDialog =
       QMessageBox(QMessageBox::Warning, tr("Failed to Download Security Prices"), "", QMessageBox::Ok, this);
@@ -57,13 +51,18 @@ private:
 
   void setupActions();
 
-  std::optional<pv::i64> currentSelectedSecurity();
+  QList<pv::i64> selectedSecurities();
 
   void setToolBarLabel(std::optional<pv::i64> security);
 private slots:
+  void updateActions();
+
+  void showSecurityPriceDialog(pv::i64 security);
+
   void handleDataFileChanged();
 
-  bool showSecurityDeleteWarning();
+  bool canDeleteSecurities();
+  void deleteSelectedSecurities();
 
   void handleSecuritySubmitted(pv::i64 security);
 
@@ -76,8 +75,6 @@ private slots:
 
 public:
   SecurityPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent = nullptr);
-
-  QToolBar* toolBar() override { return toolBar_; }
 };
 
 } // namespace pvui
