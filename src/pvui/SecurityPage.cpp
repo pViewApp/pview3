@@ -202,10 +202,10 @@ void SecurityPageWidget::updateActions() {
     deleteSecurityAction.setText(tr("&Delete Security"));
     deleteSecurityAction.setEnabled(false);
 
-    updateSecurityPriceAction.setText(tr("Update Security Prices"));
+    updateSecurityPriceAction.setText(tr("Update Security Prices For All Securities"));
     updateSecurityPriceAction.setEnabled(dataFileManager_.has());
 
-    advancedUpdateSecurityPriceAction.setText(tr("Update Security Prices (Advanced)..."));
+    advancedUpdateSecurityPriceAction.setText(tr("Update Security Prices For All Securities (Advanced)..."));
     advancedUpdateSecurityPriceAction.setEnabled(dataFileManager_.has());
   } else {
     QString firstSecuritySymbol =
@@ -219,9 +219,16 @@ void SecurityPageWidget::updateActions() {
             : tr("Delete %1 Securities", nullptr, currentSecurities.size()).arg(currentSecurities.size()));
     deleteSecurityAction.setEnabled(true);
 
-    updateSecurityPriceAction.setText(tr("Update Security Prices For %1").arg(firstSecuritySymbol));
+    updateSecurityPriceAction.setText(
+        currentSecurities.size() == 1
+            ? tr("Update Security Prices For %1").arg(firstSecuritySymbol)
+            : tr("Update Security Prices for %1 Securities", nullptr, currentSecurities.size())
+                  .arg(currentSecurities.size()));
     advancedUpdateSecurityPriceAction.setText(
-        tr("Update Security Prices For %1 (Advanced)...").arg(firstSecuritySymbol));
+        currentSecurities.size() == 1
+            ? tr("Update Security Prices For %1 (Advanced)...").arg(firstSecuritySymbol)
+            : tr("Update Security Prices for %1 Securities (Advanced)...", nullptr, currentSecurities.size())
+                  .arg(currentSecurities.size()));
   }
 }
 
