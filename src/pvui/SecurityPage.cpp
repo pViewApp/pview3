@@ -1,5 +1,6 @@
 #include "SecurityPage.h"
 #include "AutoFillingDelegate.h"
+#include <QIcon>
 #include "DateUtils.h"
 #include "SecurityModel.h"
 #include "SecurityPriceDialog.h"
@@ -148,6 +149,7 @@ void SecurityPageWidget::resetSecurityPriceUpdateDialog() {
 
 void SecurityPageWidget::setupActions() {
   toolBar_ = new QToolBar;
+  toolBar_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
   layout()->addWidget(toolBar_);
   toolBar_->setWindowTitle(tr("Securities"));
 
@@ -156,8 +158,10 @@ void SecurityPageWidget::setupActions() {
   toolBar_->addAction(&updateSecurityPriceAction);
   toolBar_->addAction(&advancedUpdateSecurityPriceAction);
 
-  securityPriceAction.setEnabled(false);
-  deleteSecurityAction.setEnabled(false);
+  securityPriceAction.setIcon(QIcon::fromTheme("format-currency"));
+  updateSecurityPriceAction.setIcon(QIcon::fromTheme("edit-download"));
+  advancedUpdateSecurityPriceAction.setIcon(QIcon::fromTheme("edit-download"));
+  deleteSecurityAction.setIcon(QIcon::fromTheme("edit-delete"));
   deleteSecurityAction.setShortcut(QKeySequence::Delete);
 
   QObject::connect(&securityPriceAction, &QAction::triggered, this, [&]() {

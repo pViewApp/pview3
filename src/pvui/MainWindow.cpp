@@ -1,5 +1,8 @@
 #include "MainWindow.h"
+#include <QOperatingSystemVersion>
+#include "Version.h"
 #include "DataFileManager.h"
+#include <QToolBar>
 #include "ThemeManager.h"
 #include "pv/DataFile.h"
 #include <QAction>
@@ -27,25 +30,19 @@ constexpr int windowWidth = 800;
 constexpr int windowHeight = 600;
 
 namespace {
-void hideToolBar(QToolBar* toolBar) {
-  if (toolBar != nullptr) {
-    toolBar->hide();
-  }
-}
-
 #ifdef Q_OS_MACOS
-constexpr char settingsActionText[] = "&Preferences";
+constexpr char settingsActionText[] = "&Preferences...";
 #else
-constexpr char settingsActionText[] = "&Settings";
+constexpr char settingsActionText[] = "&Settings...";
 #endif
 
 } // namespace
 
 pvui::MainWindow::MainWindow(QWidget* parent)
-    : QMainWindow(parent), settingsDialog(this), fileMenu(tr("&File")), fileNewAction(tr("&New")),
-      fileOpenAction(tr("&Open")), fileSettingsAction(tr(settingsActionText)), fileQuitAction(tr("&Quit")),
-      accountsMenu(tr("&Accounts")), accountsNewAction(tr("&New Account")),
-      accountsDeleteAction(tr("&Delete Account")) {
+    : QMainWindow(parent), settingsDialog(this), fileMenu(tr("&File")), fileNewAction(tr("&New...")),
+      fileOpenAction(tr("&Open...")), fileSettingsAction(tr(settingsActionText)), fileQuitAction(tr("&Quit")),
+      accountsMenu(tr("&Accounts")), accountsNewAction(tr("&New Account...")),
+      accountsDeleteAction(tr("&Delete Account")), helpMenu(tr("&Help")), helpAboutAction(tr("&About pView")) {
   settings.beginGroup(QStringLiteral("pvui/MainWindow"));
 
   QWidget* centralWidget = new QWidget;
@@ -66,9 +63,8 @@ pvui::MainWindow::MainWindow(QWidget* parent)
   updateWindowFileLocation();
   QObject::connect(&dataFileManager, &DataFileManager::dataFileChanged, this, &MainWindow::handleDataFileChanged);
 
-  setupToolBars();
   setupNavigation();
-  setupMenuBar();
+  setupActions();
   statusBar()->addWidget(statusBarLabel);
   statusBar()->setSizeGripEnabled(false);
   setAcceptDrops(true);
@@ -81,7 +77,6 @@ pvui::MainWindow::MainWindow(QWidget* parent)
     restoreGeometry(settings.value("geometry").toByteArray());
   }
 
-  hideToolBars();
   handleDataFileChanged();
 
   if (settings.contains(QStringLiteral("lastOpenedFile"))) {
@@ -132,33 +127,6 @@ void pvui::MainWindow::dropEvent(QDropEvent* event) {
   }
 }
 
-void pvui::MainWindow::setupToolBars() {
-  // Disable the hide toolbar context menu
-  setContextMenuPolicy(Qt::NoContextMenu);
-
-  // Setup the main toolbar
-  mainToolBar->setObjectName(QString::fromUtf8("mainPageToolBar"));
-  addToolBar(mainToolBar);
-  mainToolBar->setWindowTitle(tr("Accounts"));
-  mainToolBar->addAction(&accountsNewAction);
-
-  // Setup toolbars for each of the pages
-  setupToolBar(accountPage->toolBar());
-  for (auto* report : reports) {
-    setupToolBar(report->toolBar());
-  }
-  setupToolBar(securityPage->toolBar());
-}
-
-// Hides all toolbars, needed because restoreState() restores some toolbars that should be hidden on startup
-void pvui::MainWindow::hideToolBars() {
-  for (auto* report : reports) {
-    hideToolBar(report->toolBar());
-  }
-
-  hideToolBar(securityPage->toolBar());
-}
-
 void pvui::MainWindow::pageChanged() {
   // clear the actions
   QList actions(navigationWidget->actions());
@@ -191,16 +159,8 @@ void pvui::MainWindow::pageChanged() {
     contentLayout->setCurrentWidget(noPageOpen);
   }
 
-  if (currentToolBar != nullptr) {
-    currentToolBar->hide();
-    currentToolBar = nullptr;
-  }
   if (newPage != nullptr) {
     contentLayout->setCurrentWidget(newPage);
-    currentToolBar = newPage->toolBar();
-    if (currentToolBar != nullptr) {
-      currentToolBar->show();
-    }
   }
 }
 
@@ -210,28 +170,26 @@ void pvui::MainWindow::closeEvent(QCloseEvent* event) {
   QMainWindow::closeEvent(event);
 }
 
-void pvui::MainWindow::setupToolBar(QToolBar* toolBar) {
-  if (toolBar == nullptr)
-    return;
-  addToolBar(toolBar);
-  toolBar->hide();
-}
-
-void pvui::MainWindow::setupMenuBar() {
+void pvui::MainWindow::setupActions() {
   menuBar()->addMenu(&fileMenu);
   menuBar()->addMenu(&accountsMenu);
+  menuBar()->addMenu(&helpMenu);
 
   // File
-
   fileNewAction.setShortcut(QKeySequence::New);
   fileOpenAction.setShortcut(QKeySequence::Open);
   fileSettingsAction.setShortcut(QKeySequence::Preferences);
   fileQuitAction.setShortcut(QKeySequence::Quit);
 
+  fileNewAction.setIcon(QIcon::fromTheme("document-new"));
+  fileOpenAction.setIcon(QIcon::fromTheme("document-open"));
+  fileSettingsAction.setIcon(QIcon::fromTheme("preferences-desktop"));
+  fileQuitAction.setIcon(QIcon::fromTheme("application-exit"));
+
   QObject::connect(&fileNewAction, &QAction::triggered, this, &MainWindow::fileNew);
   QObject::connect(&fileOpenAction, &QAction::triggered, this, &MainWindow::fileOpen);
   QObject::connect(&fileQuitAction, &QAction::triggered, this, &MainWindow::fileQuit);
-  QObject::connect(&fileSettingsAction, &QAction::triggered, this, &pvui::MainWindow::toolsSettings);
+  QObject::connect(&fileSettingsAction, &QAction::triggered, this, &pvui::MainWindow::fileSettings);
 
   fileSettingsAction.setMenuRole(QAction::MenuRole::PreferencesRole);
   fileQuitAction.setMenuRole(QAction::MenuRole::QuitRole);
@@ -243,13 +201,36 @@ void pvui::MainWindow::setupMenuBar() {
   fileMenu.addAction(&fileQuitAction);
 
   // Accounts
-
   accountsMenu.addAction(&accountsNewAction);
 
   QObject::connect(&accountsNewAction, &QAction::triggered, this, &MainWindow::accountsNew);
   QObject::connect(&accountsDeleteAction, &QAction::triggered, this, &MainWindow::accountsDelete);
 
-  // Tools
+  accountsNewAction.setIcon(QIcon::fromTheme("list-add-user"));
+
+  // Help
+  helpMenu.addAction(&helpAboutAction);
+  QObject::connect(&helpAboutAction, &QAction::triggered, this, &MainWindow::helpAbout);
+  helpAboutAction.setIcon(QIcon::fromTheme("help-about"));
+  helpAboutAction.setMenuRole(QAction::MenuRole::AboutRole);
+
+  // Toolbar
+  QToolBar* toolbar = new QToolBar();
+  toolbar->addAction(&fileNewAction);
+  toolbar->addAction(&fileOpenAction);
+  toolbar->addAction(&fileSettingsAction);
+  toolbar->addSeparator();
+  toolbar->addAction(&accountsNewAction);
+  toolbar->setObjectName(QStringLiteral("pview-toolbar"));
+  toolbar->setWindowTitle(tr("Show Toolbar"));
+  toolbar->setMovable(false);
+#ifdef Q_OS_UNIX
+  toolbar->setToolButtonStyle(Qt::ToolButtonFollowStyle);
+#else
+  toolbar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+#endif
+  addToolBar(toolbar);
+  setUnifiedTitleAndToolBarOnMac(true);
 }
 
 void pvui::MainWindow::fileNew() {
@@ -315,6 +296,11 @@ void pvui::MainWindow::fileOpenWithWarning_(const std::string& location) noexcep
   }
 }
 
+void pvui::MainWindow::fileSettings() {
+  settingsDialog.refresh();
+  settingsDialog.open();
+}
+
 void pvui::MainWindow::fileQuit() { close(); }
 
 void pvui::MainWindow::accountsDelete() {
@@ -348,9 +334,17 @@ void pvui::MainWindow::accountsNew() {
   }
 }
 
-void pvui::MainWindow::toolsSettings() {
-  settingsDialog.refresh();
-  settingsDialog.open();
+void pvui::MainWindow::helpAbout() {
+  QString content = QStringLiteral(R"(
+<html>
+<h1>%1</h1>
+<ul>
+<li>%2</li>
+<li>%3</li>
+</ul>
+</html>
+)").arg(tr("About pView"), tr("Version: %1").arg(pvui::versionString()), tr("Operating System: %1").arg(QOperatingSystemVersion::current().name()));
+  QMessageBox::about(this, tr("About pView"), content);
 }
 
 void pvui::MainWindow::setupNavigation() {

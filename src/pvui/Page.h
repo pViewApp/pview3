@@ -23,7 +23,6 @@ protected:
 
 public:
   PageWidget(QWidget* parent = nullptr);
-  virtual QToolBar* toolBar() { return nullptr; }
 protected slots:
   void setTitle(QString newTitle) { title->setText("<h1>" + newTitle.toHtmlEscaped() + "</h1>"); }
   void setSubtitle(QString newSubtitle) {

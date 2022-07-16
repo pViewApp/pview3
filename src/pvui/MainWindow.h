@@ -30,8 +30,6 @@ class MainWindow : public QMainWindow {
   Q_OBJECT
 private:
   QSettings settings;
-  QToolBar* mainToolBar = new QToolBar(this);
-  QToolBar* currentToolBar = nullptr;
   DataFileManager dataFileManager;
   QTreeView* navigationWidget = new QTreeView;
 
@@ -61,8 +59,8 @@ private:
   QAction accountsNewAction;
   QAction accountsDeleteAction;
 
-  void setupToolBars();
-  void hideToolBars();
+  QMenu helpMenu;
+  QAction helpAboutAction;
 private slots:
   void handleDataFileChanged();
   void pageChanged();
@@ -72,19 +70,19 @@ private slots:
   // Action handlers
   void fileNew();
   void fileOpen();
+  void fileSettings();
   void fileQuit();
 
   void accountsNew();
   void accountsDelete();
 
+  void helpAbout();
+
   void fileOpen_(const std::string&
                      location); // Actual implementation of file-opening logic (opens a file, throws exception if fail)
   void fileOpenWithWarning_(const std::string& location) noexcept; // Opens a file, warns the user if failed
 
-  void toolsSettings();
-
-  void setupToolBar(QToolBar* toolBar);
-  void setupMenuBar();
+  void setupActions();
   void setupNavigation();
 
 protected:

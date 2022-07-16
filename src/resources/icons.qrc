@@ -1,0 +1,12 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+    <file>icons/application-exit.svg</file>
+    <file>icons/document-new.svg</file>
+    <file>icons/document-open.svg</file>
+    <file>icons/edit-delete.svg</file>
+    <file>icons/edit-download.svg</file>
+    <file>icons/format-currency.svg</file>
+    <file>icons/list-add-user.svg</file>
+    <file>icons/preferences-desktop.svg</file>
+</qresource>
+</RCC>

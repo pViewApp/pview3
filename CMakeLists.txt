@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 
 list(PREPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
-project(pview VERSION 0.1 LANGUAGES CXX)
+project(pview VERSION 3.0.0 LANGUAGES CXX)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
