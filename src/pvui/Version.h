@@ -18,4 +18,3 @@ QString versionString() noexcept;
 }
 
 #endif // PVUI_VERSION_H
-

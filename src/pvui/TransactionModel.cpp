@@ -43,7 +43,7 @@ QString nameOfAction(pv::Action action) {
   }
 }
 
-std::optional<pv::i64> getSecurity(const pv::DataFile& dataFile, pv::i64 transaction) {
+std::optional<pv::i64> getSecurity(pv::DataFile& dataFile, pv::i64 transaction) {
   switch (pv::transaction::action(dataFile, transaction)) {
   case pv::Action::BUY:
     return pv::transaction::buySecurity(dataFile, transaction);
@@ -62,7 +62,7 @@ std::optional<pv::i64> getSecurity(const pv::DataFile& dataFile, pv::i64 transac
   }
 }
 
-std::optional<pv::i64> getNumberOfShares(const pv::DataFile& dataFile, pv::i64 transaction) {
+std::optional<pv::i64> getNumberOfShares(pv::DataFile& dataFile, pv::i64 transaction) {
   switch (pv::transaction::action(dataFile, transaction)) {
   case pv::Action::BUY:
     return pv::transaction::buyNumberOfShares(dataFile, transaction);
@@ -73,7 +73,7 @@ std::optional<pv::i64> getNumberOfShares(const pv::DataFile& dataFile, pv::i64 t
   }
 }
 
-std::optional<pv::i64> getSharePrice(const pv::DataFile& dataFile, pv::i64 transaction) {
+std::optional<pv::i64> getSharePrice(pv::DataFile& dataFile, pv::i64 transaction) {
   switch (pv::transaction::action(dataFile, transaction)) {
   case pv::Action::BUY:
     return pv::transaction::buySharePrice(dataFile, transaction);
@@ -84,7 +84,7 @@ std::optional<pv::i64> getSharePrice(const pv::DataFile& dataFile, pv::i64 trans
   }
 }
 
-std::optional<pv::i64> getCommission(const pv::DataFile& dataFile, pv::i64 transaction) {
+std::optional<pv::i64> getCommission(pv::DataFile& dataFile, pv::i64 transaction) {
   switch (pv::transaction::action(dataFile, transaction)) {
   case pv::Action::BUY:
     return pv::transaction::buyCommission(dataFile, transaction);
@@ -95,7 +95,7 @@ std::optional<pv::i64> getCommission(const pv::DataFile& dataFile, pv::i64 trans
   }
 }
 
-std::optional<pv::i64> getTotalAmount(const pv::DataFile& dataFile, pv::i64 transaction) {
+std::optional<pv::i64> getTotalAmount(pv::DataFile& dataFile, pv::i64 transaction) {
   switch (pv::transaction::action(dataFile, transaction)) {
   case pv::Action::BUY:
     return pv::transaction::buyAmount(dataFile, transaction);
@@ -208,10 +208,10 @@ pv::i64 pvui::models::TransactionModel::transactionOfIndex(int rowIndex) {
 
 void pvui::models::TransactionModel::repopulate() {
   transactions.clear();
-  auto query = dataFile.query("SELECT Id FROM Transactions WHERE AccountId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(account));
-  while (sqlite3_step(&*query) == SQLITE_ROW) {
-    transactions.push_back(sqlite3_column_int64(&*query, 0));
+  auto* query = dataFile.cachedQuery("SELECT Id FROM Transactions WHERE AccountId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(account));
+  while (sqlite3_step(query) == SQLITE_ROW) {
+    transactions.push_back(sqlite3_column_int64(query, 0));
   }
 }
 

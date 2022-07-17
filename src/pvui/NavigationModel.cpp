@@ -21,9 +21,9 @@ void NavigationModel::repopulateAccounts() {
   if (!dataFileManager_.has()) {
     return;
   }
-  auto query = dataFileManager_->query("SELECT Id FROM Accounts");
-  while (sqlite3_step(&*query) == SQLITE_ROW) {
-    accounts.push_back(sqlite3_column_int64(&*query, 0));
+  auto* query = dataFileManager_->cachedQuery("SELECT Id FROM Accounts");
+  while (sqlite3_step(query) == SQLITE_ROW) {
+    accounts.push_back(sqlite3_column_int64(query, 0));
   }
 }
 

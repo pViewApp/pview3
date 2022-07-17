@@ -8,14 +8,14 @@
 namespace pv {
 namespace security {
 
-std::string symbol(const DataFile& dataFile, i64 security) noexcept;
-std::string name(const DataFile& dataFile, i64 security) noexcept;
-std::string assetClass(const DataFile& dataFile, i64 security) noexcept;
-std::string sector(const DataFile& dataFile, i64 security) noexcept;
+std::string symbol(DataFile& dataFile, i64 security) noexcept;
+std::string name(DataFile& dataFile, i64 security) noexcept;
+std::string assetClass(DataFile& dataFile, i64 security) noexcept;
+std::string sector(DataFile& dataFile, i64 security) noexcept;
 
-std::optional<pv::i64> price(const DataFile& dataFile, i64 security, i64 date);
+std::optional<pv::i64> price(DataFile& dataFile, i64 security, i64 date);
 
-std::optional<pv::i64> securityForSymbol(const DataFile& dataFile, std::string symbol);
+std::optional<pv::i64> securityForSymbol(DataFile& dataFile, std::string symbol);
 
 }
 } // namespace pv

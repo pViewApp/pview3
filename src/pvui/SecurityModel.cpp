@@ -43,9 +43,9 @@ SecurityModel::SecurityModel(pv::DataFile& dataFile, QObject* parent)
 
 void SecurityModel::repopulate() {
   securities.clear();
-  auto stmt = dataFile_.query("SELECT Id FROM SECURITIES");
-  while (sqlite3_step(stmt.get()) == SQLITE_ROW) {
-    securities.push_back(sqlite3_column_int64(stmt.get(), 0));
+  auto* stmt = dataFile_.cachedQuery("SELECT Id FROM SECURITIES");
+  while (sqlite3_step(stmt) == SQLITE_ROW) {
+    securities.push_back(sqlite3_column_int64(stmt, 0));
   }
 }
 

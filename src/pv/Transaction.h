@@ -7,33 +7,33 @@
 namespace pv {
 namespace transaction {
 
-i64 date(const DataFile& dataFile, pv::i64 transaction) noexcept;
-i64 account(const DataFile& dataFile, pv::i64 transaction) noexcept; 
-pv::Action action(const DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 date(DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 account(DataFile& dataFile, pv::i64 transaction) noexcept; 
+pv::Action action(DataFile& dataFile, pv::i64 transaction) noexcept;
 
-i64 buySecurity(const DataFile& dataFile, pv::i64 transaction) noexcept;
-i64 buyNumberOfShares(const DataFile& dataFile, pv::i64 transaction) noexcept;
-i64 buySharePrice(const DataFile& dataFile, pv::i64 transaction) noexcept;
-i64 buyCommission(const DataFile& dataFile, pv::i64 transaction) noexcept;
-i64 buyAmount(const DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 buySecurity(DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 buyNumberOfShares(DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 buySharePrice(DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 buyCommission(DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 buyAmount(DataFile& dataFile, pv::i64 transaction) noexcept;
 
-i64 sellSecurity(const DataFile& dataFile, pv::i64 transaction) noexcept;
-i64 sellNumberOfShares(const DataFile& dataFile, pv::i64 transaction) noexcept;
-i64 sellSharePrice(const DataFile& dataFile, pv::i64 transaction) noexcept;
-i64 sellCommission(const DataFile& dataFile, pv::i64 transaction) noexcept;
-i64 sellAmount(const DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 sellSecurity(DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 sellNumberOfShares(DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 sellSharePrice(DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 sellCommission(DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 sellAmount(DataFile& dataFile, pv::i64 transaction) noexcept;
 
-std::optional<i64> depositSecurity(const DataFile& dataFile, pv::i64 transaction) noexcept;
-i64 depositAmount(const DataFile& dataFile, pv::i64 transaction) noexcept;
+std::optional<i64> depositSecurity(DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 depositAmount(DataFile& dataFile, pv::i64 transaction) noexcept;
 
-std::optional<i64> withdrawSecurity(const DataFile& dataFile, pv::i64 transaction) noexcept;
-i64 withdrawAmount(const DataFile& dataFile, pv::i64 transaction) noexcept;
+std::optional<i64> withdrawSecurity(DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 withdrawAmount(DataFile& dataFile, pv::i64 transaction) noexcept;
 
-i64 dividendSecurity(const DataFile& dataFile, pv::i64 transaction) noexcept;
-i64 dividendAmount(const DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 dividendSecurity(DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 dividendAmount(DataFile& dataFile, pv::i64 transaction) noexcept;
 
-i64 interestSecurity(const DataFile& dataFile, pv::i64 transaction) noexcept;
-i64 interestAmount(const DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 interestSecurity(DataFile& dataFile, pv::i64 transaction) noexcept;
+i64 interestAmount(DataFile& dataFile, pv::i64 transaction) noexcept;
 
 }
 } // namespace pv

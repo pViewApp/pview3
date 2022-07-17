@@ -6,6 +6,7 @@
 #include <string>
 #include <optional>
 #include <memory>
+#include <unordered_map>
 
 class sqlite3;
 class sqlite3_stmt;
@@ -160,6 +161,8 @@ private:
   sqlite3_stmt* stmt_beginSavepoint = nullptr;
   sqlite3_stmt* stmt_rollbackSavepoint = nullptr;
   sqlite3_stmt* stmt_releaseSavepoint = nullptr;
+
+  std::unordered_map<const char*, sqlite3_stmt*> queryCache;
 public:
   explicit DataFile(std::string location = ":memory:", int flags = -1);
 
@@ -170,18 +173,19 @@ public:
   DataFile& operator=(DataFile&& other) noexcept;
   ~DataFile() noexcept;
 
+  StatementPointer query(std::string query) const noexcept;
+
   /// \brief Prepares an SQL query to be executed against the database.
   /// 
   /// The query must be a read-only operation. Undefined behaviour occurs if it tries
   /// to modify the database.
   ///
-  /// The returned \c sqlite3_stmt* must be manually cleaned up by the user (with \c sqlite3_finalize).
+  /// The returned \c sqlite3_stmt* must not be manually finalized up by the user.
   ///
-  /// \param sql the SQL query text
-  /// \param flags flags to pass to \c sqlite3_prepare_v3 
-  /// \param outResult Output: a \c ResultCode that gives the results of this operation (use \c nullptr to ignore)
+  /// \param query the SQL query text
+  /// \param result Output: a \c ResultCode that gives the results of this operation (use \c nullptr to ignore)
   /// \return an SQLite prepared statement, or nullptr if an error occured
-  StatementPointer query(std::string sql, int flags = 0, ResultCode* outResult = nullptr) const noexcept;
+  sqlite3_stmt* cachedQuery(const char* query) noexcept;
 
   ResultCode addAccount(std::string name);
   ResultCode addSecurity(std::string symbol, std::string name, std::string assetClass, std::string sector);

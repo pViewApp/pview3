@@ -6,159 +6,159 @@
 namespace pv {
 namespace transaction {
 
-i64 date(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT Date FROM Transactions WHERE Id = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 date(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT Date FROM Transactions WHERE Id = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-i64 account(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT AccountId FROM Transactions WHERE Id = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 account(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT AccountId FROM Transactions WHERE Id = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-pv::Action action(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT Action FROM Transactions WHERE Id = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return static_cast<pv::Action>(sqlite3_column_int(&*query, 0));
+pv::Action action(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT Action FROM Transactions WHERE Id = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return static_cast<pv::Action>(sqlite3_column_int(query, 0));
 }
 
-i64 buySecurity(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT SecurityId FROM BuyTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 buySecurity(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT SecurityId FROM BuyTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-i64 buyNumberOfShares(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT NumberOfShares FROM BuyTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 buyNumberOfShares(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT NumberOfShares FROM BuyTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-i64 buySharePrice(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT SharePrice FROM BuyTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 buySharePrice(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT SharePrice FROM BuyTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-i64 buyCommission(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT Commission FROM BuyTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 buyCommission(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT Commission FROM BuyTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-i64 buyAmount(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT Amount FROM BuyTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 buyAmount(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT Amount FROM BuyTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-i64 sellSecurity(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT SecurityId FROM SellTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 sellSecurity(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT SecurityId FROM SellTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-i64 sellNumberOfShares(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT NumberOfShares FROM SellTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 sellNumberOfShares(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT NumberOfShares FROM SellTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-i64 sellSharePrice(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT SharePrice FROM SellTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 sellSharePrice(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT SharePrice FROM SellTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-i64 sellCommission(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT Commission FROM SellTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 sellCommission(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT Commission FROM SellTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-i64 sellAmount(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT Amount FROM SellTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 sellAmount(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT Amount FROM SellTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-std::optional<i64> depositSecurity(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT SecurityId FROM DepositTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  if (sqlite3_column_type(&*query, 0) == SQLITE_NULL) {
+std::optional<i64> depositSecurity(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT SecurityId FROM DepositTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  if (sqlite3_column_type(query, 0) == SQLITE_NULL) {
     return std::nullopt;
   } else {
-    return sqlite3_column_int64(&*query, 0);
+    return sqlite3_column_int64(query, 0);
   }
 }
 
-i64 depositAmount(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT Amount FROM DepositTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 depositAmount(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT Amount FROM DepositTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-std::optional<i64> withdrawSecurity(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT SecurityId FROM WithdrawTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  if (sqlite3_column_type(&*query, 0) == SQLITE_NULL) {
+std::optional<i64> withdrawSecurity(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT SecurityId FROM WithdrawTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  if (sqlite3_column_type(query, 0) == SQLITE_NULL) {
     return std::nullopt;
   } else {
-    return sqlite3_column_int64(&*query, 0);
+    return sqlite3_column_int64(query, 0);
   }
 }
 
-i64 withdrawAmount(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT Amount FROM WithdrawTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 withdrawAmount(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT Amount FROM WithdrawTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-i64 dividendSecurity(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT SecurityId FROM DividendTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 dividendSecurity(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT SecurityId FROM DividendTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-i64 dividendAmount(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT Amount FROM DividendTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 dividendAmount(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT Amount FROM DividendTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-i64 interestSecurity(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT SecurityId FROM InterestTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 interestSecurity(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT SecurityId FROM InterestTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
-i64 interestAmount(const DataFile& dataFile, pv::i64 transaction) noexcept {
-  auto query = dataFile.query("SELECT Amount FROM InterestTransactions WHERE TransactionId = ?");
-  sqlite3_bind_int64(&*query, 1, static_cast<sqlite3_int64>(transaction));
-  sqlite3_step(&*query);
-  return sqlite3_column_int64(&*query, 0);
+i64 interestAmount(DataFile& dataFile, pv::i64 transaction) noexcept {
+  auto* query = dataFile.cachedQuery("SELECT Amount FROM InterestTransactions WHERE TransactionId = ?");
+  sqlite3_bind_int64(query, 1, static_cast<sqlite3_int64>(transaction));
+  sqlite3_step(query);
+  return sqlite3_column_int64(query, 0);
 }
 
 }

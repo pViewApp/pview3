@@ -1,6 +1,5 @@
 #include "SecurityPage.h"
 #include "AutoFillingDelegate.h"
-#include <QIcon>
 #include "DateUtils.h"
 #include "SecurityModel.h"
 #include "SecurityPriceDialog.h"
@@ -13,6 +12,7 @@
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QHeaderView>
+#include <QIcon>
 #include <QLabel>
 #include <QMessageBox>
 #include <QMetaObject>

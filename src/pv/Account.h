@@ -8,7 +8,7 @@
 namespace pv {
 namespace account {
 
-std::string name(const DataFile& dataFile, i64 account);
+std::string name(DataFile& dataFile, i64 account);
 
 } // namespace account
 } // namespace pv

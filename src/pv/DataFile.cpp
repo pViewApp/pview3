@@ -447,26 +447,31 @@ ResultCode DataFile::releaseSavepoint() {
   return mapSQLiteCodes(sqlite3_reset(stmt_releaseSavepoint));
 }
 
-StatementPointer DataFile::query(std::string sql, int flags, ResultCode* outResult) const noexcept {
-  assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
-
+StatementPointer DataFile::query(std::string query) const noexcept {
   sqlite3_stmt* stmt;
-  auto result = sqlite3_prepare_v3(db, sql.c_str(), static_cast<int>(sql.size()), flags, &stmt, nullptr);
-
-  if (outResult != nullptr) {
-    (*outResult) = mapSQLiteCodes(result);
-  }
-
-  if (stmt != nullptr && !sqlite3_stmt_readonly(stmt)) {
-    // If not readonly, give error
-    if (outResult != nullptr) {
-      (*outResult) = ResultCode::MODIFICATION_PROHIBITED;
-    }
-    sqlite3_finalize(stmt);
-    return createStatementPointer(nullptr);
-  }
-
+  sqlite3_prepare_v3(db, query.c_str(), query.length(), SQLITE_PREPARE_PERSISTENT, &stmt, nullptr);
   return createStatementPointer(stmt);
+}
+
+sqlite3_stmt* DataFile::cachedQuery(const char* query) noexcept {
+  assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
+  auto iter = queryCache.find(query);
+  sqlite3_stmt* stmt;
+  if (iter != queryCache.cend()) {
+    stmt = iter->second;
+    sqlite3_reset(stmt);
+    return stmt;
+  }
+  sqlite3_prepare_v3(db, query, -1, SQLITE_PREPARE_PERSISTENT, &stmt, nullptr);
+  if (stmt == nullptr) {
+    return stmt;
+  }
+  try {
+    queryCache.insert({ query, stmt });
+  } catch (...) {
+    // Ignore because failing to cache is not a big deal
+  }
+  return stmt;
 }
 
 ResultCode DataFile::addAccount(std::string name) {

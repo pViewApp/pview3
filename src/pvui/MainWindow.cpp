@@ -1,9 +1,7 @@
 #include "MainWindow.h"
-#include <QOperatingSystemVersion>
-#include "Version.h"
 #include "DataFileManager.h"
-#include <QToolBar>
 #include "ThemeManager.h"
+#include "Version.h"
 #include "pv/DataFile.h"
 #include <QAction>
 #include <QApplication>
@@ -16,11 +14,13 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QOperatingSystemVersion>
 #include <QShortcut>
 #include <QStandardPaths>
 #include <QStatusBar>
 #include <QString>
 #include <QStringLiteral>
+#include <QToolBar>
 #include <Qt>
 #include <filesystem>
 #include <functional>
@@ -343,7 +343,9 @@ void pvui::MainWindow::helpAbout() {
 <li>%3</li>
 </ul>
 </html>
-)").arg(tr("About pView"), tr("Version: %1").arg(pvui::versionString()), tr("Operating System: %1").arg(QOperatingSystemVersion::current().name()));
+)")
+                        .arg(tr("About pView"), tr("Version: %1").arg(pvui::versionString()),
+                             tr("Operating System: %1").arg(QOperatingSystemVersion::current().name()));
   QMessageBox::about(this, tr("About pView"), content);
 }
 
