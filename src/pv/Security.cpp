@@ -16,8 +16,7 @@ constexpr int nameIndex = 1;
 constexpr int assetClassIndex = 2;
 constexpr int sectorIndex = 3;
 
-template<int Index>
-std::string getSecurityField(DataFile& dataFile, i64 security) {
+template <int Index> std::string getSecurityField(DataFile& dataFile, i64 security) {
   auto* stmt = dataFile.cachedQuery(query);
   sqlite3_bind_int64(stmt, 1, static_cast<sqlite3_int64>(security));
   sqlite3_step(stmt);
@@ -25,16 +24,13 @@ std::string getSecurityField(DataFile& dataFile, i64 security) {
   auto value = std::string(cStr, cStr + sqlite3_column_bytes(stmt, Index));
   return value;
 }
-
 }
 
 std::string symbol(DataFile& dataFile, i64 security) noexcept {
   return getSecurityField<symbolIndex>(dataFile, security);
 }
 
-std::string name(DataFile& dataFile, i64 security) noexcept {
-  return getSecurityField<nameIndex>(dataFile, security);
-}
+std::string name(DataFile& dataFile, i64 security) noexcept { return getSecurityField<nameIndex>(dataFile, security); }
 
 std::string assetClass(DataFile& dataFile, i64 security) noexcept {
   return getSecurityField<assetClassIndex>(dataFile, security);

@@ -3,9 +3,9 @@
 
 #include "Integer64.h"
 #include "Signals.h"
-#include <string>
-#include <optional>
 #include <memory>
+#include <optional>
+#include <string>
 #include <unordered_map>
 
 class sqlite3;
@@ -163,6 +163,7 @@ private:
   sqlite3_stmt* stmt_releaseSavepoint = nullptr;
 
   std::unordered_map<const char*, sqlite3_stmt*> queryCache;
+
 public:
   explicit DataFile(std::string location = ":memory:", int flags = -1);
 
@@ -176,7 +177,7 @@ public:
   StatementPointer query(std::string query) const noexcept;
 
   /// \brief Prepares an SQL query to be executed against the database.
-  /// 
+  ///
   /// The query must be a read-only operation. Undefined behaviour occurs if it tries
   /// to modify the database.
   ///

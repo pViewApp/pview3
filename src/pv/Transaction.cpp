@@ -160,6 +160,5 @@ i64 interestAmount(DataFile& dataFile, pv::i64 transaction) noexcept {
   sqlite3_step(query);
   return sqlite3_column_int64(query, 0);
 }
-
 }
 } // namespace pv

@@ -16,7 +16,6 @@ std::string sector(DataFile& dataFile, i64 security) noexcept;
 std::optional<pv::i64> price(DataFile& dataFile, i64 security, i64 date);
 
 std::optional<pv::i64> securityForSymbol(DataFile& dataFile, std::string symbol);
-
 }
 } // namespace pv
 

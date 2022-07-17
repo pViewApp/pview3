@@ -44,13 +44,13 @@ std::optional<i64> unrealizedCashGained(DataFile& dataFile, i64 security, i64 da
 
 std::optional<i64> unrealizedCashGained(DataFile& dataFile, i64 security, i64 account, i64 date);
 
-std::optional<i64> averageBuyPrice(DataFile& dataFile, i64 security, i64 date); 
+std::optional<i64> averageBuyPrice(DataFile& dataFile, i64 security, i64 date);
 
-std::optional<i64> averageBuyPrice(DataFile& dataFile, i64 security, i64 account, i64 date); 
+std::optional<i64> averageBuyPrice(DataFile& dataFile, i64 security, i64 account, i64 date);
 
-std::optional<i64> averageSellPrice(DataFile& dataFile, i64 security, i64 date); 
+std::optional<i64> averageSellPrice(DataFile& dataFile, i64 security, i64 date);
 
-std::optional<i64> averageSellPrice(DataFile& dataFile, i64 security, i64 account, i64 date); 
+std::optional<i64> averageSellPrice(DataFile& dataFile, i64 security, i64 account, i64 date);
 
 std::optional<i64> marketValue(DataFile& dataFile, i64 security, i64 date);
 

@@ -467,7 +467,7 @@ sqlite3_stmt* DataFile::cachedQuery(const char* query) noexcept {
     return stmt;
   }
   try {
-    queryCache.insert({ query, stmt });
+    queryCache.insert({query, stmt});
   } catch (...) {
     // Ignore because failing to cache is not a big deal
   }

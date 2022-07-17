@@ -8,7 +8,7 @@ namespace pv {
 namespace transaction {
 
 i64 date(DataFile& dataFile, pv::i64 transaction) noexcept;
-i64 account(DataFile& dataFile, pv::i64 transaction) noexcept; 
+i64 account(DataFile& dataFile, pv::i64 transaction) noexcept;
 pv::Action action(DataFile& dataFile, pv::i64 transaction) noexcept;
 
 i64 buySecurity(DataFile& dataFile, pv::i64 transaction) noexcept;
@@ -34,7 +34,6 @@ i64 dividendAmount(DataFile& dataFile, pv::i64 transaction) noexcept;
 
 i64 interestSecurity(DataFile& dataFile, pv::i64 transaction) noexcept;
 i64 interestAmount(DataFile& dataFile, pv::i64 transaction) noexcept;
-
 }
 } // namespace pv
 

@@ -105,7 +105,7 @@ WHERE Transactions.Date <= :Date AND Transactions.AccountId = :AccountId
 )";
 
 const char* sharePriceQuery =
-  "SELECT Price FROM SecurityPrices WHERE SecurityId = ? AND Date <= ? ORDER BY Date DESC LIMIT 1";
+    "SELECT Price FROM SecurityPrices WHERE SecurityId = ? AND Date <= ? ORDER BY Date DESC LIMIT 1";
 
 } // namespace
 
@@ -176,7 +176,7 @@ i64 sharesSold(DataFile& dataFile, i64 security, i64 account, i64 date) {
 
 i64 cashGained(DataFile& dataFile, i64 security, i64 date) {
   return sharesSold(dataFile, security, date) * (averageSellPrice(dataFile, security, date).value_or(0) - averageBuyPrice(dataFile, security, date).value_or(0));
-} 
+}
 
 i64 cashGained(DataFile& dataFile, i64 security, i64 account, i64 date) {
   return sharesSold(dataFile, security, date) * (averageSellPrice(dataFile, security, account, date).value_or(0) - averageBuyPrice(dataFile, security, account, date).value_or(0));
@@ -257,14 +257,13 @@ std::optional<i64> sharePrice(DataFile& dataFile, i64 security, i64 date) {
   sqlite3_bind_int64(stmt, 2, static_cast<sqlite3_int64>(date));
   sqlite3_step(stmt);
   std::optional<i64> result = std::nullopt;
-  
+
   if (sqlite3_column_type(stmt, 0) != SQLITE_NULL) {
     result = sqlite3_column_int64(stmt, 0);
   }
 
   return result;
 }
-
 
 std::optional<i64> unrealizedCashGained(DataFile& dataFile, i64 security, i64 date) {
   auto sharePrice_ = sharePrice(dataFile, security, date);
@@ -293,7 +292,7 @@ std::optional<i64> averageBuyPrice(DataFile& dataFile, i64 security, i64 date) {
   sqlite3_bind_int64(stmt, 2, static_cast<sqlite3_int64>(date));
   sqlite3_step(stmt);
   std::optional<i64> result = std::nullopt;
-  
+
   if (sqlite3_column_type(stmt, 0) != SQLITE_NULL) {
     result = std::llround(sqlite3_column_double(stmt, 0));
   }
@@ -311,14 +310,13 @@ std::optional<i64> averageBuyPrice(DataFile& dataFile, i64 security, i64 account
   sqlite3_bind_int64(stmt, 3, static_cast<sqlite3_int64>(account));
   sqlite3_step(stmt);
   std::optional<i64> result = std::nullopt;
-  
+
   if (sqlite3_column_type(stmt, 0) != SQLITE_NULL) {
     result = std::llround(sqlite3_column_double(stmt, 0));
   }
 
   return result;
 }
-
 
 std::optional<i64> averageSellPrice(DataFile& dataFile, i64 security, i64 date) {
   auto* stmt = dataFile.cachedQuery(averageSellPriceQuery);
@@ -329,7 +327,7 @@ std::optional<i64> averageSellPrice(DataFile& dataFile, i64 security, i64 date) 
   sqlite3_bind_int64(stmt, 2, static_cast<sqlite3_int64>(date));
   sqlite3_step(stmt);
   std::optional<i64> result = std::nullopt;
-  
+
   if (sqlite3_column_type(stmt, 0) != SQLITE_NULL) {
     result = std::llround(sqlite3_column_double(stmt, 0));
   }
@@ -347,7 +345,7 @@ std::optional<i64> averageSellPrice(DataFile& dataFile, i64 security, i64 accoun
   sqlite3_bind_int64(stmt, 3, static_cast<sqlite3_int64>(account));
   sqlite3_step(stmt);
   std::optional<i64> result = std::nullopt;
-  
+
   if (sqlite3_column_type(stmt, 0) != SQLITE_NULL) {
     result = std::llround(sqlite3_column_double(stmt, 0));
   }
