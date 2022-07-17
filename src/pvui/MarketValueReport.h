@@ -27,6 +27,7 @@ private:
   QwtPlot* const plot = createPlot();
   QwtPlotMultiBarChart chart;
   QwtPlotCurve costBasisCurve;
+  QwtPlotCurve marketValueCurve;
   QwtPlotGrid grid;
 
   QComboBox* const groupBySelector = new QComboBox;

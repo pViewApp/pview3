@@ -1,5 +1,6 @@
 #include "MarketValueReport.h"
 #include "pv/Algorithms.h"
+#include <QColor>
 #include "DateUtils.h"
 #include <sqlite3.h>
 #include "pv/Integer64.h"
@@ -34,6 +35,7 @@ MarketValueReport::MarketValueReport(QString name, DataFileManager& dataFileMana
   layout()->addWidget(plot);
 
   costBasisCurve.attach(plot);
+  marketValueCurve.attach(plot);
   chart.attach(plot);
   grid.attach(plot);
 
@@ -41,13 +43,22 @@ MarketValueReport::MarketValueReport(QString name, DataFileManager& dataFileMana
   grid.setPen(palette().color(QPalette::Button));
   // Setup cost basis curve
   costBasisCurve.setStyle(QwtPlotCurve::CurveStyle::Lines);
-  auto* symbol = new QwtSymbol(QwtSymbol::Style::Ellipse);
-  symbol->setSize(QSize(12, 12));
-  costBasisCurve.setSymbol(symbol);
+  auto* costBasisSymbol = new QwtSymbol(QwtSymbol::Style::Ellipse);
+  costBasisSymbol->setSize(QSize(12, 12));
+  costBasisCurve.setSymbol(costBasisSymbol);
   costBasisCurve.setLegendAttributes(QwtPlotCurve::LegendShowLine | QwtPlotCurve::LegendShowSymbol);
   costBasisCurve.setLegendIconSize(QSize(16, 16));
   costBasisCurve.setTitle(tr("Cost Basis"));
   costBasisCurve.setPen(QPen(Qt::PenStyle::SolidLine));
+
+  auto* marketValueSymbol = new QwtSymbol(QwtSymbol::Style::Diamond); // use pView brand color
+  marketValueSymbol->setColor(QColor(0x33, 0xaa, 0x00));
+  marketValueSymbol->setSize(QSize(12, 12));
+  marketValueCurve.setSymbol(marketValueSymbol);
+  marketValueCurve.setLegendAttributes(QwtPlotCurve::LegendShowLine | QwtPlotCurve::LegendShowSymbol);
+  marketValueCurve.setLegendIconSize(QSize(16, 16));
+  marketValueCurve.setTitle(tr("Market Value"));
+  marketValueCurve.setPen(QPen(Qt::PenStyle::SolidLine));
 
   chart.setStyle(QwtPlotMultiBarChart::Stacked);
   chart.setLegendIconSize(QSize(16, 16));
@@ -91,35 +102,48 @@ void MarketValueReport::drawPlot(std::function<QString(const pv::i64)> grouper) 
     QVector<double> costBasisXData;
     QVector<double> costBasisYData;
 
-    auto securityListStmt = dataFileManager->query("SELECT Id FROM Securities");
+    QVector<double> marketValueXData;
+    QVector<double> marketValueYData;
+
+    auto* securityListStmt = dataFileManager->cachedQuery("SELECT Id FROM Securities");
     std::vector<pv::i64> securities;
 
-    while (sqlite3_step(securityListStmt.get()) == SQLITE_ROW) {
-      securities.push_back(sqlite3_column_int64(securityListStmt.get(), 0));
+    while (sqlite3_step(securityListStmt) == SQLITE_ROW) {
+      securities.push_back(sqlite3_column_int64(securityListStmt, 0));
     }
 
     for (QDate date = start(), endDate = end(); date <= endDate; date = date.addDays(interval)) {
       pv::i64 costBasis = 0;
+      pv::i64 marketValue = 0;
       pv::i64 epochDay = toEpochDate(date);
       for (const auto security : securities) {
         QString group = grouper(security);
 
+        pv::i64 marketValueForSecurity = pv::algorithms::marketValue(*dataFileManager, security, epochDay).value_or(0);
+        marketValue += marketValueForSecurity;
+
         auto iter = values[group].find(date); // Automatically create values[sector] if needed
         if (iter == values[group].end()) {
-          values[group][date] = pv::algorithms::marketValue(*dataFileManager, security, epochDay).value_or(0);
+          values[group][date] = marketValueForSecurity;
         } else {
           // Add to existing value
-          iter.value() += pv::algorithms::marketValue(*dataFileManager, security, epochDay).value_or(0);
+          iter.value() += marketValueForSecurity;
         }
 
         costBasis += pv::algorithms::costBasis(*dataFileManager, security, epochDay);
       }
 
-      costBasisXData += QwtDate::toDouble(QDateTime(date, QTime(0, 0, 0)));
+      double qwtDate = QwtDate::toDouble(QDateTime(date, QTime(0, 0, 0)));
+
+      costBasisXData += qwtDate;
       costBasisYData += costBasis / 100.;
+
+      marketValueXData += qwtDate;
+      marketValueYData += marketValue / 100.;
     }
 
     costBasisCurve.setSamples(costBasisXData, costBasisYData);
+    marketValueCurve.setSamples(marketValueXData, marketValueYData);
   }
 
   QList<QwtText> titles;
