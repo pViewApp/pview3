@@ -188,6 +188,8 @@ public:
   /// \return an SQLite prepared statement, or nullptr if an error occured
   sqlite3_stmt* cachedQuery(const char* query) noexcept;
 
+  void clearQueryCache() noexcept;
+
   ResultCode addAccount(std::string name);
   ResultCode addSecurity(std::string symbol, std::string name, std::string assetClass, std::string sector);
 

@@ -276,6 +276,7 @@ DataFile::~DataFile() noexcept {
 
   // Close/finalize everything
 
+  clearQueryCache();
   sqlite3_finalize(stmt_addAccount);
   sqlite3_finalize(stmt_addSecurity);
   sqlite3_finalize(stmt_removeAccount);
@@ -472,6 +473,13 @@ sqlite3_stmt* DataFile::cachedQuery(const char* query) noexcept {
     // Ignore because failing to cache is not a big deal
   }
   return stmt;
+}
+
+void DataFile::clearQueryCache() noexcept {
+  for (const auto& pair : queryCache) {
+    sqlite3_finalize(pair.second);
+  }
+  queryCache.clear();
 }
 
 ResultCode DataFile::addAccount(std::string name) {

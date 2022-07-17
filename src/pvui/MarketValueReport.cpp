@@ -1,10 +1,9 @@
 #include "MarketValueReport.h"
-#include "pv/Algorithms.h"
-#include <QColor>
 #include "DateUtils.h"
-#include <sqlite3.h>
+#include "pv/Algorithms.h"
 #include "pv/Integer64.h"
 #include "pv/Security.h"
+#include <QColor>
 #include <QDate>
 #include <QDateTime>
 #include <QLabel>
@@ -12,7 +11,6 @@
 #include <QLocale>
 #include <QwtAxisId>
 #include <QwtColumnSymbol>
-#include <cassert>
 #include <QwtDateScaleDraw>
 #include <QwtLegend>
 #include <QwtPlotCanvas>
@@ -23,6 +21,7 @@
 #include <QwtText>
 #include <algorithm>
 #include <cassert>
+#include <sqlite3.h>
 #include <vector>
 
 namespace pvui {
