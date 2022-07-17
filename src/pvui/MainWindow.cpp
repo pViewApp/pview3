@@ -5,6 +5,7 @@
 #include "pv/DataFile.h"
 #include <QAction>
 #include <QApplication>
+#include <QCoreApplication>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileDialog>
@@ -301,7 +302,7 @@ void pvui::MainWindow::fileSettings() {
   settingsDialog.open();
 }
 
-void pvui::MainWindow::fileQuit() { close(); }
+void pvui::MainWindow::fileQuit() { QCoreApplication::exit(); }
 
 void pvui::MainWindow::accountsDelete() {
   pv::i64 account = navigationModel.accountFromIndex(navigationWidget->selectionModel()->currentIndex());
