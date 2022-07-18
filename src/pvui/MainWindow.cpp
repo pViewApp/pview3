@@ -240,7 +240,7 @@ void pvui::MainWindow::fileNew() {
                            QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
                     .toString();
   QString fileQStr =
-      QFileDialog::getSaveFileName(this, tr("Open File"), dir, tr("pView Files (*.pvf);;All Files (*.*)"));
+      QFileDialog::getSaveFileName(this, tr("New File"), dir, tr("pView Files (*.pvf);;All Files (*.*)"));
   if (fileQStr.isNull()) {
     return;
   };
