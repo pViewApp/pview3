@@ -335,6 +335,7 @@ void swap(DataFile& lhs, DataFile& rhs) noexcept {
   swap(lhs.suppressRollbackSignal, rhs.suppressRollbackSignal);
 
   swap(lhs.db, rhs.db);
+  swap(lhs.queryCache, rhs.queryCache);
   swap(lhs.stmt_addAccount, rhs.stmt_addAccount);
   swap(lhs.stmt_addSecurity, rhs.stmt_addSecurity);
   swap(lhs.stmt_removeAccount, rhs.stmt_removeAccount);
