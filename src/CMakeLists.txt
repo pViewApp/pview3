@@ -19,6 +19,8 @@ add_executable(pview
 
 	pvui/AccountPage.cpp
 	pvui/AccountPage.h
+	pvui/AssetAllocationReport.cpp
+	pvui/AssetAllocationReport.h
   pvui/AutoFillingDelegate.h
   pvui/AutoFillingDelegate.cpp
 	pvui/DataFileManager.h
@@ -43,6 +45,8 @@ add_executable(pview
 	pvui/MarketValueReport.cpp
 	pvui/Page.cpp
 	pvui/Page.h
+	pvui/PiePlot.cpp
+	pvui/PiePlot.h
 	pvui/Report.h
 	pvui/Report.cpp
 	pvui/ReportFactory.h

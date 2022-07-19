@@ -31,7 +31,7 @@ public:
     emit nameChanged(name_);
   }
 
-  virtual void reload() noexcept {}
+  virtual void reload() {}
 
   /// \brief Creates a QwtPlot with proper styling.
   ///

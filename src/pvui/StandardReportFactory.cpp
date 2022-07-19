@@ -1,4 +1,5 @@
 #include "StandardReportFactory.h"
+#include "AssetAllocationReport.h"
 #include "HoldingsReport.h"
 #include "MarketValueReport.h"
 
@@ -51,6 +52,7 @@ std::vector<Report*> StandardReportFactory::createReports(DataFileManager& dataF
 
   return {
       new HoldingsReport(dataFileManager),
+      new AssetAllocationReport(dataFileManager),
       currentMarketValueReport,
       past52WeeksMarketValueReport,
   };
