@@ -13,6 +13,7 @@
 #include <QwtScaleDiv>
 #include <functional>
 #include <memory>
+#include <QSettings>
 
 namespace pvui {
 namespace reports {
@@ -34,10 +35,9 @@ private:
 
   QwtScaleDiv* div;
 
-  void drawPlot(std::function<QString(pv::i64)> grouper) noexcept;
+  void drawPlot() noexcept;
 
   QwtScaleDiv createScaleDiv() const noexcept;
-
 public:
   using DateSupplier = std::function<QDate()>;
   using IntervalSupplier = std::function<int /* days */ ()>;

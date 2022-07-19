@@ -2,7 +2,7 @@
 #include "DateUtils.h"
 #include "pv/Algorithms.h"
 #include "pv/DataFile.h"
-#include "pv/Security.h"
+#include "GroupBy.h"
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -13,23 +13,6 @@
 #include <QwtText>
 #include <sqlite3.h>
 #include <utility>
-
-namespace {
-enum class GroupBy { Symbol, AssetClass, Sector };
-
-QString group(GroupBy groupBy, pv::DataFile& dataFile, pv::i64 security) {
-  switch (groupBy) {
-  case GroupBy::AssetClass:
-    return QString::fromStdString(pv::security::assetClass(dataFile, security));
-  case GroupBy::Sector:
-    return QString::fromStdString(pv::security::sector(dataFile, security));
-  case GroupBy::Symbol:
-    return QString::fromStdString(pv::security::symbol(dataFile, security));
-  default:
-    return QString();
-  }
-}
-} // namespace
 
 namespace pvui {
 namespace reports {
@@ -57,16 +40,18 @@ AssetAllocationReport::AssetAllocationReport(DataFileManager& dataFileManager, Q
   groupBy->addItem(tr("Sector"), static_cast<int>(GroupBy::Sector));
   groupBy->addItem(tr("Security"), static_cast<int>(GroupBy::Symbol));
   QObject::connect(groupBy, qOverload<int>(&QComboBox::currentIndexChanged), this, [this] {
-    settings.setValue("ReportsGroupBy", groupBy->currentData());
+    pvui::setGroupBy(static_cast<GroupBy>(groupBy->currentData().toInt()));
     if (this->dataFileManager.has()) {
       reload();
     }
   });
-  groupBy->setCurrentIndex(groupBy->findData(settings.value("ReportsGroupBy", static_cast<int>(GroupBy::Symbol))));
   layout()->addWidget(plot);
 }
 
 void AssetAllocationReport::reload() {
+  if (currentGroupBy() != static_cast<GroupBy>(groupBy->currentData().toInt())) {
+    groupBy->setCurrentIndex(groupBy->findData(static_cast<int>(pvui::currentGroupBy())));
+  }
   auto* stmt = dataFileManager->cachedQuery("SELECT Id FROM Securities");
   QList<double> data;
   QList<QwtText> titles;
@@ -74,7 +59,7 @@ void AssetAllocationReport::reload() {
   std::map<QString, pv::i64> values;
   while (sqlite3_step(stmt) == SQLITE_ROW) {
     pv::i64 security = sqlite3_column_int64(stmt, 0);
-    values[group(static_cast<GroupBy>(groupBy->currentData().toInt()), *dataFileManager, security)] +=
+    values[pvui::group(*dataFileManager, security, currentGroupBy())] +=
         pv::algorithms::marketValue(*dataFileManager, security, currentEpochDate()).value_or(0) / 100.;
   }
 

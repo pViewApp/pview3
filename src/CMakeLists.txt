@@ -31,6 +31,8 @@ add_executable(pview
 	pvui/ExtendedSpinbox.cpp
 	pvui/FormatUtils.h
 	pvui/FormatUtils.cpp
+	pvui/GroupBy.h
+	pvui/GroupBy.cpp
 	pvui/ModelUtils.h
 	pvui/ModelUtils.cpp
 	pvui/HoldingsReport.cpp

@@ -2,6 +2,7 @@
 #include "DateUtils.h"
 #include "pv/Algorithms.h"
 #include "pv/Integer64.h"
+#include "GroupBy.h"
 #include "pv/Security.h"
 #include <QColor>
 #include <QDate>
@@ -83,14 +84,20 @@ void MarketValueReport::setupGroupBySelection() {
   groupByLabel->setBuddy(groupBySelector);
   groupBySelectorLayout->addWidget(groupByLabel);
   groupBySelectorLayout->addWidget(groupBySelector);
-  groupBySelector->addItems({tr("Security"), tr("Asset Class"), tr("Sector")});
   groupBySelector->setEditable(false);
-  groupBySelector->setCurrentText(tr("Security"));
+  groupBySelector->addItem(tr("Asset Class"), static_cast<int>(GroupBy::AssetClass));
+  groupBySelector->addItem(tr("Sector"), static_cast<int>(GroupBy::Sector));
+  groupBySelector->addItem(tr("Security"), static_cast<int>(GroupBy::Symbol));
 
-  QObject::connect(groupBySelector, &QComboBox::currentTextChanged, this, [this]() { reload(); });
+  QObject::connect(groupBySelector, qOverload<int>(&QComboBox::currentIndexChanged), this, [this]() {
+                     pvui::setGroupBy(static_cast<GroupBy>(groupBySelector->currentData().toInt()));
+                     if (dataFileManager.has()) {
+                       reload();
+                     }
+                   });
 }
 
-void MarketValueReport::drawPlot(std::function<QString(const pv::i64)> grouper) noexcept {
+void MarketValueReport::drawPlot() noexcept {
   assert(dataFileManager.has());
   // todo improve efficiency of this function
   std::map<QString, QMap<QDate, double>> values;
@@ -116,7 +123,7 @@ void MarketValueReport::drawPlot(std::function<QString(const pv::i64)> grouper) 
       pv::i64 marketValue = 0;
       pv::i64 epochDay = toEpochDate(date);
       for (const auto security : securities) {
-        QString group = grouper(security);
+        QString group = pvui::group(*dataFileManager, security, currentGroupBy());
 
         pv::i64 marketValueForSecurity = pv::algorithms::marketValue(*dataFileManager, security, epochDay).value_or(0);
         marketValue += marketValueForSecurity;
@@ -202,13 +209,10 @@ QwtScaleDiv MarketValueReport::createScaleDiv() const noexcept {
   return scaleDiv;
 }
 void MarketValueReport::reload() noexcept {
-  if (groupBySelector->currentText() == tr("Security")) {
-    drawPlot([this](pv::i64 security) { return QString::fromStdString(pv::security::symbol(*dataFileManager, security)); });
-  } else if (groupBySelector->currentText() == tr("Asset Class")) {
-    drawPlot([this](pv::i64 security) { return QString::fromStdString(pv::security::assetClass(*dataFileManager, security)); });
-  } else if (groupBySelector->currentText() == tr("Sector")) {
-    drawPlot([this](pv::i64 security) { return QString::fromStdString(pv::security::sector(*dataFileManager, security)); });
+  if (currentGroupBy() != static_cast<GroupBy>(groupBySelector->currentData().toInt())) {
+    groupBySelector->setCurrentIndex(groupBySelector->findData(static_cast<int>(pvui::currentGroupBy())));
   }
+  drawPlot();
 
   plot->setAxisScaleDiv(QwtAxis::XBottom, createScaleDiv());
 
