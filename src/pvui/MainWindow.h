@@ -32,6 +32,7 @@ private:
   QSettings settings;
   DataFileManager dataFileManager;
   QTreeView* navigationWidget = new QTreeView;
+  QSplitter splitter;
 
   QLabel* statusBarLabel = new QLabel;
 

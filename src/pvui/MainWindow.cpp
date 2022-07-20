@@ -44,18 +44,17 @@ pvui::MainWindow::MainWindow(QWidget* parent)
       fileOpenAction(tr("&Open...")), fileSettingsAction(tr(settingsActionText)), fileQuitAction(tr("&Quit")),
       accountsMenu(tr("&Accounts")), accountsNewAction(tr("&New Account...")),
       accountsDeleteAction(tr("&Delete Account")), helpMenu(tr("&Help")), helpAboutAction(tr("&About pView")) {
-  settings.beginGroup(QStringLiteral("pvui/MainWindow"));
+  settings.beginGroup(QStringLiteral("MainWindow"));
 
   QWidget* centralWidget = new QWidget;
   QVBoxLayout* layout = new QVBoxLayout;
 
-  auto* splitter = new QSplitter(Qt::Orientation::Horizontal);
-
   centralWidget->setLayout(layout);
 
-  layout->addWidget(splitter);
-  splitter->addWidget(navigationWidget);
-  splitter->addWidget(content);
+  splitter.setOrientation(Qt::Horizontal);
+  layout->addWidget(&splitter);
+  splitter.addWidget(navigationWidget);
+  splitter.addWidget(content);
 
   setCentralWidget(centralWidget);
   resize(windowWidth, windowHeight);
@@ -71,23 +70,25 @@ pvui::MainWindow::MainWindow(QWidget* parent)
   setAcceptDrops(true);
 
   // Restore state
-  if (settings.contains("state")) {
-    restoreState(settings.value("state").toByteArray());
+  if (settings.contains("State")) {
+    restoreState(settings.value("State").toByteArray());
   }
-  if (settings.contains("geometry")) {
-    restoreGeometry(settings.value("geometry").toByteArray());
+  if (settings.contains("Geometry")) {
+    restoreGeometry(settings.value("Geometry").toByteArray());
+  }
+  if (settings.contains("SplitterState")) {
+    splitter.restoreState(settings.value("SplitterState").toByteArray());
   }
 
-  handleDataFileChanged();
-
-  if (settings.contains(QStringLiteral("lastOpenedFile"))) {
+  if (settings.contains(QStringLiteral("LastOpenedFile"))) {
     try {
-      fileOpen_(settings.value(QStringLiteral("lastOpenedFile")).toString().toStdString());
+      fileOpen_(settings.value(QStringLiteral("LastOpenedFile")).toString().toStdString());
     } catch(...) {
       // Ignore, we just don't open the file if fail
       // It would be better to log this error though, maybe do that in future
     }
   }
+  handleDataFileChanged();
 }
 
 void pvui::MainWindow::handleDataFileChanged() {
@@ -166,8 +167,9 @@ void pvui::MainWindow::pageChanged() {
 }
 
 void pvui::MainWindow::closeEvent(QCloseEvent* event) {
-  settings.setValue("state", saveState());
-  settings.setValue("geometry", saveGeometry());
+  settings.setValue("State", saveState());
+  settings.setValue("Geometry", saveGeometry());
+  settings.setValue("SplitterState", splitter.saveState());
   QMainWindow::closeEvent(event);
 }
 
@@ -254,7 +256,7 @@ void pvui::MainWindow::fileNew() {
 
   try {
     dataFileManager.setDataFile(pv::DataFile(file));
-    settings.setValue(QStringLiteral("lastOpenedFile"), fileQStr);
+    settings.setValue(QStringLiteral("LastOpenedFile"), fileQStr);
   } catch (...) {
     QMessageBox::critical(this, tr("Failed to Create File"),
                           tr("pView couldn't create the file. Please try again later."));
@@ -281,7 +283,7 @@ void pvui::MainWindow::fileOpen_(const std::string& location) {
   dataFileManager.setDataFile(
       pv::DataFile(location, SQLITE_OPEN_READWRITE)); // unset SQLITE_OPEN_CREATE, because we don't want to create a
                                                       // new file if it doesn't already exist
-  settings.setValue(QStringLiteral("lastOpenedFile"), QString::fromStdString(location));
+  settings.setValue(QStringLiteral("LastOpenedFile"), QString::fromStdString(location));
   contentLayout->setCurrentWidget(noPageOpen);
   updateWindowFileLocation();
 }
@@ -351,7 +353,6 @@ void pvui::MainWindow::helpAbout() {
 }
 
 void pvui::MainWindow::setupNavigation() {
-
   contentLayout->addWidget(accountPage);
   contentLayout->addWidget(securityPage);
   contentLayout->addWidget(noPageOpen);
@@ -372,18 +373,10 @@ void pvui::MainWindow::setupNavigation() {
 
   navigationWidget->setSelectionMode(QTreeView::SelectionMode::SingleSelection);
 
-  // Make the content stretch more than the navigation
-  QSizePolicy policy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-  policy.setHorizontalStretch(7);
-  navigationWidget->setSizePolicy(policy);
-  policy.setHorizontalStretch(30);
-  content->setSizePolicy(policy);
-
   QObject::connect(navigationWidget->selectionModel(), &QItemSelectionModel::currentRowChanged, this,
                    &MainWindow::pageChanged);
 
   // Setup context menu
-
   accountsDeleteAction.setShortcut(QKeySequence::Delete);
   accountsDeleteAction.setShortcutContext(Qt::WidgetShortcut);
   navigationWidget->setContextMenuPolicy(Qt::ActionsContextMenu);
@@ -403,7 +396,7 @@ void pvui::MainWindow::updateWindowFileLocation() {
     statusBarLabel->setText(dataFilePath ? tr("Autosaving all changes.") : tr("Temporary File - Changes will not be saved."));
   } else {
     setWindowTitle(tr("No File Open - pView"));
-    setWindowFilePath(QStringLiteral(""));
+    setWindowFilePath(QString());
     statusBarLabel->setText(tr("No file open."));
   }
 }
