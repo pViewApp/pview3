@@ -14,7 +14,6 @@ namespace pvui {
 
 namespace {
 constexpr auto defaultFillColor = Qt::gray;
-constexpr auto defaultOutlineColor = Qt::black;
 } // namespace
 
 PiePlot::PiePlot() {
@@ -28,7 +27,7 @@ void PiePlot::draw(QPainter* painter, const QwtScaleMap&, const QwtScaleMap&, co
   QRectF pieRect =
       (canvasRect.width() > canvasRect.height())
           ? QRectF((canvasRect.left() + margin * 2 + canvasRect.width() - canvasRect.height()) / 2,
-                   canvasRect.top() + margin, canvasRect.height() - margin * 2, canvasRect.height() - margin * 2)
+                  canvasRect.top() + margin, canvasRect.height() - margin * 2, canvasRect.height() - margin * 2)
           : QRectF(canvasRect.left() + margin,
                    (canvasRect.top() + margin * 2 + canvasRect.height() - canvasRect.width()) / 2,
                    canvasRect.width() - margin * 2,
@@ -42,7 +41,6 @@ void PiePlot::draw(QPainter* painter, const QwtScaleMap&, const QwtScaleMap&, co
   constexpr int fullCircle = 360 * 16;
   int angleDrawnSoFar = 0;
   for (int i = 0; i < samples_.size(); ++i) {
-    painter->setPen(plot() != nullptr ? plot()->palette().color(QPalette::Base) : defaultOutlineColor);
     painter->setBrush(pieColors_.size() > i ? pieColors_.at(i) : defaultFillColor);
     int span = std::ceil(fullCircle * (samples_.at(i) / sum)); // ceil to avoid gaps in the pie
     painter->drawPie(pieRect, angleDrawnSoFar, -span);         // we negate s
