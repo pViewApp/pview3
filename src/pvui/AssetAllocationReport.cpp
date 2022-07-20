@@ -67,7 +67,7 @@ void AssetAllocationReport::reload() {
   for (const auto& pair : values) {
     data += pair.second;
     titles += QwtText(pair.first);
-    colors += pvui::Report::plotPalette(i).color(QPalette::Button);
+    colors += pvui::Report::plotColor(i);
     ++i;
   }
 
@@ -79,7 +79,7 @@ void AssetAllocationReport::reload() {
   }
   titles += QwtText(tr("Cash Balance"));
   data += cashBalance;
-  colors += pvui::Report::plotPalette(i).color(QPalette::Button);
+  colors += pvui::Report::plotColor(i);
 
   pie.setSamples(std::move(data));
   pie.setPieTitles(std::move(titles));

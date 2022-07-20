@@ -1,7 +1,9 @@
 #include "Report.h"
-#include <QPalette>
+#include <Qt>
+#include <QColor>
 #include <QwtPlotCanvas>
 #include <QwtPlotLayout>
+#include <array>
 #include <QwtScaleWidget>
 
 QwtPlot* pvui::Report::createPlot(QWidget* parent) noexcept {
@@ -29,14 +31,11 @@ QwtPlot* pvui::Report::createPlot(QWidget* parent) noexcept {
   return plot;
 }
 
-const QList<QPalette>& pvui::Report::plotPalettes() noexcept {
-  static QList<QPalette> list = {
-      QColor(0x33, 0x91, 0x0b), QColor(0x00, 0x60, 0xc6), QColor(0x91, 0x0b, 0x33), QColor(0x69, 0x0b, 0x91),
-      QColor(0xc6, 0x66, 0x00), QColor(0xfc, 0x00, 0x00), QColor(0x6e, 0x9b, 0x1a), QColor(0x00, 0xcc, 0xc1),
+const QColor pvui::Report::plotColor(std::size_t index) noexcept {
+  using namespace QColorConstants::Svg;
+  constexpr std::array colors = {
+    red, dodgerblue, gold, limegreen, darkorange, darkviolet, maroon, darkturquoise,
+    salmon, olivedrab, orangered, steelblue, khaki, darkslateblue, palevioletred, lightseagreen
   };
-  return list;
-}
-
-const QPalette& pvui::Report::plotPalette(size_t index) noexcept {
-  return Report::plotPalettes().at(index % Report::plotPalettes().size());
+  return colors.at(index % colors.size());
 }

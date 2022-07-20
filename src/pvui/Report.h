@@ -4,7 +4,7 @@
 #include "DataFileManager.h"
 #include "Page.h"
 #include <QList>
-#include <QPalette>
+#include <QColor>
 #include <QwtPlot>
 #include <cstddef>
 
@@ -38,8 +38,7 @@ public:
   /// The returned plot will have unspecified cosmetic changes.
   static QwtPlot* createPlot(QWidget* parent = nullptr) noexcept;
 
-  static const QList<QPalette>& plotPalettes() noexcept;
-  static const QPalette& plotPalette(std::size_t index) noexcept;
+  static const QColor plotColor(std::size_t index) noexcept;
 signals:
   void nameChanged(QString name);
 };

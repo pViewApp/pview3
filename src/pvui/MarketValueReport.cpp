@@ -187,7 +187,7 @@ void MarketValueReport::drawPlot() noexcept {
 
     auto* symbol = new QwtColumnSymbol(QwtColumnSymbol::Box);
     symbol->setFrameStyle(QwtColumnSymbol::NoFrame);
-    symbol->setPalette(Report::plotPalette(i));
+    symbol->setPalette(Report::plotColor(i));
     chart.setSymbol(static_cast<int>(i), symbol);
   }
   chart.setBarTitles(titles);
