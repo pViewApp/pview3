@@ -14,6 +14,7 @@ SecurityPriceInsertionWidget::SecurityPriceInsertionWidget(DataFileManager& data
     : QWidget(parent), dataFileManager(dataFileManager) {
   layout->addWidget(dateEditor, 1);
   layout->addWidget(priceEditor, 1);
+  layout->setMargin(0);
 
   dateEditor->setCalendarPopup(true);
   priceEditor->setPlaceholderText(tr("Price"));

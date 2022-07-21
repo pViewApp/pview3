@@ -35,6 +35,7 @@ TransactionInsertionWidget::TransactionInsertionWidget(DataFileManager& dataFile
   layout->addWidget(sharePriceEditor, 1);
   layout->addWidget(commissionEditor, 1);
   layout->addWidget(totalAmountEditor, 1);
+  layout->setMargin(0);
 
   setFocusPolicy(Qt::StrongFocus);
   setFocusProxy(dateEditor);
