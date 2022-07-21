@@ -93,8 +93,9 @@ target_compile_features(pview PUBLIC cxx_std_17)
 target_compile_definitions(pview PRIVATE PVIEW_VERSION_MAJOR=${PROJECT_VERSION_MAJOR} PVIEW_VERSION_MINOR=${PROJECT_VERSION_MINOR} PVIEW_VERSION_PATCH=${PROJECT_VERSION_PATCH})
 target_link_libraries(pview PRIVATE ${SQLite3_LIBRARIES} ${Boost_LIBRARIES} Qt${QT_VERSION}::Core Qt${QT_VERSION}::Gui Qt${QT_VERSION}::Gui Qt${QT_VERSION}::Widgets Qt${QT_VERSION}::Network ${QWT_LIBRARIES})
 
+# Treat warnings as errors on GNU, don't do that on MSVC because we don't care about MSVC errors
 if(MSVC)
-	target_compile_options(pview PRIVATE /W4 /WX)
+	target_compile_options(pview PRIVATE /W3 /WX-)
 else()
 	target_compile_options(pview PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
