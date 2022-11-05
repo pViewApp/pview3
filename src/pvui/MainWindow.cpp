@@ -22,6 +22,7 @@
 #include <QString>
 #include <QStringLiteral>
 #include <QToolBar>
+#include <QTimer>
 #include <Qt>
 #include <filesystem>
 #include <functional>
@@ -70,14 +71,17 @@ pvui::MainWindow::MainWindow(QWidget* parent)
   statusBar()->setSizeGripEnabled(false);
 
   securityPriceDownloadProgressBar.setVisible(false);
-  securityPriceDownloadProgressBar.setFormat("Downloading Security Prices (%v/%m)");
   QObject::connect(securityPage, &SecurityPageWidget::securityPriceDownloadStarted, [&](int numberOfSecurities) {
+    securityPriceDownloadProgressBar.setFormat("Downloading Security Prices (%v/%m)");
     securityPriceDownloadProgressBar.reset();
     securityPriceDownloadProgressBar.setRange(0, numberOfSecurities);
     securityPriceDownloadProgressBar.setVisible(true);
   });
   QObject::connect(securityPage, &SecurityPageWidget::securityPriceDownloadCompleted, [&] {
-    securityPriceDownloadProgressBar.setVisible(false);
+    securityPriceDownloadProgressBar.setFormat("Done!");
+    QTimer::singleShot(1000, [this]() {
+      securityPriceDownloadProgressBar.setVisible(false);
+    });
   });
   QObject::connect(securityPage, &SecurityPageWidget::securityPriceDownloadProgressUpdated, [&](int completed) {
     securityPriceDownloadProgressBar.setValue(completed);
