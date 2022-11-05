@@ -66,6 +66,7 @@ SecurityPriceDownload::SecurityPriceDownload(Download download, QObject* parent)
     : SecurityPriceDownload(std::vector<Download>({download}), parent) {}
 
 SecurityPriceDownload::SecurityPriceDownload(std::vector<Download> downloads, QObject* parent) : QObject(parent) {
+  numberOfSecurities_ = static_cast<int>(downloads.size());
   replies.reserve(downloads.size());
   for (auto& download : downloads) {
     const auto& symbol = download.symbol;
@@ -83,6 +84,8 @@ SecurityPriceDownload::SecurityPriceDownload(std::vector<Download> downloads, QO
                        reply->deleteLater();
 
                        replies.erase(reply);
+                       ++finishedSecurities_;
+                       emit progressChanged(finishedSecurities_, numberOfSecurities_);
                        if (replies.empty()) {
                          emit complete();
                        }
@@ -101,6 +104,8 @@ SecurityPriceDownload::SecurityPriceDownload(std::vector<Download> downloads, QO
       reply->deleteLater();
 
       replies.erase(reply);
+      ++finishedSecurities_;
+      emit progressChanged(finishedSecurities_, numberOfSecurities_);
       if (replies.empty()) {
         emit complete();
       }

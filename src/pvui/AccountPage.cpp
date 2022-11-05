@@ -105,7 +105,7 @@ void pvui::AccountPageWidget::deleteSelectedTransactions() {
   }
 
   // Use transaction for improved bulk-update performance
-  bool sqlTransaction = dataFileManager->beginTransaction() == pv::ResultCode::OK;
+  bool sqlTransaction = dataFileManager->beginTransaction() == pv::ResultCode::Ok;
   for (const auto& transaction : transactionsToDelete) {
     dataFileManager->removeTransaction(transaction);
   }

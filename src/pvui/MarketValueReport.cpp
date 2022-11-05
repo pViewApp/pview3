@@ -1,4 +1,5 @@
 #include "MarketValueReport.h"
+#include <QwtDateScaleEngine>
 #include "DateUtils.h"
 #include "pv/Algorithms.h"
 #include "pv/Integer64.h"
@@ -9,10 +10,9 @@
 #include <QDateTime>
 #include <QLabel>
 #include <QList>
-#include <QLocale>
 #include <QwtAxisId>
 #include <QwtColumnSymbol>
-#include <QwtDateScaleDraw>
+#include <QwtScaleDraw>
 #include <QwtLegend>
 #include <QwtPlotCanvas>
 #include <QwtPlotLayout>
@@ -27,6 +27,21 @@
 
 namespace pvui {
 namespace reports {
+
+namespace {
+class DateScaleDraw : public QwtScaleDraw {
+private:
+  QLocale locale;
+public:
+  DateScaleDraw(QLocale locale = QLocale()) : locale(locale) {
+    setLabelAlignment(Qt::AlignRight);
+  }
+
+  QwtText label(double v) const override {
+    return locale.toString(QwtDate::toDateTime(v), locale.dateFormat(QLocale::LongFormat));
+  }
+};
+}
 
 MarketValueReport::MarketValueReport(QString name, DataFileManager& dataFileManager, QWidget* parent)
     : Report(name, dataFileManager, parent), div(new QwtScaleDiv) {
@@ -49,7 +64,6 @@ MarketValueReport::MarketValueReport(QString name, DataFileManager& dataFileMana
   costBasisCurve.setLegendAttributes(QwtPlotCurve::LegendShowLine | QwtPlotCurve::LegendShowSymbol);
   costBasisCurve.setLegendIconSize(QSize(16, 16));
   costBasisCurve.setTitle(tr("Cost Basis"));
-  costBasisCurve.setPen(QPen(Qt::PenStyle::SolidLine));
 
   auto* marketValueSymbol = new QwtSymbol(QwtSymbol::Style::Diamond); // use pView brand color
   marketValueSymbol->setColor(QColor(0x33, 0xaa, 0x00));
@@ -58,16 +72,14 @@ MarketValueReport::MarketValueReport(QString name, DataFileManager& dataFileMana
   marketValueCurve.setLegendAttributes(QwtPlotCurve::LegendShowLine | QwtPlotCurve::LegendShowSymbol);
   marketValueCurve.setLegendIconSize(QSize(16, 16));
   marketValueCurve.setTitle(tr("Market Value"));
-  marketValueCurve.setPen(QPen(Qt::PenStyle::SolidLine));
 
   chart.setStyle(QwtPlotMultiBarChart::Stacked);
   chart.setLegendIconSize(QSize(16, 16));
 
-  auto* scaleDraw = new QwtDateScaleDraw;
+  plot->setAxisScaleEngine(QwtAxis::XBottom, new QwtDateScaleEngine());
+  auto* scaleDraw = new DateScaleDraw;
   plot->setAxisScaleDraw(QwtAxis::XBottom, scaleDraw);
   scaleDraw->setLabelRotation(90);
-  scaleDraw->setSpacing(10);
-  scaleDraw->setLabelAlignment(Qt::AlignRight);
 
   plot->setAxisTitle(QwtAxis::XBottom, tr("Date"));
   plot->setAxisTitle(QwtAxis::YLeft, tr("Market Value ($)"));
@@ -161,6 +173,8 @@ void MarketValueReport::drawPlot() noexcept {
 
   titles += QwtText(tr("Cash Balance"));
 
+  double largestLabelSize = 0;
+  QFont xAxisFont = plot->axisFont(QwtAxis::XBottom);
   for (auto date = start(); date <= end(); date = date.addDays(interval)) {
     auto pvDate = toEpochDate(date); 
     QVector<double> samplesForDate;
@@ -179,8 +193,16 @@ void MarketValueReport::drawPlot() noexcept {
 
     samplesForDate += cashBalance / 100.;
 
-    samples += QwtSetSample(QwtDate::toDouble(QDateTime(date, QTime(0, 0, 0))), samplesForDate);
+    auto qwtDate = QwtDate::toDouble(QDateTime(date, QTime(0, 0, 0)));
+    samples += QwtSetSample(qwtDate, samplesForDate);
+
+    // Ensure the spacing is large enough to fit labels
+    double labelSize = plot->axisScaleDraw(QwtAxis::XBottom)->labelSize(xAxisFont, qwtDate).width();
+    if (labelSize > largestLabelSize) {
+      largestLabelSize = labelSize;
+    }
   }
+  plot->axisScaleDraw(QwtAxis::XBottom)->setSpacing(largestLabelSize);
 
   for (std::size_t i = 0; i < values.size() + 1 + 1;
        i++) { // values.size + 1 because there is also the cash balance series
@@ -190,6 +212,11 @@ void MarketValueReport::drawPlot() noexcept {
     symbol->setPalette(Report::plotColor(i));
     chart.setSymbol(static_cast<int>(i), symbol);
   }
+
+  QPen curvePen = QPen(palette().text(), Qt::SolidLine);
+  marketValueCurve.setPen(curvePen);
+  costBasisCurve.setPen(curvePen);
+
   chart.setBarTitles(titles);
   chart.setSamples(samples);
 }

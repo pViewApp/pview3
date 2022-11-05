@@ -29,9 +29,9 @@
 namespace pvui {
 namespace {
 
-enum class OnConflictBehaviour : int { SKIP, REPLACE };
+enum class OnConflictBehaviour : int { SKIP, REPLACE, REPLACE_IF_TODAY };
 
-constexpr OnConflictBehaviour defaultOnConflictBehaviour = OnConflictBehaviour::SKIP;
+constexpr OnConflictBehaviour defaultOnConflictBehaviour = OnConflictBehaviour::REPLACE_IF_TODAY;
 
 class AdvancedSecurityPriceDownloadDialog : public QDialog {
 private:
@@ -304,7 +304,7 @@ void SecurityPageWidget::beginUpdateSecurityPrices(QDate begin, int onConflictBe
     return; // Only 1 download at a time
   }
 
-  auto endDate = QDate::currentDate();
+  auto endDate = QDate::currentDate().addDays(1);
 
   QList securities = selectedSecurities();
   QStringList symbols;
@@ -322,6 +322,7 @@ void SecurityPageWidget::beginUpdateSecurityPrices(QDate begin, int onConflictBe
   }
 
   currentPriceDownload = priceDownloader_.download(symbols, begin, endDate, this);
+  emit securityPriceDownloadStarted(currentPriceDownload->numberOfSecurities());
   currentPriceDownload->setParent(this);
 
   QObject::connect(currentPriceDownload, &SecurityPriceDownload::success, this,
@@ -330,8 +331,12 @@ void SecurityPageWidget::beginUpdateSecurityPrices(QDate begin, int onConflictBe
                    });
   QObject::connect(currentPriceDownload, &SecurityPriceDownload::error, this,
                    &SecurityPageWidget::updateSecurityPricesError);
+  QObject::connect(currentPriceDownload, &SecurityPriceDownload::complete, [this] { emit securityPriceDownloadCompleted(); });
   QObject::connect(currentPriceDownload, &SecurityPriceDownload::complete, this,
                    &SecurityPageWidget::endUpdateSecurityPrices);
+  QObject::connect(currentPriceDownload, &SecurityPriceDownload::progressChanged, [this](int completed, int total) {
+    emit securityPriceDownloadProgressUpdated(completed, total);
+  });
 }
 
 void SecurityPageWidget::beginBasicUpdateSecurityPrices() {
@@ -359,11 +364,12 @@ void SecurityPageWidget::updateSecurityPrices(const std::map<QDate, pv::i64>& pr
 
   pv::i64 security = *pv::security::securityForSymbol(*dataFileManager_, symbol.toStdString());
 
-  bool transactionCreated = dataFileManager_->beginTransaction() == pv::ResultCode::OK;
+  bool transactionCreated = dataFileManager_->beginTransaction() == pv::ResultCode::Ok;
   for (const auto& pair : prices) {
     pv::i64 date = toEpochDate(pair.first);
     if (static_cast<OnConflictBehaviour>(onConflictBehaviour) == OnConflictBehaviour::REPLACE ||
-        !pv::security::price(*dataFileManager_, security, date).has_value()) {
+        !pv::security::price(*dataFileManager_, security, date).has_value() ||
+        (static_cast<OnConflictBehaviour>(onConflictBehaviour) == OnConflictBehaviour::REPLACE_IF_TODAY && date == currentEpochDate())) {
       // Only do it if no existing price on pvDate
       dataFileManager_->setSecurityPrice(security, date, pair.second);
     }

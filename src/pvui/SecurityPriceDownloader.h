@@ -25,16 +25,21 @@ public:
 
 private:
   std::unordered_set<QNetworkReply*> replies;
+  int finishedSecurities_ = 0;
+  int numberOfSecurities_;
 public:
   SecurityPriceDownload(Download download , QObject* parent = nullptr);
   SecurityPriceDownload(std::vector<Download> downloads, QObject* parent = nullptr);
 
+  int finishedSecurities() const noexcept { return finishedSecurities_; }
+  int numberOfSecurities() const noexcept { return numberOfSecurities_; }
 public slots:
   void abort();
 signals:
   void success(const std::map<QDate, pv::i64>& data, QString symbol);
   void error(QNetworkReply::NetworkError error, QString symbol);
   void complete();
+  void progressChanged(int progress, int numberOfDownloads);
 };
 
 class SecurityPriceDownloader : public QObject {

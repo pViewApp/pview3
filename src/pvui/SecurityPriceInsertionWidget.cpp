@@ -61,7 +61,7 @@ bool SecurityPriceInsertionWidget::submit() {
     return false;
 
   auto result = dataFileManager->setSecurityPrice(*security_, date, static_cast<pv::i64>(std::llround(priceEditor->value() * 100)));
-  if (result != pv::ResultCode::OK) {
+  if (result != pv::ResultCode::Ok) {
     return false;
   }
 

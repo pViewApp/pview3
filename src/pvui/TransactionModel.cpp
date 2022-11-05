@@ -115,9 +115,9 @@ std::optional<pv::i64> getTotalAmount(pv::DataFile& dataFile, pv::i64 transactio
 bool setNumberOfShares(pv::DataFile& dataFile, pv::i64 transaction, pv::i64 numberOfShares) {
   switch (pv::transaction::action(dataFile, transaction)) {
   case pv::Action::BUY:
-    return dataFile.setBuyNumberOfShares(transaction, numberOfShares) == pv::ResultCode::OK;
+    return dataFile.setBuyNumberOfShares(transaction, numberOfShares) == pv::ResultCode::Ok;
   case pv::Action::SELL:
-    return dataFile.setSellNumberOfShares(transaction, numberOfShares) == pv::ResultCode::OK;
+    return dataFile.setSellNumberOfShares(transaction, numberOfShares) == pv::ResultCode::Ok;
   default:
     return false;
   }
@@ -126,9 +126,9 @@ bool setNumberOfShares(pv::DataFile& dataFile, pv::i64 transaction, pv::i64 numb
 bool setSharePrice(pv::DataFile& dataFile, pv::i64 transaction, pv::i64 sharePrice) {
   switch (pv::transaction::action(dataFile, transaction)) {
   case pv::Action::BUY:
-    return dataFile.setBuySharePrice(transaction, sharePrice) == pv::ResultCode::OK;
+    return dataFile.setBuySharePrice(transaction, sharePrice) == pv::ResultCode::Ok;
   case pv::Action::SELL:
-    return dataFile.setSellSharePrice(transaction, sharePrice) == pv::ResultCode::OK;
+    return dataFile.setSellSharePrice(transaction, sharePrice) == pv::ResultCode::Ok;
   default:
     return false;
   }
@@ -137,9 +137,9 @@ bool setSharePrice(pv::DataFile& dataFile, pv::i64 transaction, pv::i64 sharePri
 bool setCommission(pv::DataFile& dataFile, pv::i64 transaction, pv::i64 commission) {
   switch (pv::transaction::action(dataFile, transaction)) {
   case pv::Action::BUY:
-    return dataFile.setBuyCommission(transaction, commission) == pv::ResultCode::OK;
+    return dataFile.setBuyCommission(transaction, commission) == pv::ResultCode::Ok;
   case pv::Action::SELL:
-    return dataFile.setSellCommission(transaction, commission) == pv::ResultCode::OK;
+    return dataFile.setSellCommission(transaction, commission) == pv::ResultCode::Ok;
   default:
     return false;
   }
@@ -148,13 +148,13 @@ bool setCommission(pv::DataFile& dataFile, pv::i64 transaction, pv::i64 commissi
 bool setAmount(pv::DataFile& dataFile, pv::i64 transaction, pv::i64 commission) {
   switch (pv::transaction::action(dataFile, transaction)) {
   case pv::Action::DEPOSIT:
-    return dataFile.setDepositAmount(transaction, commission) == pv::ResultCode::OK;
+    return dataFile.setDepositAmount(transaction, commission) == pv::ResultCode::Ok;
   case pv::Action::WITHDRAW:
-    return dataFile.setWithdrawAmount(transaction, commission) == pv::ResultCode::OK;
+    return dataFile.setWithdrawAmount(transaction, commission) == pv::ResultCode::Ok;
   case pv::Action::DIVIDEND:
-    return dataFile.setDividendAmount(transaction, commission) == pv::ResultCode::OK;
+    return dataFile.setDividendAmount(transaction, commission) == pv::ResultCode::Ok;
   case pv::Action::INTEREST:
-    return dataFile.setInterestAmount(transaction, commission) == pv::ResultCode::OK;
+    return dataFile.setInterestAmount(transaction, commission) == pv::ResultCode::Ok;
   default:
     return false;
   }

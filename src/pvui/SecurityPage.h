@@ -72,7 +72,10 @@ private slots:
   void updateSecurityPrices(const std::map<QDate, pv::i64>& data, QString symbol, int onConflictBehaviour);
   void updateSecurityPricesError(QNetworkReply::NetworkError err, QString symbol);
   void endUpdateSecurityPrices();
-
+signals:
+  void securityPriceDownloadStarted(int numberOfSecurities);
+  void securityPriceDownloadCompleted();
+  void securityPriceDownloadProgressUpdated(int completed, int total);
 public:
   SecurityPageWidget(pvui::DataFileManager& dataFileManager, QWidget* parent = nullptr);
 };

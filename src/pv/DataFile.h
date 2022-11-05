@@ -22,22 +22,19 @@ enum class Action : unsigned char {
   INTEREST = 5,
 };
 
-// Codes beginning with SQL_ are forwarded from SQLite.
 enum class ResultCode : unsigned char {
-  OK = 0,
+  Ok = 0,
 
-  SQL_ERROR = 1,
-  SQL_NOMEM = 2,
-  SQL_CORRUPT = 4,
-  SQL_CONSTRAINT = 5,
-
-  MODIFICATION_PROHIBITED = 32,
+  DbError = 1,
+  ModificationProhibited,
   /// \brief An error code indicating that the action could not
   /// be completed because the record could not be found (for example,
   /// deleting a non-existent transaction).
   ///
   /// This result code indicates that no change has occured.
-  RECORD_NOT_FOUND = 33,
+  RecordNotFound,
+  NegativeCashBalance,
+  NegativeSharesHeld,
 };
 
 using StatementPointer = std::unique_ptr<sqlite3_stmt, int(*)(sqlite3_stmt*)>;
@@ -163,7 +160,6 @@ private:
   sqlite3_stmt* stmt_releaseSavepoint = nullptr;
 
   std::unordered_map<const char*, sqlite3_stmt*> queryCache;
-
 public:
   explicit DataFile(std::string location = ":memory:", int flags = -1);
 

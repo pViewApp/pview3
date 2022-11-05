@@ -66,7 +66,22 @@ pvui::MainWindow::MainWindow(QWidget* parent)
   setupNavigation();
   setupActions();
   statusBar()->addWidget(statusBarLabel);
+  statusBar()->addWidget(&securityPriceDownloadProgressBar);
   statusBar()->setSizeGripEnabled(false);
+
+  securityPriceDownloadProgressBar.setVisible(false);
+  securityPriceDownloadProgressBar.setFormat("Downloading Security Prices (%v/%m)");
+  QObject::connect(securityPage, &SecurityPageWidget::securityPriceDownloadStarted, [&](int numberOfSecurities) {
+    securityPriceDownloadProgressBar.setVisible(true);
+    securityPriceDownloadProgressBar.setRange(0, numberOfSecurities);
+  });
+  QObject::connect(securityPage, &SecurityPageWidget::securityPriceDownloadCompleted, [&] {
+    securityPriceDownloadProgressBar.setVisible(false);
+  });
+  QObject::connect(securityPage, &SecurityPageWidget::securityPriceDownloadProgressUpdated, [&](int completed) {
+    securityPriceDownloadProgressBar.setValue(completed);
+  });
+
   setAcceptDrops(true);
 
   // Restore state
@@ -324,7 +339,7 @@ void pvui::MainWindow::accountsNew() {
   if (ok) {
     auto trimmedText = text.trimmed();
     if (!trimmedText.isEmpty()) {
-      if (dataFileManager->addAccount(trimmedText.toStdString()) != pv::ResultCode::OK) {
+      if (dataFileManager->addAccount(trimmedText.toStdString()) != pv::ResultCode::Ok) {
         return;
       }
       pv::i64 account = dataFileManager->lastInsertedId();

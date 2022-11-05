@@ -136,7 +136,7 @@ bool TransactionInsertionWidget::submit() {
   }
   pv::Action action = static_cast<pv::Action>(actionData.toInt());
 
-  pv::ResultCode result = pv::ResultCode::SQL_ERROR; // Use some error by default, overrwrite later if needed
+  pv::ResultCode result = pv::ResultCode::DbError; // Use some error by default, overrwrite later if needed
 
   switch (action) {
   case pv::Action::BUY: {
@@ -177,7 +177,7 @@ bool TransactionInsertionWidget::submit() {
   }
   }
 
-  if (result != pv::ResultCode::OK) {
+  if (result != pv::ResultCode::Ok) {
     return false;
   }
 

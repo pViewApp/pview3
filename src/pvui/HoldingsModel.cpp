@@ -5,9 +5,6 @@
 #include "pv/Integer64.h"
 #include "pv/Security.h"
 #include <QSize>
-#include <Qt>
-#include <iterator>
-#include <memory>
 #include <optional>
 #include <qnamespace.h>
 #include <sqlite3.h>

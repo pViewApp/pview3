@@ -12,6 +12,7 @@
 #include <QToolBar>
 #include <QTreeView>
 #include <QWidget>
+#include <QProgressBar>
 #include <unordered_map>
 #include <QMenu>
 #include "SettingsDialog.h"
@@ -45,6 +46,7 @@ private:
   QStackedLayout* contentLayout = new QStackedLayout(content);
   AccountPageWidget* accountPage = new AccountPageWidget(dataFileManager);
   SecurityPageWidget* securityPage = new SecurityPageWidget(dataFileManager);
+  QProgressBar securityPriceDownloadProgressBar;
 
   dialogs::SettingsDialog settingsDialog;
 

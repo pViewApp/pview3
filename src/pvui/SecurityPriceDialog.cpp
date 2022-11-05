@@ -152,7 +152,7 @@ void SecurityPriceDialog::deleteSelectedSecurityPrices() {
   }
 
   // Create transaction for improved performance on bulk update
-  bool transaction = dataFileManager->beginTransaction() == pv::ResultCode::OK;
+  bool transaction = dataFileManager->beginTransaction() == pv::ResultCode::Ok;
 
   std::for_each(dates.cbegin(), dates.cend(),
                 [&](const pv::i64 date) { dataFileManager->removeSecurityPrice(security_, date); });

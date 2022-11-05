@@ -94,7 +94,7 @@ bool SecurityInsertionWidget::submit() {
   }
 
   if (dataFileManager_->addSecurity(symbol.toStdString(), name.toStdString(), assetClass.toStdString(),
-                                               sector.toStdString()) != pv::ResultCode::OK)
+                                               sector.toStdString()) != pv::ResultCode::Ok)
     return false; // Failed
   reset();
   symbolEditor->setFocus();

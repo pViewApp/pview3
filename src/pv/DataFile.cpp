@@ -1,5 +1,6 @@
 #include "DataFile.h"
-#include <algorithm>
+#include "Transaction.h"
+#include "Algorithms.h"
 #include <optional>
 #include <sqlite3.h>
 #include <cassert>
@@ -132,25 +133,29 @@ CREATE INDEX IF NOT EXISTS InterestTransactionsSecurityIndex ON InterestTransact
 )";
 
 /// \internal Maps and SQLite result code to it's pv::ResultCode equivalant.
-ResultCode mapSQLiteCodes(int code) {
-  switch (code) {
-  case SQLITE_OK:
-    return ResultCode::OK;
-  case SQLITE_ROW:
-    return ResultCode::OK;
-  case SQLITE_DONE:
-    return ResultCode::OK;
-  case SQLITE_NOMEM:
-    return ResultCode::SQL_NOMEM;
-  case SQLITE_CORRUPT:
-    return ResultCode::SQL_CORRUPT;
-  case SQLITE_ERROR:
-    return ResultCode::SQL_ERROR;
-  case SQLITE_CONSTRAINT:
-    return ResultCode::SQL_CONSTRAINT;
-  default:
-    return ResultCode::SQL_ERROR;
-  };
+ResultCode dataBaseResult(int code) {
+  return code == SQLITE_OK || code == SQLITE_DONE || code == SQLITE_ROW ?
+    ResultCode::Ok : ResultCode::DbError;
+}
+
+ResultCode validityCheck(pv::DataFile& dataFile, i64 account, i64 startDate, std::optional<i64> security1 = std::nullopt, std::optional<i64> security2 = std::nullopt) {
+  sqlite3_stmt* stmt;
+  stmt = dataFile.cachedQuery("SELECT Date FROM Transactions WHERE AccountId = ? AND Date >= ?");
+  sqlite3_bind_int64(stmt, 1, static_cast<sqlite3_int64>(account));
+  sqlite3_bind_int64(stmt, 2, static_cast<sqlite3_int64>(startDate));
+  while (sqlite3_step(stmt) == SQLITE_ROW) {
+    pv::i64 date = sqlite3_column_int64(stmt, 0);
+    if (algorithms::cashBalance(dataFile, account, date) < 0) {
+      return ResultCode::NegativeCashBalance;
+    }
+    if (security1 && algorithms::sharesHeld(dataFile, *security1, date) < 0) {
+      return ResultCode::NegativeSharesHeld;
+    }
+    if (security2 && algorithms::sharesHeld(dataFile, *security2, date) < 0) {
+      return ResultCode::NegativeSharesHeld;
+    }
+  }
+  return ResultCode::Ok;
 }
 
 } // namespace
@@ -256,7 +261,7 @@ DataFile::DataFile(std::string location, int flags) {
 
   stmt_vacuumInto = prepare("VACUUM INTO ?", SQLITE_PREPARE_PERSISTENT);
 
-  stmt_beginSavepoint = prepare("BEGIN SAVEPOINT PVSavepoint", SQLITE_PREPARE_PERSISTENT);
+  stmt_beginSavepoint = prepare("SAVEPOINT PVSavepoint", SQLITE_PREPARE_PERSISTENT);
   stmt_rollbackSavepoint = prepare("ROLLBACK TO PVSavepoint", SQLITE_PREPARE_PERSISTENT);
   stmt_releaseSavepoint = prepare("RELEASE PVSavepoint", SQLITE_PREPARE_PERSISTENT);
 
@@ -407,31 +412,39 @@ sqlite3_stmt* DataFile::prepare(std::string sql, int flags, ResultCode* outResul
   sqlite3_stmt* stmt;
   auto result = sqlite3_prepare_v3(db, sql.c_str(), static_cast<int>(sql.length()), flags, &stmt, nullptr);
   if (outResult != nullptr) {
-    (*outResult) = mapSQLiteCodes(result);
+    (*outResult) = dataBaseResult(result);
   }
 
   return stmt;
 }
 
 ResultCode DataFile::finishTransactionUpdate(ResultCode code, pv::i64 transaction) noexcept {
-  if (code != ResultCode::OK) {
+  if (code != ResultCode::Ok) {
+    rollbackSavepoint();
     return code;
   } else {
     auto changes = sqlite3_changes(db);
     assert(changes <= 1 && "Multiple rows changed when modifying transaction, how??");
 
     if (changes == 0) {
-      return ResultCode::RECORD_NOT_FOUND;
+      rollbackSavepoint();
+      return ResultCode::RecordNotFound;
     } else {
-      transactionUpdatedSignal(transaction);
-      return ResultCode::OK;
+      if ((code = validityCheck(*this, pv::transaction::account(*this, transaction), pv::transaction::date(*this, transaction))) == ResultCode::Ok) {
+        releaseSavepoint();
+        transactionUpdatedSignal(transaction);
+        return ResultCode::Ok;
+      } else {
+        rollbackSavepoint();
+        return code;
+      }
     }
   }
 }
 
 ResultCode DataFile::beginSavepoint() {
   sqlite3_step(stmt_beginSavepoint);
-  return mapSQLiteCodes(sqlite3_reset(stmt_beginSavepoint));
+  return dataBaseResult(sqlite3_reset(stmt_beginSavepoint));
 }
 
 ResultCode DataFile::rollbackSavepoint() {
@@ -446,7 +459,7 @@ ResultCode DataFile::rollbackSavepoint() {
 
 ResultCode DataFile::releaseSavepoint() {
   sqlite3_step(stmt_releaseSavepoint);
-  return mapSQLiteCodes(sqlite3_reset(stmt_releaseSavepoint));
+  return dataBaseResult(sqlite3_reset(stmt_releaseSavepoint));
 }
 
 StatementPointer DataFile::query(std::string query) const noexcept {
@@ -487,11 +500,11 @@ ResultCode DataFile::addAccount(std::string name) {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
   sqlite3_bind_text(stmt_addAccount, 1, name.c_str(), static_cast<int>(name.length()), SQLITE_STATIC);
-  auto result = mapSQLiteCodes(sqlite3_step(stmt_addAccount));
+  auto result = dataBaseResult(sqlite3_step(stmt_addAccount));
   sqlite3_reset(stmt_addAccount);
   sqlite3_clear_bindings(stmt_addAccount);
 
-  if (result == ResultCode::OK) {
+  if (result == ResultCode::Ok) {
     accountAddedSignal(lastInsertedId());
   }
 
@@ -506,12 +519,12 @@ ResultCode DataFile::addSecurity(std::string symbol, std::string name, std::stri
   sqlite3_bind_text(stmt_addSecurity, 3, assetClass.c_str(), static_cast<int>(assetClass.length()), SQLITE_STATIC);
   sqlite3_bind_text(stmt_addSecurity, 4, sector.c_str(), static_cast<int>(sector.length()), SQLITE_STATIC);
 
-  auto result = mapSQLiteCodes(sqlite3_step(stmt_addSecurity));
+  auto result = dataBaseResult(sqlite3_step(stmt_addSecurity));
 
   sqlite3_reset(stmt_addSecurity);
   sqlite3_clear_bindings(stmt_addSecurity);
 
-  if (result == ResultCode::OK) {
+  if (result == ResultCode::Ok) {
     securityAddedSignal(lastInsertedId());
   }
 
@@ -523,9 +536,9 @@ ResultCode DataFile::removeAccount(i64 id) {
 
   sqlite3_bind_int64(stmt_removeAccount, 1, static_cast<sqlite3_int64>(id));
   sqlite3_step(stmt_removeAccount);
-  auto result = mapSQLiteCodes(sqlite3_reset(stmt_removeAccount));
+  auto result = dataBaseResult(sqlite3_reset(stmt_removeAccount));
 
-  if (result == ResultCode::OK) {
+  if (result == ResultCode::Ok) {
     accountRemovedSignal(id);
   }
 
@@ -537,9 +550,9 @@ ResultCode DataFile::removeSecurity(i64 id) {
 
   sqlite3_bind_int64(stmt_removeSecurity, 1, static_cast<sqlite3_int64>(id));
   sqlite3_step(stmt_removeSecurity);
-  auto result = mapSQLiteCodes(sqlite3_reset(stmt_removeSecurity));
+  auto result = dataBaseResult(sqlite3_reset(stmt_removeSecurity));
 
-  if (result == ResultCode::OK) {
+  if (result == ResultCode::Ok) {
     securityRemovedSignal(id);
   }
 
@@ -551,8 +564,8 @@ ResultCode DataFile::setAccountName(i64 id, std::string name) {
   sqlite3_bind_int64(stmt_setAccountName, 2, static_cast<sqlite3_int64>(id));
   sqlite3_step(stmt_setAccountName);
   sqlite3_clear_bindings(stmt_setAccountName); // Make sure that the char* binding is cleared
-  auto result = mapSQLiteCodes(sqlite3_reset(stmt_setAccountName));
-  if (result == ResultCode::OK) {
+  auto result = dataBaseResult(sqlite3_reset(stmt_setAccountName));
+  if (result == ResultCode::Ok) {
     accountUpdatedSignal(id);
   }
   return result;
@@ -563,8 +576,8 @@ ResultCode DataFile::setSecurityName(i64 id, std::string name) {
   sqlite3_bind_int64(stmt_setSecurityName, 2, static_cast<sqlite3_int64>(id));
   sqlite3_step(stmt_setSecurityName);
   sqlite3_clear_bindings(stmt_setSecurityName); // Make sure that the char* binding is cleared
-  auto result = mapSQLiteCodes(sqlite3_reset(stmt_setSecurityName));
-  if (result == ResultCode::OK) {
+  auto result = dataBaseResult(sqlite3_reset(stmt_setSecurityName));
+  if (result == ResultCode::Ok) {
     securityUpdatedSignal(id);
   }
   return result;
@@ -575,8 +588,8 @@ ResultCode DataFile::setSecurityAssetClass(i64 id, std::string assetClass) {
   sqlite3_bind_int64(stmt_setSecurityAssetClass, 2, static_cast<sqlite3_int64>(id));
   sqlite3_step(stmt_setSecurityAssetClass);
   sqlite3_clear_bindings(stmt_setSecurityAssetClass); // Make sure that the char* binding is cleared
-  auto result = mapSQLiteCodes(sqlite3_reset(stmt_setSecurityAssetClass));
-  if (result == ResultCode::OK) {
+  auto result = dataBaseResult(sqlite3_reset(stmt_setSecurityAssetClass));
+  if (result == ResultCode::Ok) {
     securityUpdatedSignal(id);
   }
   return result;
@@ -587,8 +600,8 @@ ResultCode DataFile::setSecuritySector(i64 id, std::string sector) {
   sqlite3_bind_int64(stmt_setSecuritySector, 2, static_cast<sqlite3_int64>(id));
   sqlite3_step(stmt_setSecuritySector);
   sqlite3_clear_bindings(stmt_setSecuritySector); // Make sure that the char* binding is cleared
-  auto result = mapSQLiteCodes(sqlite3_reset(stmt_setSecuritySector));
-  if (result == ResultCode::OK) {
+  auto result = dataBaseResult(sqlite3_reset(stmt_setSecuritySector));
+  if (result == ResultCode::Ok) {
     securityUpdatedSignal(id);
   }
   return result;
@@ -603,7 +616,7 @@ ResultCode DataFile::addTransaction(i64 date, i64 account, Action action) noexce
 
   sqlite3_step(stmt_addTransaction);
 
-  return mapSQLiteCodes(sqlite3_reset(stmt_addTransaction));
+  return dataBaseResult(sqlite3_reset(stmt_addTransaction));
 }
 
 ResultCode DataFile::addBuyTransaction(i64 account, i64 date, i64 security, i64 numberOfShares, i64 sharePrice,
@@ -614,7 +627,7 @@ ResultCode DataFile::addBuyTransaction(i64 account, i64 date, i64 security, i64 
 
   auto result = addTransaction(date, account, Action::BUY);
 
-  if (result != ResultCode::OK) {
+  if (result != ResultCode::Ok) {
     rollbackSavepoint();
     return result;
   }
@@ -625,10 +638,14 @@ ResultCode DataFile::addBuyTransaction(i64 account, i64 date, i64 security, i64 
   sqlite3_bind_int64(stmt_addBuyTransaction, 3, static_cast<sqlite3_int64>(numberOfShares));
   sqlite3_bind_int64(stmt_addBuyTransaction, 4, static_cast<sqlite3_int64>(sharePrice));
   sqlite3_bind_int64(stmt_addBuyTransaction, 5, static_cast<sqlite3_int64>(commission));
-  result = mapSQLiteCodes(sqlite3_step(stmt_addBuyTransaction));
+  result = dataBaseResult(sqlite3_step(stmt_addBuyTransaction));
   sqlite3_reset(stmt_addBuyTransaction);
 
-  if (result != ResultCode::OK) {
+  if (result == ResultCode::Ok) {
+    result = validityCheck(*this, account, date, security);
+  }
+
+  if (result != ResultCode::Ok) {
     rollbackSavepoint();
   } else {
     releaseSavepoint();
@@ -646,7 +663,7 @@ ResultCode DataFile::addSellTransaction(i64 account, i64 date, i64 security, i64
 
   auto result = addTransaction(date, account, Action::SELL);
 
-  if (result != ResultCode::OK) {
+  if (result != ResultCode::Ok) {
     rollbackSavepoint();
     return result;
   }
@@ -657,10 +674,14 @@ ResultCode DataFile::addSellTransaction(i64 account, i64 date, i64 security, i64
   sqlite3_bind_int64(stmt_addSellTransaction, 3, static_cast<sqlite3_int64>(numberOfShares));
   sqlite3_bind_int64(stmt_addSellTransaction, 4, static_cast<sqlite3_int64>(sharePrice));
   sqlite3_bind_int64(stmt_addSellTransaction, 5, static_cast<sqlite3_int64>(commission));
-  result = mapSQLiteCodes(sqlite3_step(stmt_addSellTransaction));
+  result = dataBaseResult(sqlite3_step(stmt_addSellTransaction));
   sqlite3_reset(stmt_addSellTransaction);
 
-  if (result != ResultCode::OK) {
+  if (result == pv::ResultCode::Ok) {
+    result = validityCheck(*this, account, date);
+  }
+
+  if (result != ResultCode::Ok) {
     rollbackSavepoint();
   } else {
     releaseSavepoint();
@@ -677,7 +698,7 @@ ResultCode DataFile::addDepositTransaction(i64 account, i64 date, std::optional<
 
   auto result = addTransaction(date, account, Action::DEPOSIT);
 
-  if (result != ResultCode::OK) {
+  if (result != ResultCode::Ok) {
     rollbackSavepoint();
     return result;
   }
@@ -690,10 +711,12 @@ ResultCode DataFile::addDepositTransaction(i64 account, i64 date, std::optional<
   }
 
   sqlite3_bind_int64(stmt_addDepositTransaction, 3, static_cast<sqlite3_int64>(amount));
-  result = mapSQLiteCodes(sqlite3_step(stmt_addDepositTransaction));
+  result = dataBaseResult(sqlite3_step(stmt_addDepositTransaction));
   sqlite3_reset(stmt_addDepositTransaction);
 
-  if (result != ResultCode::OK) {
+  // No need to validityCheck, deposit is always successful
+
+  if (result != ResultCode::Ok) {
     rollbackSavepoint();
   } else {
     releaseSavepoint();
@@ -710,7 +733,7 @@ ResultCode DataFile::addWithdrawTransaction(i64 account, i64 date, std::optional
 
   auto result = addTransaction(date, account, Action::WITHDRAW);
 
-  if (result != ResultCode::OK) {
+  if (result != ResultCode::Ok) {
     rollbackSavepoint();
     return result;
   }
@@ -723,11 +746,15 @@ ResultCode DataFile::addWithdrawTransaction(i64 account, i64 date, std::optional
   }
 
   sqlite3_bind_int64(stmt_addWithdrawTransaction, 3, static_cast<sqlite3_int64>(amount));
-  result = mapSQLiteCodes(sqlite3_step(stmt_addWithdrawTransaction));
+  result = dataBaseResult(sqlite3_step(stmt_addWithdrawTransaction));
   sqlite3_reset(stmt_addWithdrawTransaction);
 
-  if (result != ResultCode::OK) {
-    releaseSavepoint();
+  if (result == pv::ResultCode::Ok) {
+    result = validityCheck(*this, account, date);
+  }
+
+  if (result != ResultCode::Ok) {
+    rollbackSavepoint();
   } else {
     releaseSavepoint();
     transactionAddedSignal(lastInsertedId());
@@ -743,7 +770,7 @@ ResultCode DataFile::addDividendTransaction(i64 account, i64 date, i64 security,
 
   auto result = addTransaction(date, account, Action::DIVIDEND);
 
-  if (result != ResultCode::OK) {
+  if (result != ResultCode::Ok) {
     releaseSavepoint();
     return result;
   }
@@ -751,10 +778,12 @@ ResultCode DataFile::addDividendTransaction(i64 account, i64 date, i64 security,
   sqlite3_bind_int64(stmt_addDividendTransaction, 1, sqlite3_last_insert_rowid(db));
   sqlite3_bind_int64(stmt_addDividendTransaction, 2, static_cast<sqlite3_int64>(security));
   sqlite3_bind_int64(stmt_addDividendTransaction, 3, static_cast<sqlite3_int64>(amount));
-  result = mapSQLiteCodes(sqlite3_step(stmt_addDividendTransaction));
+  result = dataBaseResult(sqlite3_step(stmt_addDividendTransaction));
   sqlite3_reset(stmt_addDividendTransaction);
 
-  if (result != ResultCode::OK) {
+  // No need to validityCheck, dividend is always successful
+
+  if (result != ResultCode::Ok) {
     rollbackSavepoint();
   } else {
     releaseSavepoint();
@@ -771,7 +800,7 @@ ResultCode DataFile::addInterestTransaction(i64 account, i64 date, i64 security,
 
   auto result = addTransaction(date, account, Action::INTEREST);
 
-  if (result != ResultCode::OK) {
+  if (result != ResultCode::Ok) {
     releaseSavepoint();
     return result;
   }
@@ -779,10 +808,12 @@ ResultCode DataFile::addInterestTransaction(i64 account, i64 date, i64 security,
   sqlite3_bind_int64(stmt_addInterestTransaction, 1, sqlite3_last_insert_rowid(db));
   sqlite3_bind_int64(stmt_addInterestTransaction, 2, static_cast<sqlite3_int64>(security));
   sqlite3_bind_int64(stmt_addInterestTransaction, 3, static_cast<sqlite3_int64>(amount));
-  result = mapSQLiteCodes(sqlite3_step(stmt_addInterestTransaction));
+  result = dataBaseResult(sqlite3_step(stmt_addInterestTransaction));
   sqlite3_reset(stmt_addInterestTransaction);
 
-  if (result != ResultCode::OK) {
+  // No need to validityCheck interest transactions
+
+  if (result != ResultCode::Ok) {
     rollbackSavepoint();
   } else {
     releaseSavepoint();
@@ -795,102 +826,122 @@ ResultCode DataFile::addInterestTransaction(i64 account, i64 date, i64 security,
 ResultCode DataFile::setBuyNumberOfShares(i64 transaction, i64 numberOfShares) {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
+  beginSavepoint();
   sqlite3_bind_int64(stmt_setBuyNumberOfShares, 1, numberOfShares);
   sqlite3_bind_int64(stmt_setBuyNumberOfShares, 2, transaction);
   sqlite3_step(stmt_setBuyNumberOfShares);
-  return finishTransactionUpdate(mapSQLiteCodes(sqlite3_reset(stmt_setBuyNumberOfShares)), transaction);
+  return finishTransactionUpdate(dataBaseResult(sqlite3_reset(stmt_setBuyNumberOfShares)), transaction);
 }
 
 ResultCode DataFile::setBuySharePrice(i64 transaction, i64 sharePrice) {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
+  beginSavepoint();
   sqlite3_bind_int64(stmt_setBuySharePrice, 1, static_cast<sqlite3_int64>(sharePrice));
   sqlite3_bind_int64(stmt_setBuySharePrice, 2, static_cast<sqlite3_int64>(transaction));
   sqlite3_step(stmt_setBuySharePrice);
-  return finishTransactionUpdate(mapSQLiteCodes(sqlite3_reset(stmt_setBuySharePrice)), transaction);
+  return finishTransactionUpdate(dataBaseResult(sqlite3_reset(stmt_setBuySharePrice)), transaction);
 }
 
 ResultCode DataFile::setBuyCommission(i64 transaction, i64 commission) {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
+  beginSavepoint();
   sqlite3_bind_int64(stmt_setBuyCommission, 1, static_cast<sqlite3_int64>(commission));
   sqlite3_bind_int64(stmt_setBuyCommission, 2, static_cast<sqlite3_int64>(transaction));
   sqlite3_step(stmt_setBuyCommission);
-  return finishTransactionUpdate(mapSQLiteCodes(sqlite3_reset(stmt_setBuyCommission)), transaction);
+  return finishTransactionUpdate(dataBaseResult(sqlite3_reset(stmt_setBuyCommission)), transaction);
 }
 
 ResultCode DataFile::setSellNumberOfShares(i64 transaction, i64 numberOfShares) {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
+  beginSavepoint();
   sqlite3_bind_int64(stmt_setSellNumberOfShares, 1, static_cast<sqlite3_int64>(numberOfShares));
   sqlite3_bind_int64(stmt_setSellNumberOfShares, 2, static_cast<sqlite3_int64>(transaction));
   sqlite3_step(stmt_setSellNumberOfShares);
-  return finishTransactionUpdate(mapSQLiteCodes(sqlite3_reset(stmt_setSellNumberOfShares)), transaction);
+  return finishTransactionUpdate(dataBaseResult(sqlite3_reset(stmt_setSellNumberOfShares)), transaction);
 }
 
 ResultCode DataFile::setSellSharePrice(i64 transaction, i64 sharePrice) {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
+  beginSavepoint();
   sqlite3_bind_int64(stmt_setSellSharePrice, 1, static_cast<sqlite3_int64>(sharePrice));
   sqlite3_bind_int64(stmt_setSellSharePrice, 2, static_cast<sqlite3_int64>(transaction));
   sqlite3_step(stmt_setSellSharePrice);
-  return finishTransactionUpdate(mapSQLiteCodes(sqlite3_reset(stmt_setSellSharePrice)), transaction);
+  return finishTransactionUpdate(dataBaseResult(sqlite3_reset(stmt_setSellSharePrice)), transaction);
 }
 
 ResultCode DataFile::setSellCommission(i64 transaction, i64 commission) {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
+  beginSavepoint();
   sqlite3_bind_int64(stmt_setSellCommission, 1, static_cast<sqlite3_int64>(commission));
   sqlite3_bind_int64(stmt_setSellCommission, 2, static_cast<sqlite3_int64>(transaction));
   sqlite3_step(stmt_setSellCommission);
-  return finishTransactionUpdate(mapSQLiteCodes(sqlite3_reset(stmt_setSellCommission)), transaction);
+  return finishTransactionUpdate(dataBaseResult(sqlite3_reset(stmt_setSellCommission)), transaction);
 }
 
 ResultCode DataFile::setDepositAmount(i64 transaction, i64 amount) {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
+  beginSavepoint();
   sqlite3_bind_int64(stmt_setDepositAmount, 1, static_cast<sqlite3_int64>(amount));
   sqlite3_bind_int64(stmt_setDepositAmount, 2, static_cast<sqlite3_int64>(transaction));
   sqlite3_step(stmt_setDepositAmount);
-  return finishTransactionUpdate(mapSQLiteCodes(sqlite3_reset(stmt_setDepositAmount)), transaction);
+  return finishTransactionUpdate(dataBaseResult(sqlite3_reset(stmt_setDepositAmount)), transaction);
 }
 
 ResultCode DataFile::setWithdrawAmount(i64 transaction, i64 amount) {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
+  beginSavepoint();
   sqlite3_bind_int64(stmt_setWithdrawAmount, 1, static_cast<sqlite3_int64>(amount));
   sqlite3_bind_int64(stmt_setWithdrawAmount, 2, static_cast<sqlite3_int64>(transaction));
   sqlite3_step(stmt_setWithdrawAmount);
-  return finishTransactionUpdate(mapSQLiteCodes(sqlite3_reset(stmt_setWithdrawAmount)), transaction);
+  return finishTransactionUpdate(dataBaseResult(sqlite3_reset(stmt_setWithdrawAmount)), transaction);
 }
 
 ResultCode DataFile::setDividendAmount(i64 transaction, i64 amount) {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
+  beginSavepoint();
   sqlite3_bind_int64(stmt_setDividendAmount, 1, amount);
   sqlite3_bind_int64(stmt_setDividendAmount, 2, transaction);
   sqlite3_step(stmt_setDividendAmount);
-  return finishTransactionUpdate(mapSQLiteCodes(sqlite3_reset(stmt_setDividendAmount)), transaction);
+  return finishTransactionUpdate(dataBaseResult(sqlite3_reset(stmt_setDividendAmount)), transaction);
 }
 
 ResultCode DataFile::setInterestAmount(i64 transaction, i64 amount) {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
+  beginSavepoint();
   sqlite3_bind_int64(stmt_setInterestAmount, 1, amount);
   sqlite3_bind_int64(stmt_setInterestAmount, 2, transaction);
   sqlite3_step(stmt_setInterestAmount);
-  return finishTransactionUpdate(mapSQLiteCodes(sqlite3_reset(stmt_setInterestAmount)), transaction);
+  return finishTransactionUpdate(dataBaseResult(sqlite3_reset(stmt_setInterestAmount)), transaction);
 }
 
 ResultCode DataFile::removeTransaction(i64 id) {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
+  i64 account = pv::transaction::account(*this, id); 
+  i64 date = pv::transaction::date(*this, id); 
+
+  beginSavepoint();
   sqlite3_bind_int64(stmt_removeTransaction, 1, id);
   sqlite3_step(stmt_removeTransaction);
-  auto result = mapSQLiteCodes(sqlite3_reset(stmt_removeTransaction));
-  if (result == ResultCode::OK) {
-    transactionRemovedSignal(id);
+  auto result = dataBaseResult(sqlite3_reset(stmt_removeTransaction));
+  if (result == ResultCode::Ok) {
+    result = validityCheck(*this, account, date);
   }
+  if (result == ResultCode::Ok) {
+    transactionRemovedSignal(id);
+    releaseSavepoint();
+  } else {
+    rollbackSavepoint();
+  } 
   return result;
 }
 
@@ -901,9 +952,10 @@ ResultCode DataFile::setSecurityPrice(i64 security, i64 date, i64 price) {
   sqlite3_bind_int64(stmt_setSecurityPrice, 2, static_cast<sqlite3_int64>(date));
   sqlite3_bind_int64(stmt_setSecurityPrice, 3, static_cast<sqlite3_int64>(price));
   sqlite3_step(stmt_setSecurityPrice);
-  auto result = mapSQLiteCodes(sqlite3_reset(stmt_setSecurityPrice));
-  if (result == ResultCode::OK) {
+  auto result = dataBaseResult(sqlite3_reset(stmt_setSecurityPrice));
+  if (result == ResultCode::Ok) {
     securityPriceUpdatedSignal(security, date);
+    changedSignal(); // SecurityPrices is not a rowid table, so we have to do this manually
   }
   return result;
 }
@@ -914,9 +966,10 @@ ResultCode DataFile::removeSecurityPrice(i64 security, i64 date) {
   sqlite3_bind_int64(stmt_removeSecurityPrice, 1, static_cast<sqlite3_int64>(security));
   sqlite3_bind_int64(stmt_removeSecurityPrice, 2, static_cast<sqlite3_int64>(date));
   sqlite3_step(stmt_removeSecurityPrice);
-  auto result = mapSQLiteCodes(sqlite3_reset(stmt_removeSecurityPrice));
-  if (result == ResultCode::OK) {
+  auto result = dataBaseResult(sqlite3_reset(stmt_removeSecurityPrice));
+  if (result == ResultCode::Ok) {
     securityPriceRemovedSignal(security, date);
+    changedSignal(); // SecurityPrices is not a rowid table, so we have to do this manually
   }
   return result;
 }
@@ -931,21 +984,21 @@ ResultCode DataFile::beginTransaction() {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
   sqlite3_step(stmt_beginTransaction);
-  return mapSQLiteCodes(sqlite3_reset(stmt_beginTransaction));
+  return dataBaseResult(sqlite3_reset(stmt_beginTransaction));
 }
 
 ResultCode DataFile::rollbackTransaction() {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
   sqlite3_step(stmt_rollbackTransaction);
-  return mapSQLiteCodes(sqlite3_reset(stmt_rollbackTransaction));
+  return dataBaseResult(sqlite3_reset(stmt_rollbackTransaction));
 }
 
 ResultCode DataFile::commitTransaction() {
   assert(db != nullptr && "Using DataFile in invalid state, most likely a use-after-move");
 
   sqlite3_step(stmt_commitTransaction);
-  return mapSQLiteCodes(sqlite3_reset(stmt_commitTransaction));
+  return dataBaseResult(sqlite3_reset(stmt_commitTransaction));
 }
 
 ResultCode DataFile::copyTo(DataFile& other) const noexcept {
@@ -958,7 +1011,7 @@ ResultCode DataFile::copyTo(DataFile& other) const noexcept {
     sqlite3_backup_finish(backup);
   }
 
-  return mapSQLiteCodes(sqlite3_errcode(other.db));
+  return dataBaseResult(sqlite3_errcode(other.db));
 }
 
 bool DataFile::hasTransaction() const noexcept {
