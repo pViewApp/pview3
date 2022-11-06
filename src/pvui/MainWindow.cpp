@@ -72,13 +72,13 @@ pvui::MainWindow::MainWindow(QWidget* parent)
 
   securityPriceDownloadProgressBar.setVisible(false);
   QObject::connect(securityPage, &SecurityPageWidget::securityPriceDownloadStarted, [&](int numberOfSecurities) {
-    securityPriceDownloadProgressBar.setFormat("Downloading Security Prices (%v/%m)");
+    securityPriceDownloadProgressBar.setFormat(tr("Downloading Security Prices (%v/%m)"));
     securityPriceDownloadProgressBar.reset();
     securityPriceDownloadProgressBar.setRange(0, numberOfSecurities);
     securityPriceDownloadProgressBar.setVisible(true);
   });
   QObject::connect(securityPage, &SecurityPageWidget::securityPriceDownloadCompleted, [&] {
-    securityPriceDownloadProgressBar.setFormat("Done!");
+    securityPriceDownloadProgressBar.setFormat(tr("Done!"));
     QTimer::singleShot(1000, [this]() {
       securityPriceDownloadProgressBar.setVisible(false);
     });
