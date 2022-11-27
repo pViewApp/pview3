@@ -43,12 +43,19 @@
  #=============================================================================
  # Modified by Owen Wang<o0wang@outlook.com>
 
-
+if (APPLE)
+find_path ( QWT_INCLUDE_DIR
+	NAMES qwt_plot.h
+	HINTS /opt/homebrew/lib/qwt.framework/headers/
+	PATH_SUFFIXES qwt qwt-qt3 qwt-qt4 qwt-qt5 qwt-qt6
+)
+else()
 find_path ( QWT_INCLUDE_DIR
 	NAMES qwt_plot.h
 	HINTS ${QT_INCLUDE_DIR}
 	PATH_SUFFIXES qwt qwt-qt3 qwt-qt4 qwt-qt5 qwt-qt6
 )
+endif()
 
 set ( QWT_INCLUDE_DIRS ${QWT_INCLUDE_DIR} )
 
@@ -82,7 +89,6 @@ endif ()
 
 set(QWT_NAME qwt)
 
-
 find_library ( QWT_LIBRARY
 	 NAMES qwt qwt-qt3 qwt-qt4 qwt-qt5 qwt-qt6
 )
@@ -97,9 +103,7 @@ if ( WIN32 )
   endif()
 endif()
 
-
-
- set ( QWT_LIBRARIES ${QWT_LIBRARY} )
+set ( QWT_LIBRARIES ${QWT_LIBRARY} )
 
 
  # try to guess root dir from include dir

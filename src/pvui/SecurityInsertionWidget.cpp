@@ -12,7 +12,7 @@ SecurityInsertionWidget::SecurityInsertionWidget(DataFileManager& dataFileManage
   layout->addWidget(nameEditor, 1);
   layout->addWidget(assetClassEditor, 1);
   layout->addWidget(sectorEditor, 1);
-  layout->setMargin(0);
+  layout->setContentsMargins(0, 0, 0, 0);
 
   setFocusPolicy(Qt::StrongFocus);
   setFocusProxy(symbolEditor);

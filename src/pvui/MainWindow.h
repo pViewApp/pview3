@@ -22,6 +22,7 @@
 #include "SecurityPage.h"
 #include "StandardReportFactory.h"
 #include "pv/DataFile.h"
+#include "MacWindowList.h"
 
 class QDropEvent;
 class QDragEnterEvent;
@@ -30,6 +31,8 @@ namespace pvui {
 class MainWindow : public QMainWindow {
   Q_OBJECT
 private:
+  mac::WindowList& windowList;
+
   QSettings settings;
   DataFileManager dataFileManager;
   QTreeView* navigationWidget = new QTreeView;
@@ -56,6 +59,10 @@ private:
   QAction fileNewAction;
   QAction fileOpenAction;
   QAction fileSettingsAction;
+  QAction fileNewWindowAction;
+#ifdef Q_OS_MACOS
+  QAction fileCloseWindowAction;
+#endif
   QAction fileQuitAction;
 
   QMenu accountsMenu;
@@ -64,6 +71,7 @@ private:
 
   QMenu helpMenu;
   QAction helpAboutAction;
+  QAction helpWebsiteAction;
 private slots:
   void handleDataFileChanged();
   void pageChanged();
@@ -80,22 +88,25 @@ private slots:
   void accountsDelete();
 
   void helpAbout();
+  void helpWebsite();
 
   void fileOpen_(const std::string&
                      location); // Actual implementation of file-opening logic (opens a file, throws exception if fail)
   void fileOpenWithWarning_(const std::string& location) noexcept; // Opens a file, warns the user if failed
 
+  void fileNewWindow();
   void setupActions();
   void setupNavigation();
 
 protected:
   void closeEvent(QCloseEvent* event) override;
 public:
-  MainWindow(QWidget* parent = nullptr);
+  MainWindow(mac::WindowList& windowList, QWidget* parent = nullptr);
 
+  bool event(QEvent* e) override;
   void dragEnterEvent(QDragEnterEvent* event) override;
   void dropEvent(QDropEvent* event) override;
-  bool nativeEvent(const QByteArray& eventType, void* message, long* result) override;
+  virtual bool nativeEvent(const QByteArray& eventType, void* message, qintptr* result) override;
 };
 } // namespace pvui
 #endif // PVUI_MAINWINDOW_H

@@ -110,7 +110,15 @@ void ThemeManager::setTheme(Theme theme) {
   QSettings settings;
   settings.setValue(QStringLiteral("Theme"), static_cast<int>(theme));
   if (theme == Theme::System) {
-    QStyle* style = QStyleFactory::create("windowsvista");
+#if defined(Q_OS_WIN)
+    constexpr char sysTheme[] = "windowsvista";
+#elif defined(Q_OS_MACOS)
+    constexpr char sysTheme[] = "macos";
+#else
+    constexpr char sysTheme[] = "fusion";
+#endif
+
+    QStyle* style = QStyleFactory::create(sysTheme);
     QApplication::setStyle(style);
     QApplication::setPalette(style->standardPalette());
     return;

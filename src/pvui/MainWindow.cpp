@@ -6,11 +6,10 @@
 #include <QAction>
 #include <QApplication>
 #include <QCoreApplication>
+#include <QDesktopServices>
 #include <QDragEnterEvent>
-#include <QDropEvent>
 #include <QFileDialog>
 #include <QInputDialog>
-#include <QLabel>
 #include <QLayout>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -21,8 +20,8 @@
 #include <QStatusBar>
 #include <QString>
 #include <QStringLiteral>
-#include <QToolBar>
 #include <QTimer>
+#include <QToolBar>
 #include <Qt>
 #include <filesystem>
 #include <functional>
@@ -40,16 +39,20 @@ constexpr char settingsActionText[] = "&Settings...";
 
 } // namespace
 
-pvui::MainWindow::MainWindow(QWidget* parent)
-    : QMainWindow(parent), settingsDialog(this), fileMenu(tr("&File")), fileNewAction(tr("&New...")),
-      fileOpenAction(tr("&Open...")), fileSettingsAction(tr(settingsActionText)), fileQuitAction(tr("&Quit")),
-      accountsMenu(tr("&Accounts")), accountsNewAction(tr("&New Account...")),
-      accountsDeleteAction(tr("&Delete Account")), helpMenu(tr("&Help")), helpAboutAction(tr("&About pView")) {
+pvui::MainWindow::MainWindow(mac::WindowList& windowList, QWidget* parent)
+    : QMainWindow(parent), windowList(windowList), settingsDialog(this), fileMenu(tr("&File")),
+      fileNewAction(tr("&New...")), fileOpenAction(tr("&Open...")), fileSettingsAction(tr(settingsActionText)),
+      fileNewWindowAction(tr("New &Window")),
+#ifdef Q_OS_MACOS
+      fileCloseWindowAction(tr("Close Window")),
+#endif
+      fileQuitAction(tr("&Quit")), accountsMenu(tr("&Accounts")), accountsNewAction(tr("&New Account...")),
+      accountsDeleteAction(tr("&Delete Account")), helpMenu(tr("&Help")), helpAboutAction(tr("&About pView")), helpWebsiteAction(tr("Visit pView Website")) {
+  windowList.addWindow(this);
   settings.beginGroup(QStringLiteral("MainWindow"));
 
   QWidget* centralWidget = new QWidget;
   QVBoxLayout* layout = new QVBoxLayout;
-
   centralWidget->setLayout(layout);
 
   splitter.setOrientation(Qt::Horizontal);
@@ -79,13 +82,10 @@ pvui::MainWindow::MainWindow(QWidget* parent)
   });
   QObject::connect(securityPage, &SecurityPageWidget::securityPriceDownloadCompleted, [&] {
     securityPriceDownloadProgressBar.setFormat(tr("Done!"));
-    QTimer::singleShot(1000, [this]() {
-      securityPriceDownloadProgressBar.setVisible(false);
-    });
+    QTimer::singleShot(1000, [this]() { securityPriceDownloadProgressBar.setVisible(false); });
   });
-  QObject::connect(securityPage, &SecurityPageWidget::securityPriceDownloadProgressUpdated, [&](int completed) {
-    securityPriceDownloadProgressBar.setValue(completed);
-  });
+  QObject::connect(securityPage, &SecurityPageWidget::securityPriceDownloadProgressUpdated,
+                   [&](int completed) { securityPriceDownloadProgressBar.setValue(completed); });
 
   setAcceptDrops(true);
 
@@ -103,7 +103,7 @@ pvui::MainWindow::MainWindow(QWidget* parent)
   if (settings.contains(QStringLiteral("LastOpenedFile"))) {
     try {
       fileOpen_(settings.value(QStringLiteral("LastOpenedFile")).toString().toStdString());
-    } catch(...) {
+    } catch (...) {
       // Ignore, we just don't open the file if fail
       // It would be better to log this error though, maybe do that in future
     }
@@ -191,17 +191,25 @@ void pvui::MainWindow::closeEvent(QCloseEvent* event) {
   settings.setValue("Geometry", saveGeometry());
   settings.setValue("SplitterState", splitter.saveState());
   QMainWindow::closeEvent(event);
+  windowList.removeWindow(this);
 }
 
 void pvui::MainWindow::setupActions() {
   menuBar()->addMenu(&fileMenu);
   menuBar()->addMenu(&accountsMenu);
+#ifdef Q_OS_MACOS
+  menuBar()->addMenu(windowList.windowMenu());
+#endif
   menuBar()->addMenu(&helpMenu);
 
   // File
   fileNewAction.setShortcut(QKeySequence::New);
   fileOpenAction.setShortcut(QKeySequence::Open);
   fileSettingsAction.setShortcut(QKeySequence::Preferences);
+  fileNewWindowAction.setShortcut(QKeySequence(QKeyCombination(Qt::ControlModifier | Qt::ShiftModifier, Qt::Key_N)));
+#ifdef Q_OS_MACOS
+  fileCloseWindowAction.setShortcut(QKeySequence::Close);
+#endif
   fileQuitAction.setShortcut(QKeySequence::Quit);
 
   fileNewAction.setIcon(QIcon::fromTheme("document-new"));
@@ -213,11 +221,19 @@ void pvui::MainWindow::setupActions() {
   QObject::connect(&fileOpenAction, &QAction::triggered, this, &MainWindow::fileOpen);
   QObject::connect(&fileQuitAction, &QAction::triggered, this, &MainWindow::fileQuit);
   QObject::connect(&fileSettingsAction, &QAction::triggered, this, &pvui::MainWindow::fileSettings);
-
+  QObject::connect(&fileNewWindowAction, &QAction::triggered, this, &pvui::MainWindow::fileNewWindow);
+#ifdef Q_OS_MACOS
+  QObject::connect(&fileCloseWindowAction, &QAction::triggered, this, &pvui::MainWindow::close);
+#endif
   fileSettingsAction.setMenuRole(QAction::MenuRole::PreferencesRole);
   fileQuitAction.setMenuRole(QAction::MenuRole::QuitRole);
 
   fileMenu.addActions({&fileNewAction, &fileOpenAction});
+  fileMenu.addSeparator();
+  fileMenu.addAction(&fileNewWindowAction);
+#ifdef Q_OS_MACOS
+  fileMenu.addAction(&fileCloseWindowAction);
+#endif
   fileMenu.addSeparator();
   fileMenu.addAction(&fileSettingsAction);
   fileMenu.addSeparator();
@@ -232,10 +248,12 @@ void pvui::MainWindow::setupActions() {
   accountsNewAction.setIcon(QIcon::fromTheme("list-add-user"));
 
   // Help
-  helpMenu.addAction(&helpAboutAction);
+  helpMenu.addActions({&helpWebsiteAction, &helpAboutAction});
+  QObject::connect(&helpWebsiteAction, &QAction::triggered, this, &MainWindow::helpWebsite);
   QObject::connect(&helpAboutAction, &QAction::triggered, this, &MainWindow::helpAbout);
   helpAboutAction.setIcon(QIcon::fromTheme("help-about"));
   helpAboutAction.setMenuRole(QAction::MenuRole::AboutRole);
+
 
   // Toolbar
   QToolBar* toolbar = new QToolBar();
@@ -247,7 +265,10 @@ void pvui::MainWindow::setupActions() {
   toolbar->setObjectName(QStringLiteral("pview-toolbar"));
   toolbar->setWindowTitle(tr("Show Toolbar"));
   toolbar->setMovable(false);
-#ifdef Q_OS_UNIX
+  menuBar()->setNativeMenuBar(true);
+#ifdef Q_OS_MACOS
+  toolbar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+#elif defined(Q_OS_UNIX)
   toolbar->setToolButtonStyle(Qt::ToolButtonFollowStyle);
 #else
   toolbar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
@@ -358,7 +379,7 @@ void pvui::MainWindow::accountsNew() {
 }
 
 void pvui::MainWindow::helpAbout() {
-  QString content = QStringLiteral(R"(
+  QString helpContent = QStringLiteral(R"(
 <html>
 <h1>%1</h1>
 <ul>
@@ -369,7 +390,7 @@ void pvui::MainWindow::helpAbout() {
 )")
                         .arg(tr("About pView"), tr("Version: %1").arg(pvui::versionString()),
                              tr("Operating System: %1").arg(QOperatingSystemVersion::current().name()));
-  QMessageBox::about(this, tr("About pView"), content);
+  QMessageBox::about(this, tr("About pView"), helpContent);
 }
 
 void pvui::MainWindow::setupNavigation() {
@@ -402,22 +423,52 @@ void pvui::MainWindow::setupNavigation() {
   navigationWidget->setContextMenuPolicy(Qt::ActionsContextMenu);
 }
 
-bool pvui::MainWindow::nativeEvent(const QByteArray& eventType, void* message, long* result) {
-  return pvui::ThemeManager::handleNativeEvent(eventType, message, result);
+bool pvui::MainWindow::nativeEvent(const QByteArray& eventType, void* message, qintptr* result) {
+#ifdef Q_OS_WIN
+  long longVal = static_cast<long>(*result);
+  return pvui::ThemeManager::handleNativeEvent(eventType, message, &longVal);
+#else
+  (void) eventType;
+  (void) message;
+  (void) result;
+  return false;
+#endif
 }
 
 void pvui::MainWindow::updateWindowFileLocation() {
+  QString titleFormat =
+#ifdef Q_OS_MACOS
+      QStringLiteral("%1");
+#else
+      tr("%1 - pView");
+#endif
   if (dataFileManager.has()) {
     std::optional dataFilePath = dataFileManager->filePath();
     std::filesystem::path filePath =
         dataFilePath.value_or(tr("Temporary File (Changes Will Not Be Saved)").toStdString());
-    setWindowTitle(tr("%1 - pView").arg(QString::fromStdString(filePath.filename().string())));
+    setWindowTitle(titleFormat.arg(QString::fromStdString(filePath.filename().string())));
     setWindowFilePath(QString::fromStdString(filePath.string()));
     statusBarLabel->setText(dataFilePath ? tr("Autosaving all changes.") : tr("Temporary File - Changes will not be saved."));
   } else {
-    setWindowTitle(tr("No File Open - pView"));
+    setWindowTitle(titleFormat.arg(tr("No File Open")));
     setWindowFilePath(QString());
     statusBarLabel->setText(tr("No file open."));
   }
 }
-
+void pvui::MainWindow::fileNewWindow() {
+  auto* newWindow = new MainWindow(windowList);
+  newWindow->setAttribute(Qt::WA_DeleteOnClose);
+  newWindow->show();
+  newWindow->activateWindow();
+  newWindow->raise();
+}
+bool pvui::MainWindow::event(QEvent* e) {
+  if (e->type() == QEvent::WindowActivate) {
+    windowList.setActiveWindow(this);
+    return true;
+  }
+  return QMainWindow::event(e);
+}
+void pvui::MainWindow::helpWebsite() {
+  QDesktopServices::openUrl(QUrl("https://pviewapp.github.io"));
+}

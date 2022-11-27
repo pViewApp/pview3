@@ -168,7 +168,7 @@ bool SecurityPriceModel::setData(const QModelIndex& index, const QVariant& value
     return false; // The new value must be a number
   auto price = value.toString();
 
-  if (price < 0)
+  if (price.toDouble() < 0)
     return false; // Prices should be positive
 
   dataFile.setSecurityPrice(security, dates.at(index.row()), price.toDouble() * 100);

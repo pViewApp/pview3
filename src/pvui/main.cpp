@@ -1,10 +1,10 @@
 #include "MainWindow.h"
 #include "ThemeManager.h"
+#include <QtGlobal>
+#include "MacWindowList.h"
 #include <QApplication>
 #include <QCoreApplication>
 #include <QIcon>
-#include <QLocale>
-#include <QObject>
 
 namespace {
 void installFallbackIcons() {
@@ -17,8 +17,10 @@ void installFallbackIcons() {
 } // namespace
 
 int main(int argc, char* argv[]) {
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   QApplication::setAttribute(Qt::AA_DisableWindowContextHelpButton);
-  QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+#endif
+
   QCoreApplication::setOrganizationName("pView");
   QCoreApplication::setOrganizationDomain("pviewapp.github.io");
   QCoreApplication::setApplicationName("pView");
@@ -28,8 +30,10 @@ int main(int argc, char* argv[]) {
 
   pvui::ThemeManager::initialize();
 
-  pvui::MainWindow window;
-  window.show();
+  pvui::mac::WindowList windowList;
+  pvui::MainWindow* window = new pvui::MainWindow(windowList);
+  window->show();
+  window->setAttribute(Qt::WA_DeleteOnClose);
 
   return app.exec();
 }
