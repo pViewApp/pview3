@@ -46,7 +46,7 @@
 if (APPLE)
 find_path ( QWT_INCLUDE_DIR
 	NAMES qwt_plot.h
-	HINTS /opt/homebrew/lib/qwt.framework/headers/
+	HINTS /opt/homebrew/lib/qwt.framework/headers/ /usr/local/opt/qwt/lib/
 	PATH_SUFFIXES qwt qwt-qt3 qwt-qt4 qwt-qt5 qwt-qt6
 )
 else()
