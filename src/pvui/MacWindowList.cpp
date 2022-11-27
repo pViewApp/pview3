@@ -6,6 +6,16 @@ namespace mac {
 WindowList::WindowList() : windowActionsGroup(this), menu(tr("Window")) {
   zoomAction.setText(tr("Zoom"));
   minimizeAction.setText(tr("Minimize"));
+  QObject::connect(&zoomAction, &QAction::triggered, this, [=] {
+    if (activeWindow) {
+       activeWindow->showMaximized();
+    }
+  });
+  QObject::connect(&minimizeAction, &QAction::triggered, this, [=] {
+    if (activeWindow) {
+      activeWindow->showMinimized();
+    }
+  });
 }
 
 void WindowList::repopulateWindowList() { menu.clear();
@@ -44,6 +54,7 @@ void WindowList::setActiveWindow(QWidget* window) {
     windowActionsGroup.checkedAction()->setChecked(false);
   }
   windowActions.at(index)->setChecked(true);
+  activeWindow = window;
 }
 
 void WindowList::onWindowTitleChanged() {

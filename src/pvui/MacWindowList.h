@@ -11,6 +11,7 @@ namespace mac {
 
 class WindowList : public QObject {
 private:
+  QWidget* activeWindow = nullptr;
   QList<QWidget*> windows;
   QList<QAction*> windowActions;
   QAction minimizeAction;
