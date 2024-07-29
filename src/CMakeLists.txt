@@ -1,4 +1,4 @@
-set(QT_VERSION "5" CACHE STRING "The Qt Version (5 or 6)")
+set(QT_VERSION "6" CACHE STRING "The Qt Version (5 [is broken] or 6)")
 find_package(Boost REQUIRED)
 find_package(Qt${QT_VERSION} COMPONENTS Core Gui Widgets Network REQUIRED)
 find_package(Qwt REQUIRED)

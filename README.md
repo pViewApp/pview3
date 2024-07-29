@@ -1,8 +1,12 @@
 # pView
-This is a work-in-finishedSecurities, C++-based version of pView.
-Dependencies:
+pView is an application to keep track of your stock portfolio.
+
+# Dependencies:
 * Qt 6
 * Qwt
-* date.h
 * Boost.Multiprecision
 * Boost.Signals2
+
+# Features
+## Track Transactions
+![Track Transactions](
